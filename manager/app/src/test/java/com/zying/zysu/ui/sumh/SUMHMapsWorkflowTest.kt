@@ -23,6 +23,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowLooper
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
@@ -32,8 +33,18 @@ class SUMHMapsWorkflowTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val f = SUMHMapsPreviewFixtures
     private fun text(id: Int) = compose.activity.getString(id)
-    private fun input(rules: List<MapsPathRule>) = compose.onNodeWithTag("maps_import_json").performScrollTo()
-        .performTextReplacement(exportSUMHMapsDefinitions(rules))
+    private fun input(rules: List<MapsPathRule>) = input(exportSUMHMapsDefinitions(rules))
+    private fun input(value: String) {
+        val drafts = SUMHEditorDrafts.forDirectory(File(compose.activity.noBackupFilesDir, "sumh-drafts"))
+        // The process-owned IO read and the dialog's initial registration must
+        // both finish before the import field accepts input.
+        compose.waitUntil(5000) {
+            ShadowLooper.idleMainLooper()
+            drafts.loaded && MAPS_TRANSFER_DRAFT_KEY in drafts.snapshot
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("maps_import_json").performScrollTo().assertIsEnabled().performTextReplacement(value)
+    }
     private fun review() = compose.onNodeWithTag("maps_import_review").performScrollTo().performClick()
     private fun preview() = SUMHMapsPreviewParser.reply(SUMHQueryReply(f.preview().toString()))
 
@@ -78,7 +89,7 @@ class SUMHMapsWorkflowTest {
         var submissions = 0
         compose.setContent { MaterialTheme { MapsImportDialog(emptyList(), true, { submissions++ }, {}) } }
         val future = "{\"schema_version\":99,\"kind\":\"sumh_managed_maps\",\"rules\":[]}"
-        compose.onNodeWithTag("maps_import_json").performScrollTo().performTextReplacement(future)
+        input(future)
         review()
         compose.onNodeWithTag("maps_import_save").assertIsNotEnabled()
         compose.onNodeWithTag("maps_import_json").assertTextContains(future)

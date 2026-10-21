@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowLooper
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
@@ -42,6 +43,7 @@ class SUMHHideDefinitionsScreenTest {
         // Transfer drafts load separately and temporarily block editing too.
         val transfer = ViewModelProvider(compose.activity)[SUMHHideTransferOperations::class.java]
         compose.waitUntil(5000) {
+            ShadowLooper.idleMainLooper()
             operation.sample.complete && drafts().loaded && !operation.loading && transfer.loaded && !transfer.busy
         }
         compose.waitForIdle()

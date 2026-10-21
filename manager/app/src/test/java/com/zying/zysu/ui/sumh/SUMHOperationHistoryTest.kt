@@ -21,6 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowLooper
 import java.io.File
 import kotlin.test.*
 
@@ -61,7 +62,7 @@ class SUMHOperationHistoryTest {
         val restoration = StateRestorationTester(compose)
         restoration.setContent { MaterialTheme { SUMHOperationHistory(tracker, true) } }
         open(tracker)
-        compose.waitUntil(5000) { draftStore.loaded }
+        compose.waitUntil(5000) { ShadowLooper.idleMainLooper(); draftStore.loaded }
         val draft = HideDefinitionDraft.initial(SUMHHideDefinitionsFixtures.collection().rows.first(), SUMHHideDefinitionsFixtures.revision)
             .copy(name = "newer local edit")
         compose.runOnIdle { assertTrue(draftStore.ensure(draft.key, draft.record())) }

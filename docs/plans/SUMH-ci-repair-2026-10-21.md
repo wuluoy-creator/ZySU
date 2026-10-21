@@ -49,3 +49,18 @@ Lint 修正沿用现有仓库约定：新增 SUMH 文案保持英语与已有简
 - SUMH 专项 798 项、Build Manager 完整过滤集 831 项均为 0 失败／错误，各有 3 项既有 Windows 符号链接权限跳过；两种过滤集分别执行并保留记录。debug/release Lint 均通过。记录为 `out/ci-repair-manager-round2-validation/`。
 - 191 个资源 XML 解析通过，保留的 668 个英语／简中资源键及格式参数一致；8 个真实复数资源和 4 个多项计数标签完成转换，11 个无引用资源的 63 处定义移除。
 - `out/ci-repair-round2-precommit-evidence.json` 核对原生构建、Manager 两组测试及 Lint 的源码哈希与最终工作区一致，`git diff --check` 通过。以上仍是本机证据，远端工作流及真实设备验收分别记录。
+
+## 第三轮：草稿测试同步与最终 APK 校验
+
+提交 `3ccc04b482a025989b8181b3ccea94457993733c` 的远端结果确认：Linux 主机 SUMH 回归已实际执行通过；Build Manager 的 Manager 测试、debug/release Lint、APK 编译，以及 ksud、ksuinit 和四个 KMI 构建均通过。仍有两个独立失败：
+
+- [SUMH 回归](https://github.com/wuluoy-creator/ZySU/actions/runs/39533929111) 的 Manager 子任务有 2 项 Maps 工作流测试，在输入前遇到仍禁用的 `maps_import_json`。共享草稿由真实 IO 加载并回到 Android 主线程，Compose 空闲不足以证明草稿加载和初次注册完成。
+- [Build Manager](https://github.com/wuluoy-creator/ZySU/actions/runs/39533929262) 已完成重打包与签名，但最终载荷校验在扫描 ZIP 目录时拒绝大小写变体，尚未比较 ksud 字节，最终 APK 因此没有上传。
+
+Maps 测试统一等待共享 store 的 `loaded` 和对应草稿键，并推进 Robolectric 主线程，随后断言输入框可用并单次输入。模块模板的模块／模板两层草稿及隐藏编辑页采用相同的明确就绪条件；生命周期和操作历史测试中真实共享 store 的首次加载也推进主线程。没有修改生产业务、削弱业务断言、增加重试或延长已有超时。
+
+实际下载的 Gradle APK 有 656 个条目，没有同名重复，但有 24 组合法的 Android 资源大小写变体，例如 `res/2F.xml` 与 `res/2f.xml`。修正仅在 APK 检查中允许精确 `res/` 命名空间内的文件大小写变体，并继续按 ZIP 原名读取，不解压资源到宿主文件系统。相同全名重复、其他命名空间的大小写别名、路径穿越、容量限制、ABI、marker 和 canonical ksud 字节检查均保持；可解压证据包仍拒绝大小写别名。
+
+新回归先在旧实现上复现拒绝合法资源的问题，再验证修正；负例覆盖资源重复、`RES/` 别名、marker／载荷／assets 别名、穿越及证据包。244 项 CI Python 测试执行完成，0 失败、10 项环境条件跳过。使用上述真实中间 APK 和同次运行的 canonical ksud 在本机执行未签名重打包，载荷字节校验通过，482 个资源内容全部保持原样；没有本机签名或安装。证据位于 `out/ci-repair-round3-*`，独立只读复核记录为 `out/ci-repair-apk-round3-review.md`。
+
+第三轮提交前，5 个受影响测试类的 41 项定向测试、SUMH 专项 798 项、Build Manager 完整过滤集 831 项均为 0 失败／错误；两组完整过滤集各有 3 项既有 Windows 符号链接权限跳过。debug/release Lint 通过，运行期间输入稳定。记录分别为 `out/batch46-manager-ciRepairManagerRound3Targeted/` 和 `out/ci-repair-manager-round3-validation/`，提交前源码一致性核对为 `out/ci-repair-round3-precommit-evidence.json`。原嵌入载荷未变，未修改工作流或关闭检查。远端完整 Build Manager（含最终重打包、载荷校验和上传）仍须按修复提交 SHA 单独复验；上述本机记录不代替真机验收。

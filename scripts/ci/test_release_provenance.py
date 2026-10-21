@@ -251,6 +251,39 @@ class ApkByteBindingTests(unittest.TestCase):
                 with self.assertRaises((ValueError, OSError)):
                     self.inspect()
 
+    def test_optimized_resource_case_variants_remain_distinct(self):
+        # Real optimized Manager APKs contain both spellings. Android resolves
+        # these exact ZIP names; inspection must not extract them on Windows.
+        entries = [("res/2F.xml", b"first resource"), ("res/2f.xml", b"second resource"),
+                   ("res/9N.9.png", b"first image"), ("res/9n.9.png", b"second image")]
+        write_apk(self.apk, self.binary.read_bytes(), entries=entries)
+        self.assertEqual(self.inspect()["sha256"], record(self.binary.read_bytes())["sha256"])
+        with ZipFile(self.apk) as archive:
+            for name, content in entries:
+                self.assertEqual(archive.read(name), content)
+
+    def test_resource_exception_does_not_allow_duplicates_or_other_case_aliases(self):
+        cases = [
+            [("res/2F.xml", b"a"), ("res/2F.xml", b"a")],
+            [("res/2F.xml", b"a"), ("RES/2f.xml", b"b")],
+            [(MARKER.upper(), LIBRARY.encode() + b"\n")],
+            [(PAYLOAD.upper(), self.binary.read_bytes())],
+            [("assets/one.txt", b"a"), ("assets/ONE.txt", b"b")],
+            [("res/../escape.xml", b"a")],
+        ]
+        for entries in cases:
+            with self.subTest(entries=[name for name, _ in entries]):
+                write_apk(self.apk, self.binary.read_bytes(), entries=entries)
+                with self.assertRaises(ValueError):
+                    self.inspect()
+
+    def test_resource_case_variants_are_still_rejected_in_evidence_archives(self):
+        write_apk(self.apk, self.binary.read_bytes(),
+                  entries=[("res/2F.xml", b"a"), ("res/2f.xml", b"b")])
+        with ZipFile(self.apk) as archive, self.assertRaisesRegex(ValueError, "case alias"):
+            release.zip_inventory(archive, entries=release.MAX_EVIDENCE_ENTRIES,
+                                  total_limit=release.MAX_EVIDENCE_BYTES)
+
     def test_missing_wrong_or_invalid_utf8_marker_is_rejected(self):
         for marker in (None, b"libksud.so", b"libother.so", b"\xff", b""):
             with self.subTest(marker=marker):

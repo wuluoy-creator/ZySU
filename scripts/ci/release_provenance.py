@@ -164,15 +164,22 @@ def validate_selection(expected_commit, expected_kmis, library_name):
     return sorted(expected_kmis)
 
 
-def zip_inventory(archive, *, entries, total_limit):
+def zip_inventory(archive, *, entries, total_limit, apk_resources=False):
     infos = archive.infolist()
     require(len(infos) <= entries, "ZIP entry count exceeds budget")
-    found, folded, total = {}, set(), 0
+    found, folded, total = {}, {}, 0
     for info in infos:
         name = info.filename
         require(info.orig_filename == name, "ZIP filename contains NUL")
         relative_name(name[:-1] if info.is_dir() else name)
-        require(name not in found and name.casefold() not in folded, "duplicate ZIP entry or case alias")
+        require(name not in found, "duplicate ZIP entry")
+        previous = folded.get(name.casefold())
+        # Optimized Android resources may differ only in case. APK inspection
+        # reads exact ZIP names without extracting them to the host filesystem.
+        # Keep portable evidence archives and all non-resource namespaces strict.
+        resource_variant = (apk_resources and not info.is_dir() and name.startswith("res/")
+                            and previous is not None and previous.startswith("res/"))
+        require(previous is None or resource_variant, "ZIP case alias")
         require(not info.flag_bits & 1, "encrypted ZIP entry is unsupported")
         require(info.compress_type in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}, "unsupported ZIP compression")
         mode = info.external_attr >> 16
@@ -182,7 +189,7 @@ def zip_inventory(archive, *, entries, total_limit):
         total += info.file_size
         require(total <= total_limit, "ZIP expanded size exceeds budget")
         found[name] = info
-        folded.add(name.casefold())
+        folded[name.casefold()] = name
     return found
 
 
@@ -210,7 +217,8 @@ def inspect_apk(apk_path, ksud_path, library_name):
     require(before["size"] and daemon["size"], "empty APK or daemon")
     entry = f"lib/{ABI}/{library_name}"
     with zipfile.ZipFile(apk_path) as archive:
-        infos = zip_inventory(archive, entries=MAX_APK_ENTRIES, total_limit=MAX_APK_EXPANDED)
+        infos = zip_inventory(archive, entries=MAX_APK_ENTRIES, total_limit=MAX_APK_EXPANDED,
+                              apk_resources=True)
         require(MARKER in infos and entry in infos, "missing APK runtime marker or native payload")
         for name, info in infos.items():
             parts = name.split("/")

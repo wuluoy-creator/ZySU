@@ -22,6 +22,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowLooper
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -32,12 +33,21 @@ class SUMHModuleTemplatesDialogTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     @After fun resetFontScale() { RuntimeEnvironment.setFontScale(1f) }
     private fun text(id: Int) = compose.activity.getString(id)
-    private fun open() = compose.onNodeWithText(text(R.string.sumh_template_open)).performScrollTo().performClick()
+    private fun open() {
+        awaitDraft("module:module")
+        compose.onNodeWithText(text(R.string.sumh_template_open)).performScrollTo().assertIsEnabled().performClick()
+        awaitDraft("module-template:module")
+    }
     private fun select(id: Int) = compose.onNodeWithText(text(id)).performScrollTo().performClick()
     private fun paths(id: Int = R.string.sumh_template_paths) = compose.onNode(hasSetTextAction() and hasText(text(id)))
     private fun review() = select(R.string.sumh_template_review)
     private fun apply() = compose.onNodeWithText(text(R.string.sumh_template_apply))
     private fun drafts() = SUMHEditorDrafts.forDirectory(File(compose.activity.noBackupFilesDir, "sumh-drafts"))
+    private fun awaitDraft(key: String) {
+        val drafts = drafts()
+        compose.waitUntil(5000) { ShadowLooper.idleMainLooper(); drafts.loaded && key in drafts.snapshot }
+        compose.waitForIdle()
+    }
 
     @Test fun explicitReviewReplacesCompleteDraftAndFailedSaveRetainsGeneratedRules() {
         var calls = 0
@@ -114,7 +124,8 @@ class SUMHModuleTemplatesDialogTest {
         compose.setContent { MaterialTheme {
             SUMHMountConfigDialog("module", "Module", null, true, "auto", {}, {}, onSave = { _, _, _ -> })
         } }
-        select(R.string.sumh_module_rules_title)
+        awaitDraft("module:module")
+        compose.onNodeWithText(text(R.string.sumh_module_rules_title)).performScrollTo().assertIsEnabled().performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.sumh_absolute_path))).performScrollTo().performTextReplacement("/unfinished ")
         compose.onNodeWithText(text(R.string.sumh_template_open)).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText(text(R.string.sumh_template_finish_edit)).performScrollTo().assertIsDisplayed()

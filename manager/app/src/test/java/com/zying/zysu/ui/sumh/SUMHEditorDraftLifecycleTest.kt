@@ -64,7 +64,7 @@ class SUMHEditorDraftLifecycleTest {
             SUMHMountConfigDialog("module", "Module", SUMHManager.ModuleInfo("module", "sumh", rules),
                 true, "auto", {}, {}, onSave = { _, _, _ -> })
         } }
-        compose.waitUntil(5000) { drafts.loaded && "module:module" in drafts.snapshot }
+        compose.waitUntil(5000) { ShadowLooper.idleMainLooper(); drafts.loaded && "module:module" in drafts.snapshot }
         compose.runOnIdle {
             repeat(24) { index ->
                 assertTrue(drafts.ensure("module:$index", ModuleEditorDraft("sumh", rules,
@@ -96,7 +96,7 @@ class SUMHEditorDraftLifecycleTest {
             SUMHMountConfigDialog("module", "Module", info.value, true, "auto", {}, {}, onSave = { _, _, _ -> })
         } }
         val drafts = SUMHEditorDrafts.forDirectory(File(compose.activity.noBackupFilesDir, "sumh-drafts"))
-        compose.waitUntil(5000) { drafts.loaded && "module:module" in drafts.snapshot }
+        compose.waitUntil(5000) { ShadowLooper.idleMainLooper(); drafts.loaded && "module:module" in drafts.snapshot }
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_module_rules_title)).performScrollTo().performClick()
         val field = compose.onNode(hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_absolute_path)))
         field.performScrollTo().performTextReplacement("/unfinished ")
