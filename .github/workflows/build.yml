@@ -121,6 +121,8 @@ on:
         value: ${{ jobs.plan.outputs.release_tag }}
       commit_sha:
         value: ${{ jobs.plan.outputs.commit_sha }}
+      selected_kmi:
+        value: ${{ jobs.plan.outputs.kmi }}
 
 permissions:
   contents: read
@@ -152,7 +154,7 @@ jobs:
       release_tag: ${{ steps.versions.outputs.release_tag }}
       commit_sha: ${{ steps.versions.outputs.commit_sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -219,7 +221,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -231,7 +233,7 @@ jobs:
           echo "topicid=${{ vars.MESSAGE_THREAD_ID }}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Java
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: 21
@@ -245,21 +247,31 @@ jobs:
           key-password: ${{ secrets.KEY_PASSWORD }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
         with:
           packages: platform-tools
 
       - name: Build with Gradle
-        run: ./gradlew :app:testDebugUnitTest --tests 'com.zying.zysu.update.*' --tests 'com.zying.zysu.superkey.*' --tests 'com.zying.zysu.ui.util.module.ShortcutMigrationTest' lintDebug lintRelease assembleRelease --build-cache --parallel --no-daemon -PABI=arm64-v8a
+        run: ./gradlew :app:testDebugUnitTest --tests 'com.zying.zysu.update.*' --tests 'com.zying.zysu.superkey.*' --tests 'com.zying.zysu.ui.util.module.ShortcutMigrationTest' --tests 'com.zying.zysu.ui.sumh.*' lintDebug lintRelease assembleRelease --build-cache --parallel --no-daemon -PABI=arm64-v8a
+
+      - name: Upload Manager test reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: Manager-build-test-results
+          path: |
+            manager/app/build/reports/tests/testDebugUnitTest/
+            manager/app/build/test-results/testDebugUnitTest/
+          if-no-files-found: warn
 
       - name: Upload lint reports on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: Manager-lint-reports-arm64-v8a
           path: |
@@ -268,7 +280,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: Manager-gradle-arm64-v8a
           path: manager/app/build/outputs/renamed_apk/release/
@@ -276,7 +288,7 @@ jobs:
           compression-level: 0
 
       - name: Upload mappings
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: "${{ steps.determine.outputs.title }}-mappings-arm64-v8a"
           path: "manager/app/build/outputs/mapping/release/"
@@ -289,7 +301,7 @@ jobs:
       artifact_url: ${{ steps.manager-artifact.outputs.artifact-url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -325,18 +337,18 @@ jobs:
           fi
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
         with:
           packages: platform-tools
 
       - name: Download manager APK
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: Manager-gradle-arm64-v8a
           path: artifacts/manager-gradle
 
       - name: Download ksud
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ksud-aarch64-linux-android
           path: artifacts/ksud-aarch64-linux-android
@@ -344,15 +356,22 @@ jobs:
       - name: Place manager APK and ksud
         run: |
           set -euo pipefail
-          mkdir -p manager/app/build/outputs/apk/release
-          APK=$(find artifacts/manager-gradle -type f -name "*.apk" | head -n 1)
-          test -n "$APK"
-          cp -f "$APK" manager/app/build/outputs/apk/release/
-
-          mkdir -p target/aarch64-linux-android/release
-          KSUD=$(find artifacts/ksud-aarch64-linux-android -type f -name "ksud" | head -n 1)
-          test -n "$KSUD"
-          cp -f "$KSUD" target/aarch64-linux-android/release/ksud
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          apks = list(Path('artifacts/manager-gradle').glob('*.apk'))
+          if len(apks) != 1 or not apks[0].is_file() or apks[0].is_symlink():
+              raise SystemExit('Expected exactly one regular intermediate Manager APK')
+          apk_dir = Path('manager/app/build/outputs/apk/release')
+          apk_dir.mkdir(parents=True, exist_ok=False)
+          shutil.copy2(apks[0], apk_dir / apks[0].name)
+          ksud = Path('artifacts/ksud-aarch64-linux-android/ksud')
+          if not ksud.is_file() or ksud.is_symlink() or ksud.stat().st_size == 0:
+              raise SystemExit('Missing canonical ksud artifact')
+          daemon_dir = Path('target/aarch64-linux-android/release')
+          daemon_dir.mkdir(parents=True, exist_ok=False)
+          shutil.copy2(ksud, daemon_dir / 'ksud')
+          PY
 
       - name: Prepare APK signing key
         uses: ./.github/actions/setup-manager-signing
@@ -374,8 +393,7 @@ jobs:
             -A "$SIGN_KEY_ALIAS" \
             -P "$SIGN_KEYSTORE_PASSWORD" \
             -S "$SIGN_KEY_PASSWORD" \
-            --expected-cert-sha256 "$MANAGER_CERT_SHA256" \
-            --strip
+            --expected-cert-sha256 "$MANAGER_CERT_SHA256"
 
       - name: Import GPG key
         if: steps.gpg_check.outputs.available == 'true'
@@ -410,9 +428,23 @@ jobs:
           test -s app-release.apk
           test -s app-release.sig
 
+      - name: Verify final signed APK keeps canonical ksud bytes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'scripts/ci')
+          from release_provenance import inspect_apk
+          apks = list(Path('dist').glob('*.apk'))
+          if len(apks) != 1:
+              raise SystemExit('Expected exactly one final signed Manager APK')
+          library = Path('manager/ksud-library-name.txt').read_text(encoding='utf-8').strip()
+          inspect_apk(apks[0], Path('artifacts/ksud-aarch64-linux-android/ksud'), library)
+          PY
+
       - name: Upload final Manager APK
         id: manager-artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: Manager-arm64-v8a
           path: dist/

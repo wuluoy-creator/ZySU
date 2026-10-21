@@ -5,6 +5,12 @@
 #include <linux/types.h>
 
 extern struct mutex sumh_mutation_mutex;
+struct sumh_rule_inventory_entry;
+
+/* Definition-only page under mutation_mutex; no lazy init or binding state. */
+int sumh_hide_rule_inventory(u64 cursor,
+			     struct sumh_rule_inventory_entry *entry,
+			     bool *more);
 
 bool sumh_hide_rules_available(void);
 long sumh_hide_rules_ioctl(unsigned int cmd, void __user *arg);

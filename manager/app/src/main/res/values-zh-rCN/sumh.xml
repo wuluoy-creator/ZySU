@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="sumh_draft_loading">正在恢复本机草稿…</string>
+    <string name="sumh_draft_saving">正在将草稿保存到本机…</string>
+    <string name="sumh_draft_read_failed">无法读取草稿。为保护已存输入，暂时停止编辑，请重试。</string>
+    <string name="sumh_draft_save_failed">草稿尚未保存，输入仍在当前页面。请在离开应用前重试。</string>
+    <string name="sumh_draft_line_limit">未接受本次修改。每条路径须少于 4096 个 UTF-8 字节，原草稿已保留。</string>
+    <string name="sumh_draft_bulk_limit">未接受本次修改。请使用分批文件导入，或按每批最多 1024 行、256 KiB 输入，原草稿已保留。</string>
+    <string name="sumh_draft_total_limit">未接受本次修改。草稿合计上限为 1 MiB，最多编辑 1024 条规则。请先完成或重置其他编辑。</string>
+    <string name="sumh_draft_import_file">分批导入 UTF-8 文件</string>
+    <string name="sumh_draft_next_chunk">读取下一批</string>
+    <string name="sumh_draft_file_hint">先完成或清空当前批次，再读取下一批。当前批次作为草稿保存；关闭此页面或应用重启后，剩余文件需重新选择，已有规则会去重。</string>
+    <string name="sumh_draft_file_failed">无法读取此批次：%1$s。原草稿已保留，请检查 UTF-8 编码和每行 4095 字节上限后重新选择文件。</string>
     <string name="sumh_absolute_path">请输入绝对路径</string>
     <string name="sumh_apply_failed">已保存的配置尚未应用到内核</string>
     <string name="sumh_backend_enable_desc">允许挂载规划器使用此后端</string>
@@ -37,6 +48,21 @@
     <string name="sumh_kernel_build_invalid">文本不能超过 64 个 UTF-8 字节或包含 ASCII 控制字符。</string>
     <string name="sumh_kernel_build_release_invalid">文本不能超过 64 个 UTF-8 字节或包含 ASCII 空格及控制字符。</string>
     <string name="sumh_kernel_build_use_original">留空使用原始值</string>
+    <string name="sumh_kernel_build_fill_original_release">使用原始内核版本</string>
+    <string name="sumh_kernel_build_fill_original_version">使用原始构建版本</string>
+    <string name="sumh_kernel_build_fill_system_date">使用系统构建日期</string>
+    <string name="sumh_kernel_build_system_date_source">日期来源：ro.build.date（当前 ROM），不代表已验证内核的真实编译日期。</string>
+    <string name="sumh_kernel_build_system_date_unavailable">当前没有有效的系统构建日期建议。可以重新读取内核信息，或手动填写构建版本。</string>
+    <string name="sumh_kernel_build_helpers_draft_only">这些按钮只填充对应字段，点击保存后才会应用草稿。</string>
+    <string name="sumh_kernel_build_draft_preview">保存后报告的值</string>
+    <string name="sumh_kernel_build_original_pending">原始值（待读取）</string>
+    <string name="sumh_kernel_build_matches_current">与当前报告值相同</string>
+    <string name="sumh_kernel_build_differs_current">与当前报告值不同</string>
+    <string name="sumh_kernel_build_comparison_unavailable">暂时无法读取当前值进行对照</string>
+    <string name="sumh_kernel_build_original_kmi">从原始版本识别的 KMI 标识：%1$s</string>
+    <string name="sumh_kernel_build_kmi_unknown">未识别</string>
+    <string name="sumh_kernel_build_kmi_desc">此标识来自原始内核版本，不随草稿改变。修改这些字符串不会改变内核的实际 ABI。</string>
+    <string name="sumh_kernel_build_refresh">重新读取内核信息</string>
     <string name="sumh_kernel_build_override_required">启用伪装时，请至少填写一项自定义值。</string>
     <string name="sumh_kernel_build_restore">关闭后恢复原始内核信息，并保留已保存的文本。</string>
     <string name="sumh_kernel_build_apply_stage">后续开机时应用</string>

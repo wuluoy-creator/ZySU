@@ -84,7 +84,7 @@ static void sumh_resolve_runtime_symbols(void)
 	    (void *)ksu_lookup_symbol("vfs_removexattr");
 	sumh_mnt_want_write_addr = (void *)ksu_lookup_symbol("mnt_want_write");
 	sumh_mnt_drop_write_addr = (void *)ksu_lookup_symbol("mnt_drop_write");
-	sumh_lookup_one_len = (void *)ksu_lookup_symbol("lookup_one_len");
+	sumh_resolve_lookup_helpers();
 	sumh_vfs_create = (void *)ksu_lookup_symbol("vfs_create");
 	sumh_vfs_mkdir = (void *)ksu_lookup_symbol("vfs_mkdir");
 	sumh_vfs_mknod = (void *)ksu_lookup_symbol("vfs_mknod");
@@ -175,12 +175,18 @@ err_fop_bridge:
 
 static void sumh_stop_views(void)
 {
+	struct sumh_dh_retire retired;
+
 	pr_info("sumh: shutting down\n");
 	/* Stop policy readers before withdrawing the hooks and freeing their
 	 * backing state. Runtime CLEAR_ALL intentionally leaves this enabled.
 	 */
 	smp_store_release(&sumh_enabled, false);
+	/* Direct SUMH stop must join the independent public SU setter too.
+	 * The outer hook-manager exit may already have done this. */
+	ksu_sucompat_sumh_exit();
 	mutex_lock(&sumh_mutation_mutex);
+	sumh_runtime_state_shutdown();
 	sumh_hide_rules_stop();
 	sumh_kernel_build_exit();
 	mutex_unlock(&sumh_mutation_mutex);
@@ -197,7 +203,16 @@ static void sumh_stop_views(void)
 	sumh_proc_read_hooks_exit();
 	sumh_dirhijack_stop_new();
 	sumh_sop_shadow_stop_new();
+	sumh_dh_retire_init(&retired, true);
+	mutex_lock(&sumh_config_mutex);
+	sumh_cleanup_locked(&retired);
+	mutex_unlock(&sumh_config_mutex);
+	sumh_dh_retire_finish(&retired);
 	sumh_dirhijack_exit();
+	/* Row callbacks enqueue store work, which can enqueue claim callbacks.
+	 * Close both stages before any physical FOP/SOP teardown or unload. */
+	sumh_store_drain();
+	sumh_dh_drain_releases();
 	sumh_fop_override_stop_new();
 	sumh_fop_bridge_stop_new();
 	sumh_fop_override_exit();
@@ -205,12 +220,7 @@ static void sumh_stop_views(void)
 	sumh_iop_override_exit();
 	sumh_sop_shadow_exit();
 	sumh_fake_mi_exit();
-	mutex_lock(&sumh_config_mutex);
-	sumh_cleanup_locked();
-	mutex_unlock(&sumh_config_mutex);
-
 	sumh_vfs_view_exit();
-	sumh_store_drain();
 	if (sumh_filldir_cache)
 		kmem_cache_destroy(sumh_filldir_cache);
 	pr_info("sumh: stopped\n");
@@ -266,6 +276,7 @@ static int sumh_bootstrap_init(void)
 		goto release_guard;
 	ret = sumh_start_views();
 	if (!ret) {
+		sumh_runtime_state_init();
 		smp_store_release(&sumh_enabled, true);
 		sumh_started = true;
 		goto out;

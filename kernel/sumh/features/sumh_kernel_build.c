@@ -41,7 +41,7 @@ static int sumh_kernel_build_validate_string(const char *value, bool required)
 	return 0;
 }
 
-static int sumh_kernel_build_validate(const struct sumh_kernel_build_arg *arg)
+int sumh_kernel_build_validate(const struct sumh_kernel_build_arg *arg)
 {
 	int ret;
 
@@ -107,12 +107,12 @@ int sumh_kernel_build_set(const struct sumh_kernel_build_arg *arg)
 
 	if (ret)
 		return ret;
-	if (!sumh_kernel_build_available())
-		return -EOPNOTSUPP;
 	if (!arg->enable) {
 		sumh_kernel_build_clear();
 		return 0;
 	}
+	if (!sumh_kernel_build_available())
+		return -EOPNOTSUPP;
 
 	name = &sumh_build_uts->name;
 	down_write(sumh_build_sem);

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="sumh_template_open">Rule templates</string>
+    <string name="sumh_template_intro">Generate a complete rule list, review its changes, then replace the editing draft. Saving the module remains a separate step. Cancel keeps template input.</string>
+    <string name="sumh_template_finish_edit">Finish or discard the individual path edit before opening templates.</string>
+    <string name="sumh_template_external">Saved configuration changed. Return to the module editor and resolve the draft conflict before using a template.</string>
+    <string name="sumh_template_draft_changed">The module draft changed. Review against the current draft again before replacing it.</string>
+    <string name="sumh_template_override">Global backend is %1$s and may prevent this module from using SUMH. This template does not change the global setting.</string>
+    <string name="sumh_template_limits">These are editable path rules, without device or backend preflight. They take effect only when the module uses SUMH. None can allow a more specific child rule; Hide also hides descendants and cannot be undone by a child rule.</string>
+    <string name="sumh_template_all">Use all files</string>
+    <string name="sumh_template_exclude">Exclude paths</string>
+    <string name="sumh_template_only">Use selected paths only</string>
+    <string name="sumh_template_except_children">Exclude directory, keep children</string>
+    <string name="sumh_template_hide">Hide targets</string>
+    <string name="sumh_template_parent">Directory to exclude</string>
+    <string name="sumh_template_paths">Selected absolute paths</string>
+    <string name="sumh_template_children">Child paths to keep</string>
+    <string name="sumh_template_path_hint">One path per line. Spaces and tabs are preserved; do not add an empty line.</string>
+    <string name="sumh_template_paths_required">Enter at least one absolute path.</string>
+    <string name="sumh_template_child_outside">Every retained path must be strictly inside the excluded directory.</string>
+    <string name="sumh_template_review">Review draft changes</string>
+    <string name="sumh_template_review_title">Changes to the current draft</string>
+    <string name="sumh_template_mode_change">Module mode: %1$s → sumh</string>
+    <string name="sumh_template_diff_count">Added: %1$d · Changed: %2$d · Removed: %3$d</string>
+    <string name="sumh_template_removed">Remove %1$s · %2$s</string>
+    <string name="sumh_template_changed">Change %1$s · %2$s</string>
+    <string name="sumh_template_added">Add %1$s · %2$s</string>
+    <string name="sumh_template_complete">Complete candidate rule list (%1$d)</string>
+    <string name="sumh_template_empty">No path exceptions. All module files use the SUMH module mode.</string>
+    <string name="sumh_template_apply_hint">Applying replaces all rules in the editing draft. You can edit the result before saving; no configuration is saved or applied now.</string>
+    <string name="sumh_template_apply">Replace draft</string>
+</resources>

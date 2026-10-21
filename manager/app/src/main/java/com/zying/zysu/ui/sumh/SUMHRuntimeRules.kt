@@ -72,6 +72,7 @@ internal fun RulesTab(
     rulesIncomplete: Boolean = false,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    var queryLimit by remember { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf(RuntimeRuleFilter.All) }
     var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
@@ -120,7 +121,8 @@ internal fun RulesTab(
                 }
             }
             item("search") {
-                OutlinedTextField(query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(),
+                OutlinedTextField(query, onValueChange = { queryLimit = !sumhSmallDraftFits(it); if (!queryLimit) query = it },
+                    supportingText = if (queryLimit) { { SUMHSmallDraftLimit() } } else null, modifier = Modifier.fillMaxWidth(),
                     singleLine = true, label = { Text(stringResource(R.string.sumh_runtime_search)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),

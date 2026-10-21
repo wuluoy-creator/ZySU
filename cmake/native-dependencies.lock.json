@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "dependencies": [
+    {
+      "name": "mbedtls",
+      "kind": "archive",
+      "version": "3.6.2",
+      "url": "https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.2/mbedtls-3.6.2.tar.bz2",
+      "archive_sha256": "8b54fb9bcf4d5a7078028e0520acddefb7900b3e66fec7f7175bb5b7d85ccdca",
+      "license_files": ["LICENSE"]
+    },
+    {
+      "name": "miniz",
+      "kind": "git",
+      "version": "3.0.2",
+      "repository": "https://github.com/richgel999/miniz.git",
+      "commit": "293d4db1b7d0ffee9756d035b9ac6f7431ef8492",
+      "license_files": ["LICENSE"]
+    },
+    {
+      "name": "lz4",
+      "kind": "git",
+      "version": "1.10.0",
+      "repository": "https://github.com/lz4/lz4.git",
+      "commit": "ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
+      "license_files": ["LICENSE", "lib/LICENSE"]
+    },
+    {
+      "name": "magisk_lz4",
+      "kind": "git",
+      "repository": "https://github.com/topjohnwu/Magisk.git",
+      "commit": "af8c2566b07cfa0c2d4b145b88316a07f7d2bb6b",
+      "license_files": ["LICENSE"]
+    },
+    {
+      "name": "magisk_xz",
+      "kind": "git",
+      "version": "5.6.4",
+      "repository": "https://github.com/tukaani-project/xz.git",
+      "commit": "c95d4afb2a22875c0c069c75ecc4a6f336bceb33",
+      "license_files": ["COPYING", "COPYING.0BSD", "COPYING.LGPLv2.1", "COPYING.GPLv2", "COPYING.GPLv3"]
+    },
+    {
+      "name": "vendored_lz4",
+      "kind": "vendored",
+      "repository": "https://github.com/wuluoy-creator/MagiskbootAlone.git",
+      "commit": "fe5794c9db82348f404e91bc7665258585880bd9",
+      "gitlink_path": "userspace/ksud/third_party/MagiskbootAlone",
+      "source_subdir": "external/lz4",
+      "license_files": ["lz4.h", "lz4frame.h", "lz4hc.h", "xxhash.h"]
+    }
+  ]
+}

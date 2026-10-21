@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.state.ToggleableState
@@ -51,6 +55,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.UUID
+import java.io.File
 
 internal enum class UserHideFilter { All, Effective, Attention }
 internal fun userHideNeedsAttention(rule: Controller.ActiveRule): Boolean = rule.hideState !in listOf(1, 2)
@@ -69,6 +74,8 @@ internal fun remainingUserHideDraft(draft: String, result: SUMHHideBatchResult):
     }
 
 internal class UserHideOperationStore : ViewModel() {
+    private var draftStore: UserHideDrafts? = null
+    fun drafts(directory: File): UserHideDrafts = draftStore ?: UserHideDrafts.forDirectory(directory).also { draftStore = it }
     var working by mutableStateOf(false)
     var progress by mutableIntStateOf(0)
     var total by mutableIntStateOf(0)
@@ -117,16 +124,66 @@ internal fun UserHideRulesScreen(
     var filterMenu by remember { mutableStateOf(false) }
     var editor by rememberSaveable { mutableStateOf<String?>(null) }
     var original by rememberSaveable { mutableStateOf<String?>(null) }
-    val drafts = rememberSaveable(saver = UserHideDrafts.Saver) { UserHideDrafts() }
+    val drafts = remember(operation) { operation.drafts(File(context.noBackupFilesDir, "sumh-drafts")) }
     val draft = when (editor) { "edit" -> drafts.edit(requireNotNull(original)); "import" -> drafts.bulk; else -> drafts.add }
     fun updateDraft(value: String) {
-        when (editor) { "edit" -> drafts.update(requireNotNull(original), value); "import" -> drafts.bulk = value; else -> drafts.add = value }
+        when (editor) { "edit" -> drafts.update(requireNotNull(original), value); "import" -> drafts.updateBulk(value); else -> drafts.updateAdd(value) }
     }
-    var importRetryPaths by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    val importRetryPaths = drafts.retryPaths
+    var fileChunks by remember { mutableStateOf<SUMHHideFileChunks?>(null) }
+    var pendingChunk by remember { mutableStateOf<String?>(null) }
+    var readingChunk by remember { mutableStateOf(false) }
+    var fileError by remember { mutableStateOf<String?>(null) }
+    fun readChunk() {
+        val chunks = fileChunks ?: return
+        if (readingChunk || drafts.bulk.isNotEmpty()) return
+        readingChunk = true
+        scope.launch {
+            try {
+                val next = pendingChunk ?: withContext(Dispatchers.IO) { chunks.next() }
+                pendingChunk = next
+                if (drafts.updateBulk(next)) pendingChunk = null
+                fileError = null
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                fileError = resources.getString(R.string.sumh_draft_file_failed, e.localizedMessage.orEmpty())
+                withContext(Dispatchers.IO) { runCatching { chunks.close() } }
+                fileChunks = null
+            } finally { readingChunk = false }
+        }
+    }
+    val chooseFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null && drafts.bulk.isEmpty() && !readingChunk) {
+            readingChunk = true
+            scope.launch {
+                var opened: SUMHHideFileChunks? = null
+                try {
+                    withContext(Dispatchers.IO) {
+                        fileChunks?.close()
+                        opened = SUMHHideFileChunks(requireNotNull(context.contentResolver.openInputStream(uri)))
+                    }
+                    fileChunks = opened
+                    pendingChunk = null
+                    readingChunk = false
+                    readChunk()
+                } catch (e: Exception) {
+                    withContext(NonCancellable + Dispatchers.IO) { runCatching { opened?.close() } }
+                    if (e is CancellationException) throw e
+                    fileError = resources.getString(R.string.sumh_draft_file_failed, e.localizedMessage.orEmpty())
+                    fileChunks = null
+                    readingChunk = false
+                }
+            }
+        }
+    }
+    DisposableEffect(fileChunks) {
+        val chunks = fileChunks
+        onDispose { scope.launch(NonCancellable + Dispatchers.IO) { runCatching { chunks?.close() } } }
+    }
     var dismissedResult by rememberSaveable { mutableStateOf(false) }
     var remove by remember { mutableStateOf<List<String>?>(null) }
     val working = operation.working
-    val canEdit = enabled && loaded && !loading && !working && error == null
+    val canEdit = enabled && loaded && drafts.loaded && !loading && !working && error == null
     val visible = filterUserHideRules(rules, query, filter)
     val selected = rules.filter { it.src in selection }
     val visiblePaths = visible.mapTo(HashSet()) { it.src }
@@ -168,9 +225,12 @@ internal fun UserHideRulesScreen(
                 val remaining = remainingUserHideDraft(draft, it)
                 val complete = it.items.all { item -> item.succeeded } &&
                     (editor == "add" || previewSUMHHideImport(draft, emptySet()).lines.none { line -> line.error != null })
-                updateDraft(if (complete) "" else remaining)
-                if (editor == "import") importRetryPaths = it.items.filterNot { item -> item.succeeded }.map { item -> item.path }
-                if (complete) editor = null
+                if (editor == "import") {
+                    if (!drafts.finishBulk(if (complete) "" else remaining,
+                            it.items.filterNot { item -> item.succeeded }.map { item -> item.path })) return@LaunchedEffect
+                }
+                else updateDraft(if (complete) "" else remaining)
+                if (complete && (editor != "import" || (fileChunks?.hasMore != true && pendingChunk == null))) editor = null
             }
             consumedBatch = operation.batchVersion
         }
@@ -251,7 +311,7 @@ internal fun UserHideRulesScreen(
             Box {
                 IconButton(onClick = { menu = true }) { YukiIcon(Icons.Filled.MoreVert, stringResource(R.string.sumh_rules_more)) }
                 DropdownMenu(menu, { menu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_import)) }, enabled = !working,
+                    DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_import)) }, enabled = !working && drafts.loaded,
                         onClick = { menu = false; openEditor(bulk = true) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.sumh_user_rules_copy_visible)) }, enabled = visible.isNotEmpty(),
                         onClick = { menu = false; copy(visible.filter { it.persisted }.map { it.src }) })
@@ -261,16 +321,17 @@ internal fun UserHideRulesScreen(
                         onClick = { menu = false; details = true })
                 }
             }
-            FilledTonalButton(onClick = { openEditor() }, enabled = !working) {
+            FilledTonalButton(onClick = { openEditor() }, enabled = !working && drafts.loaded) {
                 YukiIcon(Icons.Filled.Add, null); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.sumh_user_hide_add))
             }
         }
-        OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        OutlinedTextField(query, { if (it.toByteArray(Charsets.UTF_8).size < 4096) query = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             singleLine = true, label = { Text(stringResource(R.string.sumh_user_rules_search)) },
             leadingIcon = { YukiIcon(Icons.Filled.Search, null) }, trailingIcon = {
                 if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { YukiIcon(Icons.Filled.Close, stringResource(R.string.sumh_user_rules_clear_search)) }
             })
         if (loading || working) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (editor == null) UserHideDraftStatus(drafts, Modifier.padding(horizontal = 16.dp))
         if (working && operation.total > 0) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.sumh_rules_progress, operation.progress, operation.total), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = { operation.stop.set(true) }) { Text(stringResource(R.string.sumh_rules_stop)) }
@@ -302,7 +363,7 @@ internal fun UserHideRulesScreen(
                 Text(stringResource(R.string.sumh_rules_invert_visible))
             }
         }
-        UserHideRuleList(visible, selecting, selection, !working, Modifier.weight(1f),
+        UserHideRuleList(visible, selecting, selection, !working && drafts.loaded, Modifier.weight(1f),
             onSelect = { path -> selection = if (path in selection) selection - path else selection + path },
             onEdit = { openEditor(it.src) }, onRemove = { remove = listOf(it.src) },
             onRetry = { mutate(SUMHHideAction.Retry, listOf(it.src)) }, onCopy = { copy(listOf(it.src)) }, retryEnabled = canEdit && kernelAvailable,
@@ -325,6 +386,23 @@ internal fun UserHideRulesScreen(
             rules.filter { it.persisted }.mapTo(HashSet()) { it.src }, operation.editError ?: error,
             progress = operation.progress, total = operation.total,
             retryPaths = importRetryPaths.toSet(),
+            inputEnabled = drafts.loaded && !readingChunk,
+            draftStatus = {
+                UserHideDraftStatus(drafts)
+                if (mode == "import") {
+                    Text(stringResource(R.string.sumh_draft_file_hint), style = MaterialTheme.typography.bodySmall)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(enabled = drafts.loaded && !working && !readingChunk && drafts.bulk.isEmpty(),
+                            onClick = { chooseFile.launch("*/*") }) { Text(stringResource(R.string.sumh_draft_import_file)) }
+                        if (fileChunks?.hasMore == true || pendingChunk != null) TextButton(
+                            enabled = drafts.loaded && !working && !readingChunk && drafts.bulk.isEmpty(), onClick = ::readChunk) {
+                            Text(stringResource(R.string.sumh_draft_next_chunk))
+                        }
+                    }
+                    if (readingChunk) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    fileError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+                }
+            },
             onDraftChange = { updateDraft(it); operation.editError = null }, onDismiss = { editor = null }, onStop = { operation.stop.set(true) }, onSubmit = { paths ->
                 if (mode == "edit") edit(requireNotNull(original), paths.single()) else mutate(SUMHHideAction.Add, paths)
             })
@@ -362,6 +440,12 @@ internal fun UserHideRuleList(
     onRetry: (Controller.ActiveRule) -> Unit, onCopy: (Controller.ActiveRule) -> Unit, retryEnabled: Boolean,
     onLongSelect: (Controller.ActiveRule) -> Unit = {}, state: LazyListState = rememberLazyListState(),
     showEmpty: Boolean = true, filtered: Boolean = false, onClearFilter: () -> Unit = {},
+    keyOf: (Controller.ActiveRule) -> String = { it.src },
+    headline: (@Composable (Controller.ActiveRule) -> Unit)? = null,
+    supporting: (@Composable (Controller.ActiveRule) -> Unit)? = null,
+    canRetry: (Controller.ActiveRule) -> Boolean = { it.persisted },
+    canRemove: (Controller.ActiveRule) -> Boolean = { true },
+    extraMenu: @Composable (Controller.ActiveRule, () -> Unit) -> Unit = { _, _ -> },
 ) {
     LazyColumn(modifier.fillMaxWidth(), state = state, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         if (rules.isEmpty() && showEmpty) item {
@@ -370,20 +454,21 @@ internal fun UserHideRuleList(
                 if (filtered) TextButton(onClick = onClearFilter) { Text(stringResource(R.string.sumh_rules_clear_filter)) }
             }
         }
-        items(rules, key = { it.src }) { rule ->
+        items(rules, key = keyOf) { rule ->
             var menu by remember { mutableStateOf(false) }
+            val selectionKey = keyOf(rule)
             Row(Modifier.fillMaxWidth().heightIn(min = 72.dp)
-                .semantics { if (selecting) toggleableState = if (rule.src in selection) ToggleableState.On else ToggleableState.Off }
+                .semantics { if (selecting) toggleableState = if (selectionKey in selection) ToggleableState.On else ToggleableState.Off }
                 .combinedClickable(enabled = enabled, role = if (selecting) Role.Checkbox else Role.Button,
                     onClickLabel = stringResource(if (selecting) R.string.sumh_rules_select else if (rule.persisted) R.string.sumh_rules_edit else R.string.sumh_rules_more),
                     onLongClickLabel = stringResource(R.string.sumh_rules_select),
-                    onLongClick = { if (selecting) onSelect(rule.src) else onLongSelect(rule) },
-                    onClick = { if (selecting) onSelect(rule.src) else if (rule.persisted) onEdit(rule) else menu = true }),
+                    onLongClick = { if (selecting) onSelect(selectionKey) else onLongSelect(rule) },
+                    onClick = { if (selecting) onSelect(selectionKey) else if (rule.persisted) onEdit(rule) else menu = true }),
                 verticalAlignment = Alignment.CenterVertically) {
-                if (selecting) Checkbox(rule.src in selection, null, enabled = enabled, modifier = Modifier.padding(end = 12.dp))
+                if (selecting) Checkbox(selectionKey in selection, null, enabled = enabled, modifier = Modifier.padding(end = 12.dp))
                 Column(Modifier.weight(1f).padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(rule.src, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
-                    Text(if (!rule.persisted) stringResource(R.string.sumh_user_rules_runtime_only)
+                    if (headline != null) headline(rule) else Text(rule.src, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
+                    if (supporting != null) supporting(rule) else Text(if (!rule.persisted) stringResource(R.string.sumh_user_rules_runtime_only)
                         else if (rule.hideState == null) stringResource(R.string.sumh_user_rules_unknown) else userHideStatus(rule),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -392,8 +477,9 @@ internal fun UserHideRuleList(
                     DropdownMenu(menu, { menu = false }) {
                         if (rule.persisted) DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_edit)) }, onClick = { menu = false; onEdit(rule) })
                         DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_copy)) }, onClick = { menu = false; onCopy(rule) })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.sumh_hide_retry)) }, enabled = retryEnabled && rule.persisted, onClick = { menu = false; onRetry(rule) })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.sumh_user_hide_remove)) }, onClick = { menu = false; onRemove(rule) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.sumh_hide_retry)) }, enabled = retryEnabled && canRetry(rule), onClick = { menu = false; onRetry(rule) })
+                        extraMenu(rule) { menu = false }
+                        DropdownMenuItem(text = { Text(stringResource(R.string.sumh_user_hide_remove)) }, enabled = canRemove(rule), onClick = { menu = false; onRemove(rule) })
                     }
                 }
             }
@@ -407,6 +493,8 @@ internal fun UserHideRuleEditor(
     original: String?, draft: String, bulk: Boolean, busy: Boolean, enabled: Boolean, existing: Set<String>, error: String?,
     progress: Int = 0, total: Int = 0,
     retryPaths: Set<String> = emptySet(),
+    draftStatus: @Composable () -> Unit = {},
+    inputEnabled: Boolean = true,
     onDraftChange: (String) -> Unit, onDismiss: () -> Unit, onStop: () -> Unit = {}, onSubmit: (List<String>) -> Unit,
 ) {
     // A failed add can already be persisted. Keep that exact path actionable until explicitly retried.
@@ -418,10 +506,11 @@ internal fun UserHideRuleEditor(
         properties = DialogProperties(usePlatformDefaultWidth = false),
         title = { Text(stringResource(if (original != null) R.string.sumh_rules_edit else if (bulk) R.string.sumh_rules_import else R.string.sumh_user_hide_add)) },
         text = { Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(draft, onDraftChange, Modifier.fillMaxWidth(), enabled = !busy,
+            OutlinedTextField(draft, onDraftChange, Modifier.fillMaxWidth(), enabled = !busy && inputEnabled,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
                 label = { Text(stringResource(R.string.sumh_user_rules_add_label)) }, singleLine = !bulk,
                 minLines = if (bulk) 5 else 1, maxLines = if (bulk) 10 else 1, isError = !bulk && draft.isNotEmpty() && pathError != null)
+            draftStatus()
             if (bulk) {
                 Text(stringResource(R.string.sumh_user_rules_preview_count, preview.paths.size, preview.lines.count { it.duplicate }, preview.lines.count { it.error != null }))
                 if (preview.paths.any { it in retryPaths }) Text(stringResource(R.string.sumh_rules_import_retry_hint), style = MaterialTheme.typography.bodySmall)
@@ -457,3 +546,25 @@ private fun userHidePathError(error: SUMHHidePathError): String = stringResource
     SUMHHidePathError.NulCharacter -> R.string.sumh_user_rules_invalid_control
     SUMHHidePathError.TooLong -> R.string.sumh_user_rules_invalid_length
 })
+
+@Composable
+private fun UserHideDraftStatus(drafts: UserHideDrafts, modifier: Modifier = Modifier) {
+    Column(modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+        when {
+            drafts.storageError -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(if (drafts.loaded) R.string.sumh_draft_save_failed else R.string.sumh_draft_read_failed),
+                    Modifier.weight(1f), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = drafts::retry) { Text(stringResource(R.string.retry)) }
+            }
+            !drafts.loaded -> Text(stringResource(R.string.sumh_draft_loading), style = MaterialTheme.typography.bodySmall)
+            drafts.saving -> Text(stringResource(R.string.sumh_draft_saving), style = MaterialTheme.typography.bodySmall)
+        }
+        drafts.limit?.let { limit ->
+            Text(stringResource(when (limit) {
+                UserHideDraftLimit.Line -> R.string.sumh_draft_line_limit
+                UserHideDraftLimit.Bulk -> R.string.sumh_draft_bulk_limit
+                UserHideDraftLimit.Total -> R.string.sumh_draft_total_limit
+            }), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <map>
 #include <string>
@@ -53,8 +54,19 @@ struct MountReport {
 // Enabled, mountable modules under runtime_modules_dir(): skips entries with
 // no module.prop or with a disable/remove/skip_mount marker.
 std::vector<ModuleEntry> enumerate_mountable_modules();
+// Read-only discovery; failure leaves modules unchanged. Missing roots and
+// unreadable/changed entries are errors, not a complete empty set. The budget
+// counts every directory entry, including entries excluded by existing markers.
+bool enumerate_mountable_modules_checked(std::vector<ModuleEntry>& modules, std::string& error,
+                                         std::size_t max_entries = 16384);
 
 bool load_module_configuration(ModuleModeMap& modes, ModuleRuleMap& rules, std::string& error);
+// Pure counterpart of the locked production loader. The caller supplies "{}"
+// for a document known to be absent and owns read budgets/change detection.
+// Canonical object entries override legacy modes, including explicit auto.
+bool parse_module_configuration_documents(const std::string& modes_json,
+                                          const std::string& rules_json, ModuleModeMap& modes,
+                                          ModuleRuleMap& rules, std::string& error);
 bool valid_module_id(const std::string& id);
 bool valid_module_rule_path(const std::string& path);
 bool parse_module_rules(const std::string& json, std::vector<ModuleRule>& rules,
@@ -72,14 +84,56 @@ bool remove_module_rule(const std::string& id, const std::string& path, std::str
 // the auto fallback). Used by the orchestrator and to report a module's actual
 // mount method. `modes` contains the saved per-module modes. Set
 // allow_sumh=false when reporting a module without SUMH boot ownership.
+struct BackendProbe {
+    bool checked = false;
+    bool known = false;
+    bool available = false;
+    int error_number = 0;
+    std::string detail;
+};
+
+struct ModuleBackendDecision {
+    std::string configured_mode = "auto";
+    std::string global_mode;
+    std::string requested = "auto";
+    std::string source = "default";
+    std::string selected = "none";
+    std::string reason;
+    bool used_fallback = false;
+    bool complete = true;
+    bool has_content = false;
+    bool allow_sumh = true;
+    bool requires_magic = false;
+    std::string observation_error;
+    BackendProbe sumh;
+    BackendProbe overlay;
+};
+
+// Shared production decision, without controller logging. Probes are lazy;
+// unchecked and unknown are distinct from known unavailable. A selected value
+// with complete=false is the legacy fallback suggestion, not verified readiness.
+// Lower-level ioctl logging must be scoped off by a pure diagnostic gateway.
+ModuleBackendDecision resolve_module_backend_decision(const ModuleEntry& module,
+                                                      const Config& config,
+                                                      const ModuleModeMap& modes,
+                                                      bool allow_sumh = true);
+
+// Shared production guard: SUMH hide/none exclusions must not silently disappear
+// when an explicit SUMH request falls back to an unrelated backend.
+bool validate_module_backend_rules(const std::string& requested, const std::string& selected,
+                                   const std::vector<ModuleRule>& rules, std::string& error);
+
 std::string resolve_module_backend(const ModuleEntry& module, const Config& config,
                                    const ModuleModeMap& modes, bool allow_sumh = true);
 
-// Rebuild only SUMH mappings in the init namespace. This is safe to expose
-// post-boot for the SUMH hot-mount controls; Overlay/Magic remain boot-only.
-// mappings_applied reports whether the new mappings were retained, including
-// a Maps-only restoration failure; preflight failure preserves the old view.
-bool refresh_sumh_modules(const Config& config, bool* mappings_applied = nullptr);
+namespace sumh {
+enum class ModuleRebuildOutcome;
+}
+// Legacy whole-SUMH rebuild, admitted only for this boot's module list. It is
+// not an owner-scoped transaction: global reset still affects other resources.
+// A partial/unknown attempt is never rolled back or retried automatically.
+bool refresh_sumh_modules(const Config& config, bool* mappings_applied = nullptr,
+                          sumh::ModuleRebuildOutcome* outcome = nullptr);
 
 // Apply the boot-only module mount plan inside the init mount namespace.
 MountReport mount_all_enabled(const Config& config);
@@ -90,8 +144,11 @@ bool unmount_all(const Config& config);
 // Bootloop protection: mount_all_enabled() bumps an unconfirmed-boot counter and
 // refuses once it exceeds the limit. recovery_boot_completed() clears it once a
 // boot reaches boot_completed; recovery_reset() re-enables after a trip.
-void recovery_boot_completed();
-void recovery_reset();
-std::string recovery_status_json();
+// Storage failure is distinct from a successfully persisted protection trip.
+// Both prevent mounting, but only the latter is a successful protected boot.
+bool recovery_begin_mount(bool& disabled, std::string& error);
+bool recovery_boot_completed(std::string& error);
+bool recovery_reset(std::string& error);
+std::string recovery_status_json(bool* ok = nullptr);
 
 }  // namespace sumhp::mount

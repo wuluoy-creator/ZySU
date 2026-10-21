@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_hide_transfer_title">导入隐藏定义</string>
+    <string name="sumh_hide_transfer_scope">导入先保存为本地未启用草稿。合并保留无关定义；默认保留已有启用状态，新定义保持停用。提交按条执行，不保证整组原子成功。路径按原文比较；尚未验证别名及应用实际可见性。</string>
+    <string name="sumh_hide_transfer_file">选择 JSON 文件</string>
+    <string name="sumh_hide_transfer_text">粘贴 JSON 文本</string>
+    <string name="sumh_hide_transfer_size">草稿：%1$d 字节（UTF-8）</string>
+    <string name="sumh_hide_transfer_enabled">采用导入的启用状态（可能启用或停用已有规则）</string>
+    <string name="sumh_hide_transfer_progress">本组已提交：%1$d 条</string>
+    <string name="sumh_hide_transfer_review">读取当前定义并预检</string>
+    <string name="sumh_hide_transfer_diff">新增 %1$d · 修改 %2$d · 启用 %3$d · 停用 %4$d · 跳过 %5$d · 不变 %6$d</string>
+    <string name="sumh_hide_transfer_group">下一组 %1$d 条变更；其余 %2$d 条需再次预检。每组达到 30 秒后不再开始下一条。</string>
+    <string name="sumh_hide_transfer_review_again">草稿、选择、配置或启动身份变化后，请重新预检。</string>
+    <string name="sumh_hide_transfer_unresolved">请先处理全部冲突。</string>
+    <string name="sumh_hide_transfer_result">尝试 %2$d 条，确认成功 %1$d 条；%3$d 条未尝试。</string>
+    <string name="sumh_hide_transfer_retained">原始草稿和选择已保留。中断后先查询操作历史，再重新预检；不会自动续传。</string>
+    <string name="sumh_hide_transfer_apply">提交下一组</string>
+    <string name="sumh_hide_transfer_saved">已保存定义</string>
+    <string name="sumh_hide_transfer_imported">导入定义</string>
+    <string name="sumh_hide_transfer_effective">拟采用定义</string>
+    <string name="sumh_hide_transfer_choose">默认纳入／选择操作</string>
+    <string name="sumh_hide_transfer_keep">保留已有定义</string>
+    <string name="sumh_hide_transfer_use">采用导入值</string>
+    <string name="sumh_hide_transfer_local_id">采用导入值并保留本地 ID</string>
+    <string name="sumh_hide_transfer_new_id">明确生成新稳定 ID</string>
+    <string name="sumh_hide_transfer_skip">跳过此定义</string>
+    <string name="sumh_hide_transfer_new">新增定义</string>
+    <string name="sumh_hide_transfer_same">相同定义</string>
+    <string name="sumh_hide_transfer_changed">内容不同：请明确选择</string>
+    <string name="sumh_hide_transfer_path_collision">同路径、不同 ID</string>
+    <string name="sumh_hide_transfer_id_collision">同 ID、不同路径</string>
+    <string name="sumh_hide_transfer_cross_collision">ID 和路径分别指向两条已有规则：仅可跳过</string>
+    <string name="sumh_hide_transfer_open">导入／预检定义</string>
+    <string name="sumh_hide_transfer_export_all">导出全部定义</string>
+    <string name="sumh_hide_transfer_export_selected">导出所选（%1$d）</string>
+    <string name="sumh_hide_transfer_export_done">导出完成</string>
+    <string name="sumh_hide_transfer_export_failed">导出失败，目标文件可能不完整。</string>
+    <string name="sumh_hide_transfer_text_hint">粘贴文本最多 64 KiB；更大的文档请使用文件。校验成功后才会替换本地草稿。</string>
+    <string name="sumh_hide_transfer_stage">校验并保存草稿</string>
+    <string name="sumh_hide_transfer_export_info">快照：%1$d 条定义 · %2$s</string>
+</resources>

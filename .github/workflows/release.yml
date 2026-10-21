@@ -94,8 +94,12 @@ jobs:
       kernel_version_name: ${{ inputs.kernel_version_name || '' }}
       kernel_version_code: ${{ inputs.kernel_version_code || '' }}
 
+  sumh-regressions:
+    needs: preflight
+    uses: ./.github/workflows/sumh-tests.yml
+
   release:
-    needs: build
+    needs: [build, sumh-regressions]
     if: github.event_name == 'push' || inputs.publish_release
     permissions:
       contents: write
@@ -105,6 +109,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
       COMMIT_SHA: ${{ needs.build.outputs.commit_sha }}
+      SUMH_TESTED_COMMIT: ${{ needs.sumh-regressions.outputs.commit_sha }}
       PRERELEASE: ${{ inputs.prerelease || (github.event_name == 'push' && contains(github.ref_name, '-')) }}
       MANAGER_VERSION_NAME: ${{ needs.build.outputs.manager_version_name }}
       MANAGER_VERSION_CODE: ${{ needs.build.outputs.manager_version_code }}
@@ -112,12 +117,20 @@ jobs:
       KSUD_VERSION_CODE: ${{ needs.build.outputs.ksud_version_code }}
       KERNEL_VERSION_NAME: ${{ needs.build.outputs.kernel_version_name }}
       KERNEL_VERSION_CODE: ${{ needs.build.outputs.kernel_version_code }}
+      EXPECTED_KMI: ${{ needs.build.outputs.selected_kmi }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           fetch-tags: true
           ref: ${{ needs.build.outputs.commit_sha }}
+
+      - name: Require regression evidence for the built commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUMH_TESTED_COMMIT"
+          test "$SUMH_TESTED_COMMIT" = "$COMMIT_SHA"
 
       - name: Validate public release destination
         shell: bash
@@ -137,17 +150,20 @@ jobs:
           fi
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: artifacts
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
         with:
           packages: platform-tools
 
       - name: Prepare release assets and update metadata
         run: python3 scripts/ci/prepare_release.py
+
+      - name: Verify portable release artifact chain
+        run: python3 scripts/ci/release_provenance.py verify --release-dir release-assets
 
       - name: Prepare public release notes
         run: |

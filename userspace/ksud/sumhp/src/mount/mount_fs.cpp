@@ -372,7 +372,11 @@ bool write_mount_journal(const std::string& journal, const std::vector<MountReco
         data << record.mount_id << " " << record.device << " " << record.inode << " "
              << std::quoted(record.path) << "\n";
     }
-    return ksud::write_file_atomic(journal, data.str());
+    std::string error;
+    if (ksud::write_file_durable(journal, data.str(), error))
+        return true;
+    mlog("write mount journal: " + error, logging::Level::Error);
+    return false;
 }
 
 bool write_mount_journal(const std::string& journal, const std::vector<std::string>& mounts) {
@@ -456,7 +460,8 @@ bool run_in_init_mount_ns(const std::function<bool()>& fn) {
     return waited == pid && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
-bool run_in_init_mount_ns(const std::function<bool()>& fn, std::string& error) {
+bool run_in_init_mount_ns(const std::function<bool()>& fn, std::string& error,
+                          NamespaceOperationState* state) {
     // Keep the reply below PIPE_BUF: the existing helper waits for its child
     // before this parent reads, so the complete reply must fit without blocking.
     struct Reply {
@@ -465,11 +470,15 @@ bool run_in_init_mount_ns(const std::function<bool()>& fn, std::string& error) {
     } reply = {};
     static_assert(sizeof(Reply) <= PIPE_BUF);
     int channel[2];
+    if (state)
+        *state = NamespaceOperationState::NotStarted;
     if (pipe2(channel, O_CLOEXEC) != 0) {
         error = "create namespace result pipe: " + std::string(std::strerror(errno));
         return false;
     }
     error.clear();
+    if (state)
+        *state = NamespaceOperationState::Unknown;
     errno = 0;
     const bool ok = run_in_init_mount_ns([&]() {
         close(channel[0]);
@@ -506,11 +515,17 @@ bool run_in_init_mount_ns(const std::function<bool()>& fn, std::string& error) {
         received += static_cast<std::size_t>(count);
     }
     close(channel[0]);
-    if (ok && received == sizeof(reply) && reply.error == 0)
+    if (ok && received == sizeof(reply) && reply.error == 0) {
+        if (state)
+            *state = NamespaceOperationState::Completed;
         return true;
+    }
     int failure = namespace_error ? namespace_error : EIO;
-    if (received == sizeof(reply) && reply.error)
+    if (received == sizeof(reply) && reply.error) {
+        if (state)
+            *state = NamespaceOperationState::CallbackFailed;
         failure = reply.error;
+    }
     errno = failure;
     error = received == sizeof(reply) && reply.message[0]
                 ? std::string(reply.message)

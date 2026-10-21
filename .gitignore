@@ -9,6 +9,8 @@ build/
 *.iml
 local.properties
 .gradle/
+__pycache__/
+*.py[cod]
 
 # ksud build artifacts
 userspace/ksud/build-android/

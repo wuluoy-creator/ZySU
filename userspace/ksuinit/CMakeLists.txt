@@ -17,13 +17,15 @@ if(CCACHE_PROGRAM)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/ClangTidy.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/NativeToolchainMetadata.cmake")
 
 # Size optimization (Os + LTO).
 # ksuinit is injected as /init into early ramdisk, so it must be fully static.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden -fno-rtti -fno-exceptions -fno-asynchronous-unwind-tables -fmerge-all-constants -fno-ident -fno-stack-protector -faddrsig -fno-semantic-interposition")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden -fno-rtti -fno-exceptions -fno-asynchronous-unwind-tables -fmerge-all-constants -fno-ident -faddrsig -fno-semantic-interposition")
 set(CMAKE_CXX_FLAGS_RELEASE "-Os -DNDEBUG -flto=full")
 set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG -flto=full")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -fuse-ld=lld -flto=full -Wl,--gc-sections -Wl,--icf=all -Wl,--strip-all -Wl,--exclude-libs,ALL -Wl,-O2 -Wl,--lto-O3 -Wl,--hash-style=gnu -Wl,--build-id=none -Wl,-z,norelro")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -fuse-ld=lld -flto=full -Wl,--gc-sections -Wl,--icf=all -Wl,--exclude-libs,ALL -Wl,-O2 -Wl,--lto-O3 -Wl,--hash-style=gnu")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/NativeHardening.cmake")
 
 get_filename_component(REPO_ROOT "${CMAKE_SOURCE_DIR}/../.." ABSOLUTE)
 
@@ -39,20 +41,13 @@ add_executable(ksuinit
 
 target_include_directories(ksuinit PRIVATE src ${REPO_ROOT})
 zysu_enable_clang_tidy(ksuinit CXX)
+zysu_finalize_native(ksuinit static)
 
-# Optional: UPX binary compression
+# Keep the old cache option to diagnose unsupported packed builds explicitly.
 option(KSUINIT_UPX "Use UPX to compress ksuinit binary" OFF)
 if(KSUINIT_UPX)
-    find_program(UPX_PROGRAM upx)
-    if(UPX_PROGRAM)
-        add_custom_command(TARGET ksuinit POST_BUILD
-            COMMAND ${UPX_PROGRAM} --best --lzma $<TARGET_FILE:ksuinit>
-            COMMENT "UPX: compressing ksuinit with LZMA (--best)..."
-        )
-        message(STATUS "UPX compression ENABLED (--best --lzma)")
-    else()
-        message(WARNING "KSUINIT_UPX=ON but upx not found in PATH; skipping UPX compression")
-    endif()
+    message(FATAL_ERROR "KSUINIT_UPX is incompatible with the verified ELF/symbol artifacts; configure with KSUINIT_UPX=OFF")
 endif()
 
 # No external dependencies - pure C++ with POSIX/Linux APIs
+zysu_record_native_toolchain(ksuinit)

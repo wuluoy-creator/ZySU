@@ -11,10 +11,12 @@ enum class LogLevel {
     INFO,
     WARN,
     ERROR,
+    OFF,
 };
 
 void log_init(const char* tag);
 void log_set_level(LogLevel level);
+LogLevel log_get_level();
 void log_set_cli_mode(bool verbose);
 /** Flush stderr (log stream). */
 void log_flush();

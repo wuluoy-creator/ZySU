@@ -33,7 +33,7 @@ def main():
         begin = source.index("bool path_matches_rule(")
         end = source.index("\nbool disable_kernel_features(", begin)
         body += source[begin:end]
-        begin = source.index("bool prepare_modules(")
+        begin = source.index("bool prepare_modules_impl(")
         end = source.index("\nbool unmount_all(", begin)
         body += source[begin:end]
         (build / "sumh_planner_under_test.inc").write_text(body, encoding="utf-8")

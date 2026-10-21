@@ -1,6 +1,7 @@
 // Execute the production mount orchestration with independent failures in
 // module installation, feature restoration and OverlayFS attribute handling.
 #include "mount/backend.hpp"
+#include "mount/module_rebuild.hpp"
 #include "mount/sumh.hpp"
 
 #include <algorithm>
@@ -18,14 +19,21 @@ namespace fs = std::filesystem;
 fs::path fixture_dir;
 bool available = true;
 bool configuration_ok = true;
+bool discovery_ok = true;
+bool backend_metadata_ok = true;
 bool compile_ok = true;
 bool prepare_ok = true;
 bool mount_ok = true;
 bool features_ok = true;
 bool maps_ok = true;
+bool hide_restore_ok = true;
 bool xattr_ok = true;
 bool record_ok = true;
+bool recovery_ok = true;
+bool recovery_disabled = false;
 bool mappings_active = false;
+bool rebuild_allowed = true;
+bool active_marker_ok = true;
 int reset_calls = 0;
 int compile_calls = 0;
 int namespace_call = 0;
@@ -45,8 +53,11 @@ sumhp::mount::ModuleRuleMap configured_rules;
 
 void reset() {
     available = prepare_ok = mount_ok = features_ok = maps_ok = xattr_ok = record_ok = true;
-    configuration_ok = compile_ok = true;
+    configuration_ok = discovery_ok = backend_metadata_ok = compile_ok = hide_restore_ok = true;
+    recovery_ok = true;
+    recovery_disabled = false;
     mappings_active = false;
+    rebuild_allowed = active_marker_ok = true;
     reset_calls = mount_calls = feature_calls = maps_calls = hide_restore_calls = xattr_calls =
         attempts = 0;
     compile_calls = namespace_call = current_namespace_call = 0;
@@ -95,8 +106,14 @@ bool run_in_init_mount_ns(Callback callback, std::string&) {
 }
 }  // namespace fsutil
 
-std::vector<ModuleEntry> enumerate_mountable_modules() {
-    return modules;
+bool enumerate_mountable_modules_checked(std::vector<ModuleEntry>& found, std::string& error,
+                                         std::size_t) {
+    if (!discovery_ok) {
+        error = "injected module discovery error";
+        return false;
+    }
+    found = modules;
+    return true;
 }
 bool load_module_configuration(ModuleModeMap& modes, ModuleRuleMap& rules, std::string& error) {
     modes = configured_modes;
@@ -105,9 +122,18 @@ bool load_module_configuration(ModuleModeMap& modes, ModuleRuleMap& rules, std::
         error = "injected malformed module configuration";
     return configuration_ok;
 }
-std::string resolve_module_backend(const ModuleEntry& module, const Config&, const ModuleModeMap&,
-                                   bool) {
-    return module.id == "owned" && available ? "sumh" : "magic";
+ModuleBackendDecision resolve_module_backend_decision(const ModuleEntry& module,
+                                                      const Config& config,
+                                                      const ModuleModeMap& modes, bool) {
+    ModuleBackendDecision decision;
+    decision.selected = module.id == "owned" && available ? "sumh" : "magic";
+    const auto configured = modes.find(module.id);
+    decision.requested = configured == modes.end() ? "auto" : configured->second;
+    if (!config.mount_backend.empty() && config.mount_backend != "auto")
+        decision.requested = config.mount_backend;
+    if (!backend_metadata_ok)
+        decision.observation_error = "injected backend metadata error";
+    return decision;
 }
 
 namespace magic {
@@ -132,6 +158,11 @@ bool restore_xattr_hiding(const Config&) {
 }  // namespace overlay
 
 namespace sumh {
+bool module_rebuild_allowed(std::string& error) {
+    if (!rebuild_allowed)
+        error = "injected unresolved rebuild guard";
+    return rebuild_allowed;
+}
 void invalidate_active_state() {
     mappings_active = false;
 }
@@ -181,41 +212,59 @@ bool apply_modules(const ModuleMountPlan& plan) {
     }
     return mount_ok;
 }
-bool apply_feature_config(const Config&, std::string& error, bool, bool) {
+bool rebuild_modules_in_init_ns(const std::vector<ModuleEntry>& selected, const Config& config,
+                                const ModuleRuleMap& rules, ModuleRebuildOutcome& outcome,
+                                std::string& error) {
+    outcome = ModuleRebuildOutcome::Unchanged;
+    if (!module_rebuild_allowed(error))
+        return false;
+    return fsutil::run_in_init_mount_ns([&] {
+        ModuleMountPlan plan;
+        if (!prepare_modules(selected, config, rules, plan, error))
+            return false;
+        outcome = ModuleRebuildOutcome::PartialOrUnknown;
+        if (!reset_runtime_state(error) || !apply_modules(plan))
+            return false;
+        outcome = ModuleRebuildOutcome::Applied;
+        return active_marker_ok;
+    });
+}
+bool apply_feature_config(const Config&, std::string& error, bool, bool, FeatureApplyReport*) {
     ++feature_calls;
     if (!features_ok)
         error = "injected base feature failure";
     return features_ok;
 }
-bool apply_maps_config(const Config&, std::string& error, bool restore) {
+bool apply_maps_config(const Config&, std::string& error, bool restore, FeatureApplyOutcome*,
+                       RestoreTrigger) {
     ++maps_calls;
     if (!restore || maps_ok)
         return true;
     error = "injected missing managed maps path";
     return false;
 }
-bool restore_persisted_hide_rules(std::string&) {
+bool restore_persisted_hide_rules(std::string& error, RestoreTrigger trigger) {
+    assert(trigger == RestoreTrigger::UserRequested);
     ++hide_restore_calls;
-    return true;
+    if (!hide_restore_ok)
+        error = "injected hide restore failure";
+    return hide_restore_ok;
 }
 }  // namespace sumh
 
-namespace {
-constexpr int kMaxBootAttempts = 3;
-bool claim_mount_orchestrator() {
+bool recovery_begin_mount(bool& disabled, std::string& error) {
+    disabled = recovery_disabled;
+    if (!recovery_ok) {
+        error = "injected recovery storage failure";
+        return false;
+    }
+    if (!disabled)
+        ++attempts;
     return true;
 }
-fs::path recovery_attempts_file() {
-    return fixture_dir / "run" / "boot_attempts";
-}
-fs::path recovery_disabled_file() {
-    return fixture_dir / "run" / "mount_disabled";
-}
-int read_boot_attempts() {
-    return attempts;
-}
-void write_boot_attempts(int value) {
-    attempts = value;
+namespace {
+bool claim_mount_orchestrator() {
+    return true;
 }
 bool sumh_usable() {
     return available;
@@ -223,6 +272,7 @@ bool sumh_usable() {
 #include "sumh_backend_features_under_test.inc"
 }  // namespace
 #include "sumh_backend_lifecycle_under_test.inc"
+#include "sumh_backend_rule_guard_under_test.inc"
 }  // namespace sumhp::mount
 
 int main() {
@@ -232,6 +282,17 @@ int main() {
     fixture_dir = fs::temp_directory_path() /
                   ("sumh-backend-" +
                    std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+
+    reset();
+    recovery_ok = false;
+    auto report = mount_all_enabled(config);
+    assert(!report.ok && report.detail.find("recovery storage failure") != std::string::npos);
+    assert(mount_calls == 0 && feature_calls == 0 && attempts == 0 && reset_calls == 1);
+
+    reset();
+    recovery_disabled = true;
+    assert(mount_all_enabled(config).ok);
+    assert(mount_calls == 0 && feature_calls == 0 && attempts == 0 && reset_calls == 1);
 
     // Invalid saved configuration must fail before touching live mappings or
     // marking this boot as mounted; replay cannot silently discard path rules.
@@ -243,6 +304,26 @@ int main() {
     assert(replayable == std::vector<std::string>{"owned"});
     assert(!refresh_sumh_modules(config));
     assert(mappings_active && reset_calls == 0 && mount_calls == 0);
+
+    reset();
+    discovery_ok = false;
+    mappings_active = true;
+    report = mount_all_enabled(config);
+    assert(!report.ok && report.detail.find("discovery error") != std::string::npos);
+    assert(mappings_active && reset_calls == 0 && mount_calls == 0 && attempts == 0);
+    assert(replayable == std::vector<std::string>{"owned"});
+    bool discovery_applied = true;
+    assert(!refresh_sumh_modules(config, &discovery_applied));
+    assert(!discovery_applied && mappings_active && reset_calls == 0 && mount_calls == 0);
+    assert(hide_restore_calls == 0);
+
+    reset();
+    backend_metadata_ok = false;
+    mappings_active = true;
+    report = mount_all_enabled(config);
+    assert(!report.ok && report.detail.find("metadata error") != std::string::npos);
+    assert(mappings_active && reset_calls == 0 && mount_calls == 0 && attempts == 0);
+    assert(replayable == std::vector<std::string>{"owned"});
 
     // A well-formed configuration can still contain an unreadable or invalid
     // module tree; compilation failure must also preserve the live plan.
@@ -288,41 +369,77 @@ int main() {
     assert(mappings_applied);
     assert(mappings_active && hide_restore_calls == 2 && feature_calls == 2 && maps_calls == 2);
 
-    // Base feature failure still performs the original full cleanup; only a
-    // Maps-specific apply failure is isolated from the module transaction.
+    reset();
+    hide_restore_ok = false;
+    assert(!refresh_sumh_modules(config, &mappings_applied));
+    assert(mappings_applied && mappings_active && reset_calls == 1);
+    assert(hide_restore_calls == 1 && installed_modules == std::vector<std::string>{"owned"});
+
+    // Every independent feature failure retains the committed module set and
+    // does not prevent Maps or persisted hide restoration from being attempted.
     reset();
     features_ok = false;
     assert(!refresh_sumh_modules(config, &mappings_applied));
-    assert(!mappings_applied);
-    assert(reset_calls == 2 && !mappings_active && installed_modules.empty());
-    assert(feature_calls == 1 && maps_calls == 0 && hide_restore_calls == 0);
+    assert(mappings_applied);
+    assert(reset_calls == 1 && mappings_active && !installed_modules.empty());
+    assert(feature_calls == 1 && maps_calls == 1 && hide_restore_calls == 1);
     reset();
     features_ok = false;
     assert(!mount_all_enabled(config).ok);
-    assert(reset_calls == 2 && !mappings_active && maps_calls == 0);
+    assert(reset_calls == 1 && mappings_active && maps_calls == 1);
 
-    // Failures constructing the module view still remove partial rules and
-    // must not try applying features on top of an incomplete mapping set.
+    reset();
+    xattr_ok = false;
+    assert(!refresh_sumh_modules(config, &mappings_applied));
+    assert(mappings_applied && mappings_active && reset_calls == 1);
+    assert(feature_calls == 1 && maps_calls == 1 && hide_restore_calls == 1);
+    reset();
+    xattr_ok = false;
+    assert(!mount_all_enabled(config).ok);
+    assert(reset_calls == 1 && mappings_active && feature_calls == 1 && maps_calls == 1);
+    assert(replayable == std::vector<std::string>{"owned"});
+
+    // A failed/partial rebuild stops without a second destructive reset.
+    // Partial mappings are evidence, not a reason to erase the runtime again.
+    for (int failure = 0; failure < 2; ++failure) {
+        reset();
+        prepare_ok = failure != 0;
+        mount_ok = failure != 1;
+        sumhp::mount::sumh::ModuleRebuildOutcome outcome;
+        assert(!refresh_sumh_modules(config, nullptr, &outcome));
+        assert(outcome == sumhp::mount::sumh::ModuleRebuildOutcome::PartialOrUnknown);
+        assert(reset_calls == 1 && mappings_active == (failure == 1));
+        assert(mount_calls == (failure == 1 ? 1 : 0));
+        assert(feature_calls == 0 && hide_restore_calls == 0);
+    }
+
     for (int failure = 0; failure < 3; ++failure) {
         reset();
         prepare_ok = failure != 0;
         mount_ok = failure != 1;
-        xattr_ok = failure != 2;
-        assert(!refresh_sumh_modules(config));
-        assert(reset_calls == 2 && !mappings_active && installed_modules.empty());
-        assert(feature_calls == 0 && hide_restore_calls == 0);
-    }
-
-    for (int failure = 0; failure < 4; ++failure) {
-        reset();
-        prepare_ok = failure != 0;
-        mount_ok = failure != 1;
         record_ok = failure != 2;
-        xattr_ok = failure != 3;
         assert(!mount_all_enabled(config).ok);
-        assert(reset_calls == 2 && !mappings_active && installed_modules.empty());
+        assert(reset_calls == 1 && mappings_active == (failure != 0));
+        assert(mount_calls == (failure != 0 ? 1 : 0));
         assert(feature_calls == 0 && replayable.empty());
     }
+
+    reset();
+    rebuild_allowed = false;
+    mappings_active = true;
+    assert(!mount_all_enabled(config).ok);
+    assert(mappings_active && reset_calls == 0 && mount_calls == 0 && attempts == 0);
+    assert(replayable == std::vector<std::string>{"owned"});
+    sumhp::mount::sumh::ModuleRebuildOutcome refused;
+    assert(!refresh_sumh_modules(config, nullptr, &refused));
+    assert(refused == sumhp::mount::sumh::ModuleRebuildOutcome::Unchanged);
+    assert(mappings_active && reset_calls == 0 && mount_calls == 0);
+
+    reset();
+    active_marker_ok = false;
+    assert(!refresh_sumh_modules(config, &mappings_applied, &refused));
+    assert(mappings_applied && refused == sumhp::mount::sumh::ModuleRebuildOutcome::Applied);
+    assert(reset_calls == 1 && mappings_active && feature_calls == 0);
 
     reset();
     const auto successful = mount_all_enabled(config);

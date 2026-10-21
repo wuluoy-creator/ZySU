@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="sumh_partitions_title">Additional partitions</string>
+    <string name="sumh_partitions_intro">Discover names from installed modules, select additions or removals, then review and save. Discovery checks the current structure; it does not prove that a backend can mount a module or that an app can see it.</string>
+    <string name="sumh_partitions_open">Manage partition selection</string>
+    <string name="sumh_partitions_discover">Discover current candidates</string>
+    <string name="sumh_partitions_loading">Reading candidates and saved configuration…</string>
+    <string name="sumh_partitions_not_loaded">Discover manually to begin. Your previous selection is kept.</string>
+    <string name="sumh_partitions_stale">The observations have expired. Discover again before reviewing or saving.</string>
+    <string name="sumh_partitions_unknown">Current state is unknown or unsupported. Selection cannot be saved from this result.</string>
+    <string name="sumh_partitions_partial">Discovery is incomplete. Existing definitions and your selection are kept; inspect diagnostics and discover again.</string>
+    <string name="sumh_partitions_empty">No candidates were found in the complete scan. Saved names are still retained.</string>
+    <string name="sumh_partitions_ready">Discovery completed. Select the names to keep in the saved configuration.</string>
+    <string name="sumh_partitions_conflict">Your draft uses an earlier configuration. Compare the current list, then explicitly keep your intended additions and removals.</string>
+    <string name="sumh_partitions_rebase">Keep my changes with current saved list</string>
+    <string name="sumh_partitions_saved_unknown">Already saved; currently unrecognized or not eligible. Kept unless you explicitly remove it.</string>
+    <string name="sumh_partitions_eligible">Eligible to add in this discovery; mount readiness is not verified.</string>
+    <string name="sumh_partitions_not_eligible">Cannot add from this discovery. See diagnostics for the reason.</string>
+    <string name="sumh_partitions_review">Review selection changes</string>
+    <string name="sumh_partitions_add">Add: %1$s</string>
+    <string name="sumh_partitions_remove">Remove: %1$s</string>
+    <string name="sumh_partitions_reboot">Save only updates this partition list. Restart the device to use the saved configuration.</string>
+    <string name="sumh_partitions_save">Save selection only</string>
+    <string name="sumh_partitions_saved">Partition selection saved and read back. Restart required.</string>
+    <string name="sumh_partitions_save_unconfirmed">Save was not confirmed. Your selection is retained. Discover current state before any further save; the request will not be repeated automatically.</string>
+</resources>

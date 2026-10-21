@@ -5,9 +5,11 @@
 #include "core/command.hpp"
 #include "core/json.hpp"
 #include "core/log.hpp"
+#include "core/operation_submit.hpp"
 #include "core/runtime.hpp"
 #include "mount/sumh.hpp"
 #include "sumhp/config.hpp"
+#include "sumhp/embedded.hpp"
 #include "sumhp/sumh_client.hpp"
 
 #include <algorithm>
@@ -39,6 +41,52 @@ int print_status_json();
 
 void append_log(const std::string& message, logging::Level level = logging::Level::Info) {
     logging::write(level, "daemon", message);
+}
+
+bool promote_background_pipe(int endpoints[2]) {
+    // daemonize_process redirects standard streams before it returns. Preserve
+    // both socketpair endpoints before entering it, including closed-stdio callers.
+    for (int index = 0; index < 2; ++index) {
+        if (endpoints[index] <= STDERR_FILENO) {
+            const int promoted = fcntl(endpoints[index], F_DUPFD_CLOEXEC, 3);
+            if (promoted < 0)
+                return false;  // Caller closes both current endpoints.
+            close(endpoints[index]);
+            endpoints[index] = promoted;
+        }
+    }
+    return true;
+}
+
+bool detach_background_stdio() {
+    // No permanent descriptor may append outside the logger's lock/budget or
+    // pin an obsolete log inode. Command replies still use run_command_capture.
+    const int opened = open("/dev/null", O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+    if (opened < 0)
+        return false;
+    const int stable = fcntl(opened, F_DUPFD_CLOEXEC, 3);
+    const int saved = errno;
+    close(opened);
+    if (stable < 0) {
+        errno = saved;
+        return false;
+    }
+    for (int target = STDIN_FILENO; target <= STDERR_FILENO; ++target) {
+        if (dup2(stable, target) < 0) {
+            const int error = errno;
+            close(stable);
+            errno = error;
+            return false;
+        }
+    }
+    close(stable);
+    return true;
+}
+
+void startup_error(const std::string& message) {
+    append_log(message, logging::Level::Error);
+    // Kept for explicit foreground serve; detached daemon stderr is /dev/null.
+    std::cerr << message << '\n';
 }
 
 std::string join_request(const std::vector<std::string>& args, std::size_t start) {
@@ -73,14 +121,17 @@ std::vector<std::string> split_request(const std::string& request) {
 }
 
 std::string response_json(bool ok, int exit_code, int error_number, const std::string& out,
-                          const std::string& err) {
+                          const std::string& err, const std::string& operation_id = {},
+                          bool operation_recorded = false) {
     std::ostringstream json;
     json << "{"
          << "\"ok\":" << (ok ? "true" : "false") << ","
          << "\"exit_code\":" << exit_code << ","
          << "\"errno\":" << error_number << ","
          << "\"stdout\":" << json_quote(out) << ","
-         << "\"stderr\":" << json_quote(err) << "}\n";
+         << "\"stderr\":" << json_quote(err) << ","
+         << "\"operation_id\":" << (operation_id.empty() ? "null" : json_quote(operation_id)) << ","
+         << "\"operation_recorded\":" << (operation_recorded ? "true" : "false") << "}\n";
     return json.str();
 }
 
@@ -294,18 +345,18 @@ int serve_foreground(int ready_fd = -1) {
 
     const auto socket_path = runtime_socket_file().string();
     if (socket_path.size() >= sizeof(sockaddr_un::sun_path)) {
-        std::cerr << "socket path is too long: " << socket_path << "\n";
+        startup_error("socket path is too long: " + socket_path);
         return 1;
     }
 
     const auto lock_path = runtime_daemon_lock_file();
     const int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0600);
     if (lock_fd < 0) {
-        std::cerr << "open " << lock_path << ": " << std::strerror(errno) << "\n";
+        startup_error("open " + lock_path.string() + ": " + std::strerror(errno));
         return 1;
     }
     if (flock(lock_fd, LOCK_EX | LOCK_NB) != 0) {
-        std::cerr << "sumhpd is already running\n";
+        startup_error("sumhpd is already running");
         close(lock_fd);
         return 1;
     }
@@ -315,7 +366,7 @@ int serve_foreground(int ready_fd = -1) {
     fs::remove(runtime_socket_file(), ec);
     const int server_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (server_fd < 0) {
-        std::cerr << "socket: " << std::strerror(errno) << "\n";
+        startup_error("socket: " + std::string(std::strerror(errno)));
         close(lock_fd);
         return 1;
     }
@@ -324,7 +375,7 @@ int serve_foreground(int ready_fd = -1) {
     addr.sun_family = AF_UNIX;
     std::strncpy(addr.sun_path, socket_path.c_str(), sizeof(addr.sun_path) - 1);
     if (bind(server_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-        std::cerr << "bind " << socket_path << ": " << std::strerror(errno) << "\n";
+        startup_error("bind " + socket_path + ": " + std::strerror(errno));
         close(server_fd);
         close(lock_fd);
         return 1;
@@ -332,7 +383,7 @@ int serve_foreground(int ready_fd = -1) {
     chmod(socket_path.c_str(), 0600);
 
     if (listen(server_fd, 8) != 0) {
-        std::cerr << "listen: " << std::strerror(errno) << "\n";
+        startup_error("listen: " + std::string(std::strerror(errno)));
         close(server_fd);
         close(lock_fd);
         return 1;
@@ -359,8 +410,10 @@ int serve_foreground(int ready_fd = -1) {
         std::string restore_error;
         if (!mount::sumh::restore_persisted_hide_rules(restore_error))
             append_log(restore_error, logging::Level::Error);
-        if (!ksud::is_safe_mode() && ksud::getprop("sys.boot_completed") == "1" &&
-            sumh::is_available()) {
+        const RestoreContext context{
+            ksud::is_safe_mode(), ksud::getprop("sys.boot_completed") == "1", sumh::is_available(),
+            !embedded_external_mount_owner().empty()};
+        if (should_restore(context, RestoreFeature::Maps)) {
             restore_error.clear();
             if (!mount::sumh::apply_maps_config(log_config, restore_error)) {
                 append_log("restore maps paths: " + restore_error, logging::Level::Error);
@@ -451,13 +504,21 @@ int serve_foreground(int ready_fd = -1) {
             continue;
         }
 
+        if (request_args.size() >= 2 && request_args[0] == "operation" &&
+            request_args[1] == "execute") {
+            send_response(client_fd, state::execute_reserved_request(request_args));
+            close(client_fd);
+            continue;
+        }
         const auto result = run_command_capture(request_args);
         send_response(client_fd,
                       response_json(result.exit_code == 0, result.exit_code, result.error_number,
-                                    result.stdout_text, result.stderr_text));
+                                    result.stdout_text, result.stderr_text, result.operation_id,
+                                    result.operation_recorded));
         close(client_fd);
     }
 
+    logging::flush();
     append_log("sumhpd stopped");
     if (mounts_fd >= 0)
         close(mounts_fd);
@@ -481,6 +542,13 @@ int start_background(bool report_status) {
     int ready_pipe[2];
     if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ready_pipe) != 0)
         return 1;
+    if (!promote_background_pipe(ready_pipe)) {
+        const int saved = errno;
+        close(ready_pipe[0]);
+        close(ready_pipe[1]);
+        startup_error("preserve readiness pipe: " + std::string(std::strerror(saved)));
+        return 1;
+    }
     const auto detached = ksud::daemonize_process(false);
     if (detached == ksud::ProcessDaemonizeResult::Error) {
         close(ready_pipe[0]);
@@ -490,17 +558,11 @@ int start_background(bool report_status) {
     }
     if (detached == ksud::ProcessDaemonizeResult::Daemon) {
         close(ready_pipe[0]);
-        const int null_fd = open("/dev/null", O_RDONLY);
-        if (null_fd >= 0) {
-            dup2(null_fd, STDIN_FILENO);
-            close(null_fd);
-        }
-        const int log_fd = open(runtime_log_file().c_str(),
-                                O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC | O_NOFOLLOW, 0600);
-        if (log_fd >= 0) {
-            dup2(log_fd, STDOUT_FILENO);
-            dup2(log_fd, STDERR_FILENO);
-            close(log_fd);
+        if (!detach_background_stdio()) {
+            append_log("detach background stdio: " + std::string(std::strerror(errno)),
+                       logging::Level::Error);
+            close(ready_pipe[1]);
+            _exit(1);
         }
         _exit(serve_foreground(ready_pipe[1]));
     }
@@ -528,6 +590,14 @@ int start_background(bool report_status) {
     return 1;
 }
 }  // namespace
+
+bool exchange_reserved_operation(const std::string& id, const std::string& document,
+                                 std::string& response, std::string& error) {
+    // One send attempt only. Preparation must not accidentally become daemon
+    // cold-start restoration; callers explicitly establish daemon availability.
+    return send_request({"operation", "execute", id, document}, 0, response, error) ==
+           RequestResult::Complete;
+}
 
 int run_via_daemon(const std::vector<std::string>& args, bool display_errors) {
     if (args.empty()) {

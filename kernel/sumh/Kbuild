@@ -1,7 +1,8 @@
 # Imported from SUMH e648702b42d6068206a5cbc2fffae25d71dc067b.
 kernelsu-objs += $(addprefix sumh/, \
  core/sumh_bootstrap.o core/sumh_config_guard.o \
- core/sumh_runtime.o core/sumh_fop_bridge.o \
+ core/sumh_runtime.o core/sumh_proc_memory.o core/sumh_maps_store.o \
+ core/sumh_fop_bridge.o \
  core/sumh_vnode.o core/sumh_dirhijack.o core/sumh_sop_shadow.o \
  core/sumh_hide_events.o core/sumh_hide_rules.o \
  control/sumh_ioctl.o \

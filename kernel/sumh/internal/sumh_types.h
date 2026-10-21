@@ -18,6 +18,9 @@
 
 #include "sumh_base.h"
 
+struct sumh_inject_claim;
+struct sumh_dh_claim;
+
 struct sumh_entry {
 	char *src;
 	char *target;
@@ -52,6 +55,10 @@ struct sumh_entry {
 	bool source_nofollow_path_valid;
 	unsigned char type;
 	u32 src_hash;
+	/* Owned injection projection; detached synchronously before retirement.
+	 */
+	struct sumh_inject_claim *inject_claim;
+	struct sumh_dh_claim *dh_claim;
 	struct hlist_node node;
 	struct rcu_head rcu;
 	struct llist_node free_node;
@@ -61,12 +68,15 @@ struct sumh_hide_entry {
 	char *path;
 	u32 path_hash;
 	bool storage_managed;
+	struct sumh_dh_claim *dh_claim;
 	struct hlist_node node;
 	struct rcu_head rcu;
+	struct llist_node free_node;
 };
 
 struct sumh_inject_entry {
 	char *dir;
+	unsigned int users; /* Writers hold sumh_config_mutex. */
 	struct hlist_node node;
 	struct rcu_head rcu;
 };
@@ -82,16 +92,13 @@ struct sumh_merge_entry {
 	char *src;
 	char *target;
 	char *resolved_src;
-	struct dentry *target_dentry;
+	struct sumh_inject_claim *inject_claims[2];
+	/* Captured directory identity; owns both mount and dentry until the
+	 * sleepable retirement worker releases it after RCU readers finish. */
+	struct path target_path;
 	struct hlist_node node;
 	struct rcu_head rcu;
 	struct llist_node free_node;
-};
-
-struct sumh_merge_target_node {
-	struct list_head list;
-	char *target;
-	struct dentry *target_dentry;
 };
 
 struct sumh_name_list {
@@ -103,13 +110,15 @@ struct sumh_name_list {
 	struct rb_node name_node;
 };
 
+struct sumh_merge_snapshot;
+
 struct sumh_filldir_wrapper {
 	struct dir_context wrap_ctx;
 	struct dir_context *orig_ctx;
 	struct dentry *parent_dentry;
 	int dir_path_len;
 	bool dir_has_hidden;
-	const char *dir_path;
+	char *dir_path;
 	bool dir_has_inject;
 	bool inject_done;
 	bool inject_pending;
@@ -119,9 +128,7 @@ struct sumh_filldir_wrapper {
 	unsigned int emitted;
 	bool view_allowed;
 	bool spoof_allowed;
-	int merge_target_count;
-	struct dentry *merge_target_dentries[SUMH_MAX_MERGE_TARGETS];
-	char dir_path_buf[SUMH_ITERATE_PATH_BUF];
+	struct sumh_merge_snapshot *merge_snapshot;
 };
 
 /*

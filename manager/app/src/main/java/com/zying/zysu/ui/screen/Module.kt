@@ -161,7 +161,7 @@ internal fun ModulePage(navigator: DestinationsNavigator) {
     var showShortcutDialog by remember { mutableStateOf(false) }
     var showShortcutTypeDialog by remember { mutableStateOf(false) }
     var mountState by remember { mutableStateOf<SUMHManager.MountState?>(null) }
-    var mountDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var mountDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
     var mountRefresh by remember { mutableIntStateOf(0) }
     var mountFilter by rememberSaveable { mutableStateOf("all") }
     var mountConflicts by remember { mutableStateOf<List<SUMHManager.MountConflict>?>(null) }

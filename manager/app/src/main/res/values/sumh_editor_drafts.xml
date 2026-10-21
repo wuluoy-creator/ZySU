@@ -1,0 +1,19 @@
+<resources>
+    <string name="sumh_field_draft_conflict">%1$s changed in saved configuration. Your unfinished input is preserved; choose which value to continue with.</string>
+    <string name="sumh_field_draft_saved_value">Latest saved value: %1$s</string>
+    <string name="sumh_field_draft_use_saved">Use saved %1$s</string>
+    <string name="sumh_field_draft_keep">Keep drafted %1$s</string>
+    <string name="sumh_small_draft_limit">Input was kept unchanged. This field accepts at most 4095 UTF-8 bytes.</string>
+    <string name="sumh_editor_draft_loading">Loading private drafts…</string>
+    <string name="sumh_editor_draft_saving">Saving draft on this device…</string>
+    <string name="sumh_editor_draft_read_failed">Saved drafts could not be read. Editing is paused to protect them. Retry after restoring storage access or using a compatible app version.</string>
+    <string name="sumh_editor_draft_write_failed">The draft is still in memory but could not be saved on this device. Keep this app open and retry.</string>
+    <string name="sumh_editor_draft_retry">Retry draft storage</string>
+    <string name="sumh_editor_draft_limit">Input was kept unchanged. A field may contain at most 4095 UTF-8 bytes; all module and Maps drafts share 512 entries and 4 MiB. Shorten the input or discard an unused draft.</string>
+    <string name="sumh_editor_draft_manage">Manage saved drafts</string>
+    <string name="sumh_editor_draft_discard">Discard unfinished draft?</string>
+    <string name="sumh_editor_draft_discard_confirm">Discard the unfinished draft for %1$s? Saved configuration and running rules will stay unchanged.</string>
+    <string name="sumh_editor_draft_conflict">Saved configuration changed after this draft was opened. Your input has been preserved. Review the latest configuration before choosing how to continue.</string>
+    <string name="sumh_editor_draft_reload">Discard draft and load saved values</string>
+    <string name="sumh_editor_draft_keep">Keep this draft against the latest configuration</string>
+</resources>

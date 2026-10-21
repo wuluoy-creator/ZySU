@@ -1,0 +1,1 @@
+{"errno":0, "exit_code":0, "ok":true, "stderr":"", "stdout":"{\"action\":\"capabilities\", \"exit_code\":0, \"resource\":\"temporary_maps_dispatch\", \"result\":{\"delete\":\"unsupported\", \"errno\":0, \"inventory\":\"unsupported\", \"resource\":\"temporary_maps_capabilities\", \"schema_version\":1}, \"schema_version\":1}"}

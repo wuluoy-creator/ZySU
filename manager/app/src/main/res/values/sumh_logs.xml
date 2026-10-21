@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_logs_follow_latest">Follow latest entries</string>
+    <string name="sumh_logs_following">Following latest</string>
+    <string name="sumh_logs_paused">Reading position paused</string>
+    <string name="sumh_logs_manual_refresh">Refresh to read new entries. Scrolling pauses following.</string>
+    <string name="sumh_logs_loading">Reading logs… Previous entries may still be shown.</string>
+    <string name="sumh_logs_read_failed">Could not refresh logs. Any entries shown are from the last successful read. %1$s</string>
+    <string name="sumh_logs_processing">Updating the log view…</string>
+    <string name="sumh_logs_line_count">%1$d / %2$d lines in this snapshot</string>
+    <string name="sumh_logs_empty">No log entries in this snapshot</string>
+    <string name="sumh_logs_no_matches">No lines match these filters</string>
+    <string name="sumh_logs_level_unknown">Unclassified</string>
+</resources>

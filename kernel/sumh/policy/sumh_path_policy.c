@@ -679,7 +679,7 @@ int SUMH_NOCFI sumh_rule_vpath_child(const char *dir, const char *child,
 	clen = strlen(child);
 	full = kmalloc(dlen + 1 + clen + 1, GFP_KERNEL);
 	if (!full)
-		return SUMH_VPATH_NONE;
+		return -ENOMEM;
 	memcpy(full, dir, dlen);
 	full[dlen] = '/';
 	memcpy(full + dlen + 1, child, clen);
@@ -774,12 +774,15 @@ int SUMH_NOCFI sumh_rule_vpath_emit(const char *dir, struct list_head *out)
 		if (sumh_name_index_contains(&names, rest, seg_len))
 			continue;
 		item = kmalloc(sizeof(*item), GFP_ATOMIC);
-		if (!item)
-			continue;
+		if (!item) {
+			count = -ENOMEM;
+			break;
+		}
 		item->name = kmalloc(seg_len + 1, GFP_ATOMIC);
 		if (!item->name) {
 			kfree(item);
-			continue;
+			count = -ENOMEM;
+			break;
 		}
 		memcpy(item->name, rest, seg_len);
 		item->name[seg_len] = '\0';
@@ -804,7 +807,10 @@ int SUMH_NOCFI sumh_rule_vpath_emit(const char *dir, struct list_head *out)
 				item->ino = sumh_vnode_vpath_ino(vpath);
 				kfree(vpath);
 			} else {
-				item->ino = 0;
+				kfree(item->name);
+				kfree(item);
+				count = -ENOMEM;
+				break;
 			}
 		}
 		sumh_name_index_add(&names, item);

@@ -59,5 +59,24 @@ int main() {
         assert(ksud::parse_cli(command, parsed) == -1);
         assert(parsed.command == command.front());
     }
+    // Public preview is discoverable by the command parser. Its private framed
+    // transport is accepted only by cli_run's exact root-checked direct route.
+    ksud::CliArguments preview;
+    assert(ksud::parse_cli({"sumhp", "sumh", "maps", "preview"}, preview) == -1);
+    assert(preview.path == "sumhp sumh maps preview" &&
+           preview.args == std::vector<std::string>({"sumh", "maps", "preview"}));
+    assert(ksud::parse_cli({"sumhp", "sumh", "maps", "preview", "--channel"}, preview) == 2);
+    for (const auto& command : std::vector<std::vector<std::string>>{
+             {"sumhp", "doctor", "--input", "-"},
+             {"sumhp", "doctor", "package", "list"},
+             {"sumhp", "doctor", "package", "preview", "0123456789abcdef0123456789abcdef"},
+             {"--verbose", "sumhp", "doctor", "package", "list"},
+             {"daemon", "call", "sumhp", "doctor", "package", "list"},
+             {"--verbose", "sumhp", "doctor", "--input", "-"},
+             {"daemon", "call", "sumhp", "doctor", "--input", "-"},
+             {"sumhp", "doctor", "manager", "{}", "--channel"}}) {
+        ksud::CliArguments parsed;
+        assert(ksud::parse_cli(command, parsed) == 2);
+    }
     std::cout << "cli_args_test: all checks passed\n";
 }

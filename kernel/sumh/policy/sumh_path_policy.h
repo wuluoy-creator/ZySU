@@ -65,6 +65,8 @@ enum sumh_vpath_kind {
  * *leaf_src (caller path_put) and fills *leaf_mode / *leaf_ino with the
  * leaf's source identity (the nofollow link for a symlink target). Non-sleeping
  * apart from a GFP_KERNEL scratch alloc; the rule-table scan runs under RCU.
+ * Returns a sumh_vpath_kind or a negative errno; allocation failure must not
+ * be cached as a negative dentry.
  */
 int sumh_rule_vpath_child(const char *dir, const char *child,
 			  struct path *leaf_src, umode_t *leaf_mode,
@@ -73,7 +75,9 @@ int sumh_rule_vpath_child(const char *dir, const char *child,
 /*
  * Collect the direct children of virtual directory @dir into @out as
  * struct sumh_name_list nodes (name/ino/type), deduplicated.  Caller emits
- * and frees each node (kfree(name) then kfree(node)).  Returns the child count.
+ * and frees each node (kfree(name) then kfree(node)). Returns the child count
+ * or a negative errno. On error @out can contain a partial list: it must be
+ * freed without publishing any entries or advancing a directory cursor.
  */
 int sumh_rule_vpath_emit(const char *dir, struct list_head *out);
 

@@ -95,7 +95,7 @@ class SUMHManagedMapsControlsTest {
     }
 
     @Test
-    fun pendingApplyHasOnlyTheSharedConfigurationRetryAction() {
+    fun knownDriftHasOnlyTheSharedConfigurationRetryAction() {
         compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
             SettingsTab(
                 config = SUMHUiAdapter.SUMHPConfig(enableMapsSpoof = true,
@@ -104,9 +104,11 @@ class SUMHManagedMapsControlsTest {
                 features = SUMHUiAdapter.FeaturesResult(0, listOf("maps_spoof", "managed_maps")),
                 controlsEnabled = true, runtimeApplyPending = true, onRetryApply = {}, onConfigChanged = {},
                 onClearMapRules = {}, onAddMapRule = { _, _, _, _, _ -> }, section = SUMHSection.Isolation,
+                controlState = com.zying.zysu.ui.sumh.util.SUMHControlStateFixtures.control(
+                    com.zying.zysu.ui.sumh.util.SUMHControlStateFixtures.state("drift")),
             )
         } } }
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_retry_apply)).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_state_apply)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_path_apply)).assertDoesNotExist()
     }
 
@@ -148,6 +150,25 @@ class SUMHManagedMapsControlsTest {
         compose.onNodeWithText("/renamed ").assertExists()
         open("/second")
         compose.onNode(replacementField).assertTextContains("/second draft")
+    }
+
+    @Test
+    fun sameTargetReadbackKeepsNewerReplacementAndAdvancesDraftBaseline() {
+        val saved = mutableStateOf(listOf(MapsPathRule("/target", "/old")))
+        var requested = saved.value
+        compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
+            ManagedMapsControls(saved.value, true, SUMHFeatureSupport.Supported, true, { requested = it })
+        } } }
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.sumh_maps_path_edit_label, "/target")).performClick()
+        val replacement = compose.onNode(hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_maps_path_replacement)))
+        replacement.performTextReplacement("/submitted")
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_rules_save)).performClick()
+        replacement.performTextReplacement("/newer ")
+        compose.runOnIdle { saved.value = requested }
+        compose.onNode(isDialog()).assertExists()
+        replacement.assertTextContains("/newer ")
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_editor_draft_conflict)).assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_rules_save)).assertIsEnabled()
     }
 
     @Test

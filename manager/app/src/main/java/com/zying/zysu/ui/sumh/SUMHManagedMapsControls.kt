@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -50,17 +49,14 @@ internal fun ManagedMapsControls(
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var originalTarget by rememberSaveable { mutableStateOf<String?>(null) }
     var removeTarget by rememberSaveable { mutableStateOf<String?>(null) }
-    val drafts = rememberSaveableStateHolder()
     val canEdit = enabled && support == SUMHFeatureSupport.Supported
     val limitReached = rules.size >= SUMH_MAX_MAPS_PATH_RULES
     if (showEditor) {
-        val key = originalTarget ?: "add"
-        drafts.SaveableStateProvider(key) {
+        key(originalTarget) {
             MapsPathRuleEditor(
                 rules = rules, originalTarget = originalTarget, enabled = canEdit,
                 onRulesChanged = onRulesChanged,
-                onDismiss = { showEditor = false },
-                onSaved = { showEditor = false; drafts.removeState(key) },
+                onDismiss = { showEditor = false }, onSaved = { showEditor = false },
             )
         }
     }
@@ -151,6 +147,9 @@ internal fun ManagedMapsControls(
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.sumh_maps_path_apply))
         }
+        MapsPreviewControls(enabled, rules, mapsEnabled)
+        MapsTransferControls(rules, canEdit, onRulesChanged)
+        TemporaryMapsControls(enabled)
     }
 }
 
@@ -164,38 +163,57 @@ private fun MapsPathRuleEditor(
     onSaved: () -> Unit,
 ) {
     val original = rules.firstOrNull { it.targetPath == originalTarget }
-    var target by rememberSaveable { mutableStateOf(original?.targetPath.orEmpty()) }
-    var replacement by rememberSaveable { mutableStateOf(original?.replacementPath.orEmpty()) }
+    val drafts = rememberSUMHEditorDrafts()
+    val draftKey = "maps:" + (originalTarget ?: "")
+    val currentBaseline = MapsEditorDraft.baseline(original)
+    val initialDraft = MapsEditorDraft(original?.targetPath.orEmpty(), original?.replacementPath.orEmpty(), currentBaseline)
+    LaunchedEffect(drafts.loaded, draftKey, drafts.snapshot[draftKey]) {
+        if (drafts.loaded) drafts.ensure(draftKey, initialDraft.record())
+    }
+    val draft = drafts.snapshot[draftKey]?.let(MapsEditorDraft::from) ?: initialDraft
+    fun updateDraft(change: (MapsEditorDraft) -> MapsEditorDraft) = drafts.change(draftKey) {
+        change(it?.let(MapsEditorDraft::from) ?: initialDraft).record()
+    }
+    val target = draft.target
+    val replacement = draft.replacement
+    val ready = drafts.loaded && draftKey in drafts.snapshot
+    val conflict = draft.baseline != currentBaseline
     var editedFields by rememberSaveable { mutableIntStateOf(0) }
     var submitted by rememberSaveable { mutableStateOf(false) }
-    var pendingSubmission by rememberSaveable { mutableStateOf(false) }
     val validation = validateSUMHMapsPathRule(target, replacement,
         rules.map { it.targetPath }, originalTarget)
     val candidate = remember(rules, originalTarget, target, replacement) {
         updateSUMHMapsPathRule(rules, originalTarget, MapsPathRule(target, replacement))
     }
     val withinBudget = remember(candidate) { candidate?.let(::mapsRulesWithinBudget) == true }
-    val canSave = enabled && candidate != null && candidate != rules && validation.valid && withinBudget
+    val canSave = ready && !conflict && enabled && candidate != null && candidate != rules && validation.valid && withinBudget
 
     // Only a refreshed saved definition closes the editor. Failed saves retain the draft.
-    LaunchedEffect(rules, pendingSubmission) {
-        if (pendingSubmission && MapsPathRule(target, replacement) in rules &&
-            (originalTarget == null || originalTarget == target || rules.none { it.targetPath == originalTarget })) {
-            onSaved()
+    LaunchedEffect(rules, draft) {
+        if (drafts.snapshot[draftKey] == draft.record() && draft.pendingTarget.isNotEmpty() &&
+            MapsPathRule(draft.pendingTarget, draft.pendingReplacement) in rules &&
+            (originalTarget == null || originalTarget == draft.pendingTarget || rules.none { it.targetPath == originalTarget })) {
+            if (target == draft.pendingTarget && replacement == draft.pendingReplacement) {
+                drafts.forget(draftKey, draft.record())
+                onSaved()
+            } else if (originalTarget == draft.pendingTarget) {
+                // A readback of an earlier same-target save must not close a newer draft.
+                updateDraft { it.copy(baseline = currentBaseline, pendingTarget = "", pendingReplacement = "") }
+            }
         }
     }
 
     val targetFocus = remember { FocusRequester() }
     val replacementFocus = remember { FocusRequester() }
     fun submit() {
-        if (!enabled || candidate == null || candidate == rules) return
+        if (!ready || conflict || !enabled || candidate == null || candidate == rules || drafts.snapshot[draftKey] != draft.record()) return
         submitted = true
         if (!validation.valid || !withinBudget) {
             if (validation.targetError != null || validation.duplicateTarget) targetFocus.requestFocus()
             else replacementFocus.requestFocus()
             return
         }
-        pendingSubmission = true
+        if (!updateDraft { it.copy(pendingTarget = target, pendingReplacement = replacement) }) return
         onRulesChanged(requireNotNull(candidate))
     }
     YukiAlertDialog(
@@ -205,6 +223,14 @@ private fun MapsPathRuleEditor(
         title = { Text(stringResource(if (originalTarget == null) R.string.sumh_maps_path_add else R.string.sumh_maps_path_edit)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SUMHEditorDraftStatus(drafts)
+                if (conflict) {
+                    Text(stringResource(R.string.sumh_editor_draft_conflict), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { updateDraft { initialDraft } }) { Text(stringResource(R.string.sumh_editor_draft_reload)) }
+                    if (originalTarget == null || original != null) TextButton(onClick = {
+                        updateDraft { it.copy(baseline = currentBaseline, pendingTarget = "", pendingReplacement = "") }
+                    }) { Text(stringResource(R.string.sumh_editor_draft_keep)) }
+                }
                 Text(stringResource(R.string.sumh_maps_path_hint), style = MaterialTheme.typography.bodySmall)
                 val targetError = if (submitted || editedFields and 1 != 0) {
                     if (validation.duplicateTarget) R.string.sumh_maps_path_duplicate
@@ -214,10 +240,14 @@ private fun MapsPathRuleEditor(
                     mapsPathErrorResource(validation.replacementError, target = false) else null
                 OutlinedTextField(
                     value = target,
-                    onValueChange = { target = it; editedFields = editedFields or 1; pendingSubmission = false },
+                    onValueChange = { value -> updateDraft {
+                        it.copy(target = value,
+                            pendingTarget = it.pendingTarget.takeIf { pending -> pending == originalTarget }.orEmpty(),
+                            pendingReplacement = it.pendingReplacement.takeIf { _ -> it.pendingTarget == originalTarget }.orEmpty())
+                    }; editedFields = editedFields or 1 },
                     label = { Text(stringResource(R.string.sumh_maps_path_target)) },
                     modifier = Modifier.fillMaxWidth().focusRequester(targetFocus),
-                    enabled = enabled,
+                    enabled = ready && enabled,
                     singleLine = true,
                     shape = MaterialTheme.shapes.small,
                     isError = targetError != null,
@@ -227,10 +257,14 @@ private fun MapsPathRuleEditor(
                 )
                 OutlinedTextField(
                     value = replacement,
-                    onValueChange = { replacement = it; editedFields = editedFields or 2; pendingSubmission = false },
+                    onValueChange = { value -> updateDraft {
+                        it.copy(replacement = value,
+                            pendingTarget = it.pendingTarget.takeIf { pending -> pending == originalTarget }.orEmpty(),
+                            pendingReplacement = it.pendingReplacement.takeIf { _ -> it.pendingTarget == originalTarget }.orEmpty())
+                    }; editedFields = editedFields or 2 },
                     label = { Text(stringResource(R.string.sumh_maps_path_replacement)) },
                     modifier = Modifier.fillMaxWidth().focusRequester(replacementFocus),
-                    enabled = enabled,
+                    enabled = ready && enabled,
                     singleLine = true,
                     shape = MaterialTheme.shapes.small,
                     isError = replacementError != null,

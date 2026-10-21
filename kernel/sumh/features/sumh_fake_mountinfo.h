@@ -8,8 +8,10 @@
 struct sumh_mi_snapshot {
 	refcount_t refs;
 	char *data;
+	size_t data_capacity;
 	size_t len;
 	char *mounts;
+	size_t mounts_capacity;
 	size_t mounts_len;
 };
 

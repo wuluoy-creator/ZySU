@@ -30,8 +30,8 @@ internal fun SUMHRulesWorkspace(
         }
         Box(Modifier.weight(1f)) {
             pages.SaveableStateProvider(runtime) {
-                if (runtime) RulesTab(rules, status, runtimeEnabled, onRefresh, onClearAll, rulesIncomplete)
-                else UserHideRulesScreen(enabled, snackbar, onSavingChanged, status == Controller.SUMHStatus.AVAILABLE)
+                if (runtime) SUMHRuntimeInventoryWorkspace(rules, status, runtimeEnabled, onRefresh, onClearAll)
+                else SUMHUserHideWorkspace(enabled, snackbar, onSavingChanged, status == Controller.SUMHStatus.AVAILABLE)
             }
         }
     }

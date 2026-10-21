@@ -21,5 +21,7 @@ struct CliArguments {
 
 // Returns -1 to dispatch, otherwise the exit status after printing help or an error.
 int parse_cli(const std::vector<std::string>& input, CliArguments& parsed);
+// Same grammar/validation, without help/diagnostics or global color changes.
+int parse_cli_quiet(const std::vector<std::string>& input, CliArguments& parsed);
 
 }  // namespace ksud

@@ -51,7 +51,7 @@ jobs:
       ZYSU_KSUD_VERSION_NAME: ${{ inputs.ksud_version_name }}
       ZYSU_KSUD_VERSION_CODE: ${{ inputs.ksud_version_code }}
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         # The generated version code depends on the complete main-repo history.
         fetch-depth: 0
@@ -73,13 +73,13 @@ jobs:
 
     - name: Download LKM artifacts
       if: ${{ inputs.pack_lkm }}
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       with:
         pattern: '*-lkm'
 
     - name: Download ksuinit artifact
       if: ${{ inputs.pack_ksuinit }}
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       with:
         name: ksuinit-${{ inputs.target }}
         path: ksuinit-${{ inputs.target }}
@@ -142,6 +142,7 @@ jobs:
 
     - name: Build ksud
       run: |
+        set -euo pipefail
         cd userspace/ksud
         mkdir -p build && cd build
         
@@ -166,11 +167,49 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DZYSU_ENABLE_CLANG_TIDY=OFF
 
+        # Bind the configured inputs before the first build, including staged
+        # LKM/ksuinit assets and the resolved native dependency sources.
+        python3 "$GITHUB_WORKSPACE/scripts/ci/native_provenance.py" snapshot \
+          --repo "$GITHUB_WORKSPACE" --target ksud --build-dir "$PWD" \
+          --out "$GITHUB_WORKSPACE/out/native-provenance/ksud" \
+          --artifact "ksud=$PWD/ksud" \
+          --artifact "ksud.unstripped=$PWD/symbols/ksud.unstripped" \
+          --dependencies "$PWD/native-dependencies.json"
+
         cmake --build . --target ksud --parallel "$(nproc)"
         
         # Show binary info
         ls -lh ksud
         file ksud
+
+    - name: Verify native hardening rejection cases
+      run: |
+        python3 scripts/ci/test_native_hardening.py \
+          --build-dir userspace/ksud/build --target ksud --linkage dynamic \
+          --readelf "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+
+    - name: Finalize and verify native provenance
+      run: |
+        set -euo pipefail
+        python3 scripts/ci/native_provenance.py finalize \
+          --snapshot out/native-provenance/ksud/source-snapshot.json
+        python3 scripts/ci/native_provenance.py verify \
+          --manifest out/native-provenance/ksud/build-manifest.json
+
+    - name: Verify final ELF embedded payload bytes
+      run: |
+        set -euo pipefail
+        python3 scripts/ci/embedded_payloads.py create \
+          --native-manifest out/native-provenance/ksud/build-manifest.json \
+          --binary userspace/ksud/build/ksud \
+          --generated-cpp userspace/ksud/build/generated/assets_data.cpp \
+          --assets-dir userspace/ksud/assets \
+          --output-dir out/native-provenance/ksud/embedded
+        python3 scripts/ci/embedded_payloads.py verify \
+          --proof out/native-provenance/ksud/embedded/manifest.json \
+          --binary userspace/ksud/build/ksud \
+          --native-manifest out/native-provenance/ksud/build-manifest.json
+
     - name: Sign ksud when a GPG key is configured
       if: ${{ github.event_name != 'pull_request' }}
       env:
@@ -196,10 +235,24 @@ jobs:
       run: ccache --show-stats
 
     - name: Upload ksud artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: ksud-${{ inputs.target }}
         path: |
           userspace/ksud/build/ksud
           userspace/ksud/build/ksud.sig
+        if-no-files-found: error
+
+    - name: Upload matching ksud diagnostic symbols
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      with:
+        name: ksud-symbols-${{ inputs.target }}
+        path: userspace/ksud/build/symbols/ksud.unstripped
+        if-no-files-found: error
+
+    - name: Upload ksud provenance and native license evidence
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      with:
+        name: ksud-provenance-${{ inputs.target }}
+        path: out/native-provenance/ksud/
         if-no-files-found: error

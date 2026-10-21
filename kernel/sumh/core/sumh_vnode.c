@@ -574,13 +574,19 @@ static int SUMH_NOCFI sumh_vnode_dir_iterate_virtual(
 	struct list_head children;
 	struct sumh_name_list *item, *tmp;
 	loff_t idx = 2; /* children follow . and .. */
+	int ret;
 
 	if (!info->visible_path)
 		return -ENOTDIR;
-	if (!dir_emit_dots(file, ctx))
-		return 0;
 	INIT_LIST_HEAD(&children);
-	sumh_rule_vpath_emit(info->visible_path, &children);
+	/* Build before advancing even the dot cookies. On allocation failure no
+	 * names are published and a retry starts at the same position. */
+	ret = sumh_rule_vpath_emit(info->visible_path, &children);
+	if (ret < 0)
+		goto out;
+	ret = 0;
+	if (!dir_emit_dots(file, ctx))
+		goto out;
 	list_for_each_entry_safe (item, tmp, &children, list) {
 		bool stop = false;
 
@@ -599,12 +605,13 @@ static int SUMH_NOCFI sumh_vnode_dir_iterate_virtual(
 		if (stop)
 			break;
 	}
+out:
 	list_for_each_entry_safe (item, tmp, &children, list) {
 		list_del(&item->list);
 		kfree(item->name);
 		kfree(item);
 	}
-	return 0;
+	return ret;
 }
 
 static int SUMH_NOCFI sumh_vnode_dir_iterate(struct file *file,
@@ -723,6 +730,8 @@ static struct dentry *SUMH_NOCFI sumh_vnode_dir_lookup(struct inode *dir,
 		}
 		kfree(name);
 		module_put(THIS_MODULE);
+		if (kind < 0)
+			return ERR_PTR(kind);
 		if (kind == SUMH_VPATH_NONE) {
 			d_add(dentry, NULL);
 			return NULL;

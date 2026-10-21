@@ -64,47 +64,42 @@ void sumh_iterate_rewind_injected(struct dir_context *ctx)
 
 SUMH_NOCFI void sumh_iterate_emit_injected(struct sumh_filldir_wrapper *w)
 {
-	struct list_head head;
-	struct sumh_name_list *item, *tmp;
+	struct list_head *head;
+	struct sumh_name_list *item;
 	struct inode *parent;
 	loff_t pos = SUMH_MAGIC_POS;
 
 	if (!w->view_allowed || !w->dir_has_inject || w->inject_done ||
-	    !w->dir_path || !w->parent_dentry)
+	    !w->merge_snapshot || !w->parent_dentry)
 		return;
 
 	w->inject_done = true;
 	w->inject_pending = true;
 	parent = d_inode(w->parent_dentry);
-	INIT_LIST_HEAD(&head);
-	sumh_populate_injected_list(w->dir_path, w->parent_dentry, &head);
-	list_for_each_entry_safe (item, tmp, &head, list) {
+	head = sumh_merge_snapshot_names(w->merge_snapshot);
+	list_for_each_entry (item, head, list) {
 		int nlen = strlen(item->name);
 
 		if (parent && sumh_dirhijack_hidden(parent, item->name, nlen))
-			goto free_item;
+			continue;
 		/* Exact rules already owned by the specialized iterator appear
 		 * after the native stream. Merge-only children stay in this
 		 * list. */
 		if (w->has_iterate_client && parent &&
 		    sumh_dirhijack_emits(parent, item->name, nlen))
-			goto free_item;
+			continue;
 		if (pos++ < w->inject_pos || w->stopped)
-			goto free_item;
+			continue;
 		w->orig_ctx->pos = w->inject_pos;
 		if (!w->orig_ctx->actor(w->orig_ctx, item->name, nlen,
 					w->inject_pos, item->ino ?: 1,
 					item->type)) {
 			w->stopped = true;
-			goto free_item;
+			continue;
 		}
 		w->inject_pos++;
 		w->emitted++;
 		atomic64_inc(&sumh_hook_stats.filldir_injected);
-	free_item:
-		list_del(&item->list);
-		kfree(item->name);
-		kfree(item);
 	}
 }
 
@@ -132,38 +127,12 @@ SUMH_NOCFI bool sumh_filldir_filter(struct dir_context *ctx, const char *name,
 			goto passthrough;
 	}
 
-	/* Hide real entries that also exist in merge targets. This prevents
-	 * duplicates: the injected version (from populate_injected_list)
-	 * replaces the original, just like original sumh.c does.
-	 * Skip when merge target IS the dir we're listing (e.g. target path
-	 * resolved to same inode via symlink) - otherwise we'd hide everything.
-	 * This is independent of app-hide policy because explicit merge rules
-	 * must not emit duplicate names even during root/manual validation. */
-	if (w->view_allowed && sumh_d_hash_and_lookup &&
-	    w->merge_target_count > 0 && w->parent_dentry) {
-		int i;
-		for (i = 0; i < w->merge_target_count; i++) {
-			struct dentry *tgt = w->merge_target_dentries[i];
-			if (!tgt || tgt == w->parent_dentry)
-				continue;
-			if (d_inode(tgt) &&
-			    d_inode(tgt) == d_inode(w->parent_dentry))
-				continue;
-			{
-				struct dentry *child = sumh_d_hash_and_lookup(
-				    tgt, &(struct qstr)QSTR_INIT(name, namlen));
-				if (child) {
-					bool positive = d_inode(child) != NULL;
-
-					dput(child);
-					if (!positive)
-						continue;
-					atomic64_inc(
-					    &sumh_hook_stats.filldir_hidden);
-					return true;
-				}
-			}
-		}
+	/* Coverage and injected entries come from the same complete snapshot,
+	 * including targets beyond the former fixed array and cold dentries. */
+	if (w->view_allowed &&
+	    sumh_merge_snapshot_covers(w->merge_snapshot, name, namlen)) {
+		atomic64_inc(&sumh_hook_stats.filldir_hidden);
+		return true;
 	}
 
 	if (sumh_d_hash_and_lookup && w->dir_has_hidden && w->parent_dentry) {
@@ -314,6 +283,14 @@ void sumh_apply_kstat_spoof(struct inode *inode, struct kstat *stat)
 		set_bit(AS_FLAGS_SUMH_SPOOF_KSTAT, &inode->i_mapping->flags);
 }
 
+/* Preparation failures must release storage without publishing a cursor. */
+static void sumh_iterate_free_wrapper(struct sumh_filldir_wrapper *wrapper)
+{
+	sumh_merge_snapshot_destroy(wrapper->merge_snapshot);
+	kfree(wrapper->dir_path);
+	kmem_cache_free(sumh_filldir_cache, wrapper);
+}
+
 SUMH_NOCFI struct sumh_filldir_wrapper *
 sumh_iterate_prepare_wrapper(struct file *file, struct dir_context *orig_ctx)
 {
@@ -324,6 +301,7 @@ sumh_iterate_prepare_wrapper(struct file *file, struct dir_context *orig_ctx)
 	enum sumh_policy_scope scope;
 	bool dir_has_hidden = false, dir_has_inject = false;
 	int dir_path_len = 0;
+	int ret;
 
 	if (atomic_long_read(&sumh_ioctl_tgid) == (long)task_tgid_vnr(current))
 		return NULL;
@@ -358,16 +336,17 @@ sumh_iterate_prepare_wrapper(struct file *file, struct dir_context *orig_ctx)
 		    dname[3] == '\0')
 			dir_path_len = 4;
 	}
-	/* Most directories need no filtering. Decide before allocating and
-	 * zeroing the wrapper (including its path buffer and merge targets). */
+	/* Most directories need no filtering. Decide before allocating the
+	 * wrapper; only injection needs a separately allocated path buffer. */
 	if (!dir_has_hidden && !dir_has_inject &&
 	    (scope != SUMH_POLICY_SCOPE_SPOOF || !sumh_stealth_enabled ||
 	     dir_path_len != 4))
 		return NULL;
 
-	w = kmem_cache_zalloc(sumh_filldir_cache, GFP_ATOMIC);
+	/* This is a sleepable fop callback, outside the caller's RCU lookup. */
+	w = kmem_cache_zalloc(sumh_filldir_cache, GFP_KERNEL);
 	if (!w)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	w->orig_ctx = orig_ctx;
 	w->wrap_ctx.actor = sumh_filldir_filter;
@@ -389,84 +368,70 @@ sumh_iterate_prepare_wrapper(struct file *file, struct dir_context *orig_ctx)
 
 	if (w->parent_dentry) {
 		/*
-		 * Only when dir_has_inject (from flag) is true: build full path
-		 * and traverse hash to get merge_target_dentries. Most dirs
-		 * skip this.
+		 * Only marked VIEW directories with live rules need the path
+		 * and complete per-call snapshot, including native-cookie
+		 * resumes.
 		 */
 		if (w->view_allowed && atomic_read(&sumh_rule_count) > 0 &&
 		    w->dir_has_inject) {
-			char *buf = w->dir_path_buf;
-			char *dp = ERR_PTR(-ENOENT);
+			char *dp;
+			size_t offset, plen;
+
+			w->dir_path =
+			    kmalloc(SUMH_ITERATE_PATH_BUF, GFP_KERNEL);
+			if (!w->dir_path) {
+				ret = -ENOMEM;
+				goto fail;
+			}
 
 			if (sumh_d_absolute_path)
 				dp = sumh_d_absolute_path(
-				    &file->f_path, buf, SUMH_ITERATE_PATH_BUF);
-			if (IS_ERR(dp))
-				dp = dentry_path_raw(w->parent_dentry, buf,
-						     SUMH_ITERATE_PATH_BUF);
-
-			if (!IS_ERR_OR_NULL(dp) && *dp == '/') {
-				struct sumh_inject_entry *ie;
-				struct sumh_merge_entry *me;
-				u32 h;
-				int mbkt;
-				size_t plen = strlen(dp);
-
-				if (plen < SUMH_ITERATE_PATH_BUF) {
-					memmove(w->dir_path_buf, dp, plen + 1);
-					w->dir_path = w->dir_path_buf;
-					dp = w->dir_path_buf;
-				}
-				h = full_name_hash(NULL, dp, strlen(dp));
-
-				rcu_read_lock();
-				hlist_for_each_entry_rcu(
-				    ie,
-				    &sumh_inject_dirs[hash_min(h,
-							       SUMH_HASH_BITS)],
-				    node)
-				{
-					if (strcmp(ie->dir, dp) == 0) {
-						w->dir_has_inject = true;
-						break;
-					}
-				}
-				/* Scan all merge entries (few) to match both
-				 * src and resolved_src; cache target dentries.
-				 */
-				hash_for_each_rcu(sumh_merge_dirs, mbkt, me,
-						  node)
-				{
-					if (strcmp(me->src, dp) == 0 ||
-					    (me->resolved_src &&
-					     strcmp(me->resolved_src, dp) ==
-						 0)) {
-						w->dir_has_inject = true;
-						/* The iterator can sleep after
-						 * RCU unlock; retain the target
-						 * across a concurrent CLEAR.
-						 */
-						if (me->target_dentry &&
-						    w->merge_target_count <
-							SUMH_MAX_MERGE_TARGETS)
-							w->merge_target_dentries
-							    [w->merge_target_count++] =
-							    dget(
-								me->target_dentry);
-					}
-				}
-				rcu_read_unlock();
+				    &file->f_path, w->dir_path,
+				    SUMH_ITERATE_PATH_BUF);
+			else
+				dp = d_path(&file->f_path, w->dir_path,
+					    SUMH_ITERATE_PATH_BUF);
+			/* A primary resolver error must not become a shorter
+			 * raw dentry path with a different mount-relative
+			 * identity. */
+			if (IS_ERR(dp)) {
+				ret = PTR_ERR(dp);
+				goto fail;
 			}
+			/* Validate the returned span before reading it.
+			 * Unsigned subtraction also rejects pointers preceding
+			 * the buffer. */
+			offset = (unsigned long)dp - (unsigned long)w->dir_path;
+			if (!dp || offset >= SUMH_ITERATE_PATH_BUF) {
+				ret = -EIO;
+				goto fail;
+			}
+			plen = strnlen(dp, SUMH_ITERATE_PATH_BUF - offset);
+			if (plen == SUMH_ITERATE_PATH_BUF - offset) {
+				ret = -ENAMETOOLONG;
+				goto fail;
+			}
+			if (*dp != '/') {
+				ret = -EIO;
+				goto fail;
+			}
+			memmove(w->dir_path, dp, plen + 1);
+			dp = w->dir_path;
+			ret = sumh_merge_snapshot_create(file, dp,
+							 &w->merge_snapshot);
+			if (ret)
+				goto fail;
 		}
 	}
 
 	return w;
+fail:
+	sumh_iterate_free_wrapper(w);
+	return ERR_PTR(ret);
 }
 
 void sumh_iterate_finish_wrapper(struct sumh_filldir_wrapper *wrapper)
 {
-	int i;
-
 	if (!wrapper)
 		return;
 	if (wrapper->orig_ctx) {
@@ -475,7 +440,5 @@ void sumh_iterate_finish_wrapper(struct sumh_filldir_wrapper *wrapper)
 			? wrapper->inject_pos
 			: wrapper->wrap_ctx.pos;
 	}
-	for (i = 0; i < wrapper->merge_target_count; i++)
-		dput(wrapper->merge_target_dentries[i]);
-	kmem_cache_free(sumh_filldir_cache, wrapper);
+	sumh_iterate_free_wrapper(wrapper);
 }

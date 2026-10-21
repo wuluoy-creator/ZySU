@@ -197,7 +197,8 @@ inline std::string dump(const Value& v, int indent = -1, int level = 0) {
 
 class Parser {
 public:
-    explicit Parser(const std::string& input) : input_(input) {}
+    explicit Parser(const std::string& input, bool reject_duplicate_keys = false)
+        : input_(input), reject_duplicate_keys_(reject_duplicate_keys) {}
 
     bool parse(Value& value, std::string& error) {
         skip_ws();
@@ -222,6 +223,7 @@ private:
     std::size_t depth_ = 0;
     const std::string& input_;
     std::size_t pos_ = 0;
+    bool reject_duplicate_keys_ = false;
 
     void skip_ws() {
         while (pos_ < input_.size()) {
@@ -315,6 +317,10 @@ private:
         for (;;) {
             std::string key;
             if (!parse_string(key, error)) {
+                return false;
+            }
+            if (reject_duplicate_keys_ && value.o.count(key)) {
+                error = "duplicate JSON object key at byte " + std::to_string(pos_);
                 return false;
             }
             if (!consume(':')) {

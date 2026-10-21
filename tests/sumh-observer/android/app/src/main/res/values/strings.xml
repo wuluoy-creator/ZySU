@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SUMH Observer</string>
+    <string name="introduction">Collect a synthetic fixture from this app and an isolated service. A collected sample is evidence, not a visibility-test pass. Export it for offline comparison.</string>
+    <string name="request_heading">1. Select one request</string>
+    <string name="request_none">Create a private fixture, or import a bounded version 1 request.</string>
+    <string name="create">Create a new private fixture</string>
+    <string name="import_request">Import request JSON</string>
+    <string name="export_request">Export exact request bytes</string>
+    <string name="request_details">Run: %1$s\nFixture: %2$s\nRequest SHA-256: %3$s</string>
+    <string name="ordinary_heading">2. Ordinary app observer</string>
+    <string name="isolated_heading">3. Isolated service observer</string>
+    <string name="collect_ordinary">Collect ordinary sample</string>
+    <string name="collect_isolated">Collect isolated sample</string>
+    <string name="export_ordinary">Export ordinary sample</string>
+    <string name="export_isolated">Export isolated sample</string>
+    <string name="sample_none">No successful sample transport for this request.</string>
+    <string name="sample_saved">Retained sample size (bytes): %1$d. Probe errors and incomplete observations remain in the JSON. Repeating collection replaces this actor’s retained sample; export first to keep a baseline.</string>
+    <string name="latest_attempt">Latest attempt: %1$s</string>
+    <string name="scope_note">The isolated service attempts its own path access and separately receives a verified read-only map FD. Denied access is not proof of hiding. Root sampling is a separate manual helper run. This app does not request root or install SUMH rules.</string>
+    <string name="cleanup_note">Fixtures and evidence stay in this test app’s private data. Export what you need before clearing the test app’s storage or uninstalling it. There is no automatic rule cleanup.</string>
+    <string name="status_ready">Ready. Nothing runs automatically.</string>
+    <string name="status_working">Operation running. Wait for its result.</string>
+    <string name="status_request">Request saved. Choose an observer to collect.</string>
+    <string name="status_collected">Sample collected and saved. Use the offline checker to assess individual observations.</string>
+    <string name="status_exported">Exact evidence bytes exported.</string>
+    <string name="status_error">Operation failed. Previous evidence is retained. Review the detail before retrying manually.</string>
+    <string name="status_unknown">No confirmed result within 10 seconds. The operation was not retried. A late response will be ignored.</string>
+    <string name="native_still_running">A local call is still returning; new operations remain disabled.</string>
+    <string name="status_interrupted">A previous operation has no confirmed completion. Saved evidence is retained; no operation was replayed.</string>
+    <string name="status_restored">Saved request and evidence restored. Their original process identities remain unchanged.</string>
+    <string name="export_expired">Export selection expired or belongs to a different request. Choose the export action again.</string>
+    <string name="service_died">The isolated service disconnected before a confirmed result.</string>
+    <string name="service_rejected">The isolated service could not be bound.</string>
+</resources>

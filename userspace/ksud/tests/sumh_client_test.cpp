@@ -255,7 +255,8 @@ void test_managed_maps() {
         std::vector<sumh::MapsRule>(SUMH_MANAGED_MAPS_MAX_RULES + 1, valid)));
     assert(errno == E2BIG && calls.empty());
     expect_features(0);
-    assert(sumh::replace_managed_maps_rules({}));
+    bool submitted = true;
+    assert(sumh::replace_managed_maps_rules_checked({}, submitted) && !submitted);
     expect_features(0);
     assert(!sumh::replace_managed_maps_rules({valid}) && errno == EOPNOTSUPP);
     expect_error(SUMH_IOC_GET_FEATURES, EACCES);
@@ -272,17 +273,18 @@ void test_managed_maps() {
         assert(std::string(rules[0].spoofed_pathname) == "/replacement");
         return 0;
     });
-    assert(sumh::replace_managed_maps_rules({valid}));
+    assert(sumh::replace_managed_maps_rules_checked({valid}, submitted) && submitted);
     expect_features(SUMH_FEATURE_MANAGED_MAPS);
     expect_error(SUMH_IOC_SET_MANAGED_MAPS, ENOMEM);
-    assert(!sumh::replace_managed_maps_rules({valid}) && errno == ENOMEM);
+    assert(!sumh::replace_managed_maps_rules_checked({valid}, submitted) && errno == ENOMEM &&
+           !submitted);
     expect_features(SUMH_FEATURE_MANAGED_MAPS);
     expect(SUMH_IOC_SET_MANAGED_MAPS, [](void* value) {
         const auto& arg = *static_cast<sumh_managed_maps_arg*>(value);
         assert(arg.count == 0 && arg.rules == 0);
         return 0;
     });
-    assert(sumh::replace_managed_maps_rules({}));
+    assert(sumh::replace_managed_maps_rules_checked({}, submitted) && submitted);
     assert((sumh::feature_names(SUMH_FEATURE_MANAGED_MAPS) ==
             std::vector<std::string>{"managed_maps"}));
     assert(calls.empty());

@@ -36,12 +36,16 @@ add_library(kernelsu
         jni.c
         ksud_integrity.c
         sumhp_jni.cpp
+        ${REPO_ROOT}/userspace/common/maps_preview_transport.cpp
+        ${REPO_ROOT}/userspace/common/profile_manager_transport.cpp
         ${REPO_ROOT}/userspace/ksud/sumhp/src/mount/sumh_client.cpp
         ksu.c
 )
 target_include_directories(kernelsu PRIVATE ${REPO_ROOT}/userspace/ksud/sumhp/include)
 target_compile_definitions(kernelsu PRIVATE SUMHP_EMBEDDED)
 set_source_files_properties(sumhp_jni.cpp
+        ${REPO_ROOT}/userspace/common/maps_preview_transport.cpp
+        ${REPO_ROOT}/userspace/common/profile_manager_transport.cpp
         ${REPO_ROOT}/userspace/ksud/sumhp/src/mount/sumh_client.cpp
         PROPERTIES COMPILE_OPTIONS "-fexceptions;-funwind-tables")
 

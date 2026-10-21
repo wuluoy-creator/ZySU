@@ -2,6 +2,8 @@
 #define _SUMH_DIRHIJACK_H
 
 #include <linux/path.h>
+#include <linux/list.h>
+#include <linux/limits.h>
 #include <linux/types.h>
 
 struct inode;
@@ -34,44 +36,69 @@ void sumh_dh_reclaim_evict_inode(struct inode *inode,
 int sumh_dh_reclaim_drop_inode(struct inode *inode,
 			       const struct super_operations *orig);
 
-/*
- * Register a virtual child at @visible_path backed by @source, projected with
- * stable identity @v_ino.  Resolves the visible parent directory, installs the
- * lookup/superblock hijack there if needed, and indexes the child.  Sleepable
- * context only (control path).  Returns 0 or a negative errno.
- */
-int sumh_dirhijack_add(const char *visible_path, const struct path *source,
-		       unsigned long v_ino, u8 flags);
-
-int sumh_dirhijack_add_su(const char *visible_path, unsigned long v_ino,
-			  struct path *parent);
-/* Return 1 for an unchanged binding, 0 for a mismatch, or a negative errno. */
-int sumh_dirhijack_match_su(const char *visible_path, const struct path *parent,
+enum sumh_dh_owner_kind {
+	SUMH_DH_OWNER_MAPPING,
+	SUMH_DH_OWNER_SHADOW,
+	SUMH_DH_OWNER_LEGACY_HIDE,
+	SUMH_DH_OWNER_MANAGED_HIDE,
+	SUMH_DH_OWNER_SU,
+	SUMH_DH_OWNER_VTOPO,
+};
+struct sumh_dh_claim;
+struct sumh_dh_spec {
+	enum sumh_dh_owner_kind kind;
+	const struct path *source;
+	unsigned long v_ino;
+	u8 flags;
+};
+struct sumh_dh_change {
+	struct sumh_dh_claim *add, *remove;
+};
+struct sumh_dh_invalidation {
+	struct dentry *parent;
+	char name[NAME_MAX + 1];
+};
+struct sumh_dh_retire {
+	struct list_head slots, dirs, dops, invalidations;
+	struct sumh_dh_invalidation single[2];
+	unsigned int count;
+	bool bulk;
+};
+void sumh_dh_retire_init(struct sumh_dh_retire *retired, bool bulk);
+/* Preparation acquires the observed parent inode lock before DH. Callers
+ * must hold neither that inode lock nor config/DH; producer mutation/SU
+ * locks are allowed. No inode lock survives the preparation call, and all
+ * callback drains/final reference drops occur after inode/DH unlock.
+ * Returned parent has an independent path ref. Only MAPPING permits an
+ * absent immediate parent / virtual-top dependency. */
+int sumh_dh_prepare_path(const char *visible, const struct sumh_dh_spec *spec,
+			 struct sumh_dh_claim **out,
+			 struct path *native_parent);
+int sumh_dh_prepare_parent(const struct path *parent, const char *name,
+			   const struct sumh_dh_spec *spec,
+			   struct sumh_dh_claim **out);
+/* Abort consumes an unpublished PREPARED or INVALIDATED claim. Put consumes
+ * a previously detached published claim; neither frees an attached owner. */
+void sumh_dh_abort(struct sumh_dh_claim *claim);
+void sumh_dh_claim_put(struct sumh_dh_claim *claim);
+bool sumh_dh_claim_matches_parent(const struct sumh_dh_claim *claim,
+				  const struct path *parent);
+/* Begin holds DH on success. All ordinary failures precede commit. */
+int sumh_dh_change_begin(struct sumh_dh_claim *add,
+			 struct sumh_dh_claim *remove,
+			 struct sumh_dh_change *change);
+void sumh_dh_change_commit(struct sumh_dh_change *change,
+			   struct sumh_dh_retire *retired);
+void sumh_dh_change_end(void);
+/* Detach acquires DH internally, may be called under config, never waits for
+ * callbacks. Finish and all physical release must run outside config/DH. */
+void sumh_dh_detach(struct sumh_dh_claim *claim,
+		    struct sumh_dh_retire *retired);
+void sumh_dh_retire_finish(struct sumh_dh_retire *retired);
+void sumh_dh_drain_releases(void);
+int sumh_dirhijack_match_su(const char *visible,
+			    const struct sumh_dh_claim *claim,
 			    unsigned long v_ino);
-void sumh_dirhijack_del_su(const struct path *parent, const char *name,
-			   unsigned long v_ino);
-
-/*
- * Register a lookup-only child at @visible_path backed by @source: VFS lookup
- * resolves it to a SUMH vnode, but dirhijack does not shadow this dir's
- * readdir — the overlay filldir injection keeps emitting and deduping the name.
- * Sinks a merge-materialized file's lookup axis onto the VFS layer (Slice 4a).
- * Sleepable context only.  Returns 0 or a negative errno.
- */
-int sumh_dirhijack_add_shadow(const char *visible_path,
-			      const struct path *source, unsigned long v_ino,
-			      u8 flags);
-
-/* Remove one registered child (by visible path). */
-int sumh_dirhijack_del(const char *visible_path);
-
-/*
- * Register a suppress-only ("hide") child at @visible_path: VFS lookup returns
- * a negative dentry and readdir omits the name for hide-target observers.
- * Root and rule-management lookups retain the real entry. Sleepable context
- * only.
- */
-int sumh_dirhijack_hide(const char *visible_path);
 
 struct sumh_hide_binding;
 int sumh_dirhijack_hide_get(const struct path *parent, const char *name,
@@ -85,8 +112,10 @@ bool sumh_dirhijack_emits(struct inode *parent, const char *name, int len);
 bool sumh_dirhijack_injected_context(const struct dir_context *ctx);
 
 /*
- * Restore every inode/file/dentry operation shadow, invalidate affected
- * dentries, drain callbacks, and release all dirhijack metadata.  May sleep.
+ * Withdraw non-SU owners and invalidate unpublished reservations. Runtime
+ * CLEAR preserves active SU; stop withdraws everything. Caller-owned
+ * invalidated reservations remain safely abortable. May sleep; no global
+ * producer drain.
  */
 void sumh_dirhijack_clear(void);
 

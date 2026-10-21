@@ -74,7 +74,7 @@ static struct llist_node *llist_del_all(struct llist_head *head)
 static void schedule_work(struct work_struct *work) { work->pending = 1; }
 static struct rcu_head *callbacks[16];
 static int callback_count, atomic_context, bad_context, free_count;
-static int path_puts, dputs, sumh_vnode_live_count;
+static int path_puts, dputs, mount_puts, sumh_vnode_live_count;
 static void (*release_hook)(void);
 static void call_rcu(struct rcu_head *head, void (*fn)(struct rcu_head *))
 {
@@ -111,46 +111,63 @@ struct user_namespace { int value; };
 #define KVN_IDMAP_ARG struct mnt_idmap *idmap,
 #define KVN_IDMAP_CALL idmap,
 #endif
-struct vfsmount { MAP_TYPE *idmap; };
+struct vfsmount { MAP_TYPE *idmap; int refs; };
 #define KVN_SRC_IDMAP(mnt) (mnt)->idmap,
 struct inode { void *i_private; int locked; };
-struct dentry { struct inode *inode; };
+struct dentry { struct inode *inode; int refs; };
 struct path { struct dentry *dentry; struct vfsmount *mnt; };
 struct sumh_vnode_info { struct path source; };
 struct file { void *private_data; };
 struct iattr { unsigned int ia_valid; struct file *ia_file; };
+/* Record-only fixtures deliberately have NULL owners. Actual claim and third
+ * queue lifetimes run in test_sumh_inject_claims.py, with production helpers. */
+struct sumh_inject_claim;
+struct sumh_dh_claim;
+static void sumh_dh_claim_put(struct sumh_dh_claim *c) { if (c) bad_context = 1; }
+struct sumh_inject_inode { struct llist_node free_node; };
+static void sumh_inject_destroy(struct sumh_inject_claim *c) { if (c) bad_context = 1; }
+static void sumh_inject_inode_free(struct sumh_inject_inode *c) { if (c) bad_context = 1; }
 struct sumh_entry {
     struct path source_path, source_nofollow_path;
     struct inode *source_inode;
     bool source_path_valid, source_nofollow_path_valid;
     char *src, *target, *source_canonical;
+    struct sumh_inject_claim *inject_claim;
+    struct sumh_dh_claim *dh_claim;
     struct rcu_head rcu;
     struct llist_node free_node;
 };
+struct sumh_hide_entry {
+    char *path;
+    struct sumh_dh_claim *dh_claim;
+    struct llist_node free_node;
+};
 struct sumh_merge_entry {
-    struct dentry *target_dentry;
+    struct path target_path;
     char *src, *target, *resolved_src;
+    struct sumh_inject_claim *inject_claims[2];
     struct rcu_head rcu;
     struct llist_node free_node;
 };
 static void path_put(struct path *path)
 {
-    (void)path;
     bad_context |= atomic_context;
+    if (!path || !path->dentry || !path->mnt ||
+        path->dentry->refs <= 1 || path->mnt->refs <= 1) bad_context = 1;
+    else {
+        path->dentry->refs--;
+        path->mnt->refs--;
+    }
     path_puts++;
+    dputs++;
+    mount_puts++;
     if (release_hook) {
         void (*hook)(void) = release_hook;
         release_hook = NULL;
         hook();
     }
 }
-static void dput(struct dentry *dentry)
-{
-    (void)dentry;
-    bad_context |= atomic_context;
-    dputs++;
-}
-static struct llist_head sumh_retired_entries, sumh_retired_merges;
+static struct llist_head sumh_retired_entries, sumh_retired_merges, sumh_retired_inject_inodes, sumh_retired_hides;
 static void sumh_store_free_workfn(struct work_struct *work);
 static struct work_struct sumh_store_free_work = { sumh_store_free_workfn, 0 };
 
@@ -222,9 +239,9 @@ static void retire_during_release(void)
 int run(void)
 {
     struct inode src_inode = {0}, visible_inode = {0};
-    struct dentry src_dentry = {&src_inode}, visible_dentry = {&visible_inode};
+    struct dentry src_dentry = {&src_inode, 4}, visible_dentry = {&visible_inode, 1};
     MAP_TYPE visible_map = {1}, source_map = {2};
-    struct vfsmount source_mount = {&source_map};
+    struct vfsmount source_mount = {&source_map, 4};
     struct path source = {&src_dentry, &source_mount};
     struct sumh_vnode_info info = {source};
     struct file real_file = {0}, visible_file = {&real_file};
@@ -238,7 +255,7 @@ int run(void)
     entry.source_nofollow_path = source;
     entry.source_inode = &src_inode;
     entry.source_path_valid = entry.source_nofollow_path_valid = true;
-    merge.target_dentry = &src_dentry;
+    merge.target_path = source;
     sumh_vnode_live_count = 1;
     call_rcu(&entry.rcu, sumh_entry_free_rcu);
     call_rcu(&merge.rcu, sumh_merge_entry_free_rcu);
@@ -247,11 +264,12 @@ int run(void)
     CHECK(2, !path_puts && !dputs && !free_count);
     CHECK(3, sumh_store_free_work.pending);
     sumh_store_drain();
-    CHECK(4, path_puts == 2 && dputs == 1 && free_count == 2);
+    CHECK(4, path_puts == 3 && dputs == 3 && mount_puts == 3 && free_count == 2);
     CHECK(5, !bad_context && !sumh_vnode_live_count);
     CHECK(6, !entry.source_path.dentry && !entry.source_nofollow_path.dentry);
     CHECK(7, !entry.source_path_valid && !entry.source_nofollow_path_valid);
     CHECK(8, !entry.source_inode && !sumh_store_free_work.pending);
+    CHECK(29, src_dentry.refs == 1 && source_mount.refs == 1);
 
     /* A callback arriving during destruction must also be drained. */
     memset(&entry, 0, sizeof(entry));
@@ -259,14 +277,17 @@ int run(void)
     entry.source_path_valid = true;
     extra_entry.source_path = source;
     extra_entry.source_path_valid = true;
+    src_dentry.refs += 2;
+    source_mount.refs += 2;
     sumh_vnode_live_count = 2;
     release_hook = retire_during_release;
     call_rcu(&entry.rcu, sumh_entry_free_rcu);
     sumh_store_drain();
-    CHECK(9, path_puts == 4 && free_count == 4 && !bad_context);
+    CHECK(9, path_puts == 5 && free_count == 4 && !bad_context);
     CHECK(10, !sumh_vnode_live_count && !sumh_store_free_work.pending);
     sumh_store_drain();
-    CHECK(11, path_puts == 4 && free_count == 4);
+    CHECK(11, path_puts == 5 && free_count == 4);
+    CHECK(30, src_dentry.refs == 1 && source_mount.refs == 1 && mount_puts == 5);
 
     /* Attributes must reach the source mount's idmap and opened file. */
     visible_inode.i_private = &info;
@@ -363,7 +384,7 @@ def main():
             result = subprocess.run([str(output)])
             if result.returncode:
                 raise AssertionError(f"SUMH core check {result.returncode} failed (old_idmap={old_idmap})")
-            print(f"SUMH core: 28 ownership/error checks passed (old_idmap={old_idmap})")
+            print(f"SUMH core: 30 ownership/error checks passed (old_idmap={old_idmap})")
 
 
 if __name__ == "__main__":

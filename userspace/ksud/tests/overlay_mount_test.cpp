@@ -73,7 +73,7 @@ std::string runtime_boot_id() {
     return "fixture-boot";
 }
 namespace ksud {
-bool write_file_atomic(const std::string&, const std::string& data) {
+bool write_file_durable(const std::string&, const std::string& data, std::string&) {
     auto& state = fixture::state;
     ++state.journal_writes;
     if (state.fail_journal || (state.fail_first_journal && state.journal_writes == 1))

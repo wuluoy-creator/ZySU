@@ -222,7 +222,9 @@ int main() {
         assert(fsutil::module_partition_alias(module / "system" / part) == module / part);
     }
     assert(validate_partition_tree(module / "system", parts, true));
-    assert(!module_needs_magic({"module", module}, {}));
+    std::string scan_error_message;
+    assert(!module_needs_magic({"module", module}, {}, scan_error_message));
+    assert(scan_error_message.empty());
     const auto plan = plan_overlays(root.string(), {"module"}, parts);
     for (const auto& part : parts) {
         if (part == "system")
@@ -267,14 +269,16 @@ int main() {
     realfs::remove(module / "vendor/.replace");
     std::ofstream(module / "vendor/direct-file").close();
     assert(!validate_partition_tree(module / "system", parts, true));
-    assert(module_needs_magic({"module", module}, {}));
+    assert(module_needs_magic({"module", module}, {}, scan_error_message));
+    assert(scan_error_message.empty());
     realfs::remove(module / "vendor/direct-file");
     for (const auto& destination :
          {fs::path("../../lower/system/vendor"), fs::path("../missing"), fs::path("../product"),
           module / "vendor", fs::path("../system/../vendor")}) {
         fixture::links[fixture::key(module / "system/vendor")] = destination;
         assert(!fsutil::module_partition_alias(module / "system/vendor"));
-        assert(module_needs_magic({"module", module}, {}));
+        assert(module_needs_magic({"module", module}, {}, scan_error_message));
+        assert(scan_error_message.empty());
         assert(!validate_partition_tree(module / "system", parts, true));
         bool rejected = false;
         try {

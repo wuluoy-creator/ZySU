@@ -3,12 +3,16 @@
 #include "sumhp/embedded_paths.hpp"
 #include "sumhp/sumh_client.hpp"
 #include "uapi/sumh.h"
+#include "userspace/common/maps_preview_transport.hpp"
+#include "userspace/common/profile_manager_transport.hpp"
 #include "userspace/common/su_path.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
 #include <chrono>
+#include <condition_variable>
+#include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <functional>
@@ -27,6 +31,7 @@
 #include <sys/utsname.h>
 #include <sys/vfs.h>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 
 extern "C" int ksu_grant_root(void);
@@ -125,6 +130,292 @@ std::string root_call(std::function<std::string()> action) {
     throw std::runtime_error(task->error);
   return task->output;
 }
+
+// MAPS_PREVIEW_WORKER_BEGIN: this fixed-purpose worker owns all state after a
+// caller timeout. At most one detached worker can exist; root escalation may
+// block in the kernel, so callers must not join it or queue additional workers.
+constexpr auto preview_wait_budget = std::chrono::seconds(10);
+struct PartitionsSaveInput {
+  std::string revision;
+  std::string partitions;
+};
+struct PreviewTask {
+  std::string executable;
+  sumhp::preview_transport::Service service =
+      sumhp::preview_transport::Service::Maps;
+  std::shared_ptr<const PartitionsSaveInput> save;
+  std::shared_ptr<const std::string> hide_args;
+  std::shared_ptr<const sumhp::module_preview::Input> module;
+  std::chrono::steady_clock::time_point deadline;
+  std::mutex mutex;
+  std::condition_variable finished;
+  bool done = false;
+  std::string output;
+};
+std::mutex preview_slot_mutex;
+std::shared_ptr<PreviewTask> preview_slot;
+
+std::string preview_root_call(
+    const std::string &executable,
+    sumhp::preview_transport::Service service =
+        sumhp::preview_transport::Service::Maps,
+    std::shared_ptr<const PartitionsSaveInput> save = {},
+    std::shared_ptr<const std::string> hide_args = {},
+    std::shared_ptr<const sumhp::module_preview::Input> module = {}) {
+  if (service != sumhp::preview_transport::Service::Maps &&
+      service != sumhp::preview_transport::Service::PartitionDiscovery &&
+      service != sumhp::preview_transport::Service::UserHide &&
+      service != sumhp::preview_transport::Service::Operation &&
+      service != sumhp::preview_transport::Service::ModulePreview &&
+      service != sumhp::preview_transport::Service::Capabilities &&
+      service != sumhp::preview_transport::Service::TemporaryMaps &&
+      service != sumhp::preview_transport::Service::DiagnosticPackages)
+    return sumhp::preview_transport::failure_envelope(EINVAL);
+  if ((service == sumhp::preview_transport::Service::UserHide ||
+       service == sumhp::preview_transport::Service::Operation ||
+       service == sumhp::preview_transport::Service::TemporaryMaps ||
+       service == sumhp::preview_transport::Service::DiagnosticPackages) !=
+          static_cast<bool>(hide_args) ||
+      (save &&
+       (service != sumhp::preview_transport::Service::PartitionDiscovery ||
+        hide_args)) ||
+      (service == sumhp::preview_transport::Service::ModulePreview) !=
+          static_cast<bool>(module) ||
+      (module && (save || hide_args || !sumhp::module_preview::valid(*module))))
+    return sumhp::preview_transport::failure_envelope(EINVAL);
+  if (service == sumhp::preview_transport::Service::TemporaryMaps) {
+    sumhp::temporary_maps::Request request;
+    if (!sumhp::temporary_maps::parse(*hide_args, request))
+      return sumhp::preview_transport::failure_envelope(EINVAL);
+  }
+  if (service == sumhp::preview_transport::Service::DiagnosticPackages) {
+    sumhp::diagnostic_package_manager::Request request;
+    if (!sumhp::diagnostic_package_manager::parse(*hide_args, request))
+      return sumhp::preview_transport::failure_envelope(EINVAL);
+  }
+  auto task = std::make_shared<PreviewTask>();
+  task->executable = executable;
+  task->service = service;
+  task->save = std::move(save);
+  task->hide_args = std::move(hide_args);
+  task->module = std::move(module);
+  task->deadline = std::chrono::steady_clock::now() + preview_wait_budget;
+  {
+    const std::unique_lock<std::mutex> slot_lock(preview_slot_mutex,
+                                                 std::try_to_lock);
+    if (!slot_lock.owns_lock() || preview_slot)
+      return sumhp::preview_transport::failure_envelope(EBUSY);
+    preview_slot = task;
+  }
+  try {
+    std::thread([task] {
+      int error = 0;
+      std::string output;
+      try {
+        // The ordinary worker may be busy with a mutation. Never queue a
+        // fixed-service request behind an unbounded root-worker lock
+        // acquisition.
+        const std::unique_lock<std::mutex> root_lock(worker_mutex,
+                                                     std::try_to_lock);
+        if (!root_lock.owns_lock())
+          error = EBUSY;
+        else if (ksu_grant_root() != 0 || geteuid() != 0)
+          error = EPERM;
+        else {
+          const auto remaining =
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  task->deadline - std::chrono::steady_clock::now())
+                  .count();
+          if (remaining <= 0)
+            error = ETIMEDOUT;
+          else if (task->module)
+            output = sumhp::preview_transport::request_module_preview(
+                task->executable, *task->module,
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)));
+          else if (task->hide_args &&
+                   task->service ==
+                       sumhp::preview_transport::Service::DiagnosticPackages)
+            output = sumhp::preview_transport::request_diagnostic_packages(
+                task->executable, *task->hide_args,
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)));
+          else if (task->hide_args &&
+                   task->service ==
+                       sumhp::preview_transport::Service::TemporaryMaps)
+            output = sumhp::preview_transport::request_temporary_maps(
+                task->executable, *task->hide_args,
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)));
+          else if (task->hide_args &&
+                   task->service ==
+                       sumhp::preview_transport::Service::Operation)
+            output = sumhp::preview_transport::request_operation(
+                task->executable, *task->hide_args,
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)));
+          else if (task->hide_args)
+            output = sumhp::preview_transport::request_user_hide(
+                task->executable, *task->hide_args,
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)));
+          else if (task->save)
+            output = sumhp::preview_transport::request_partitions_save(
+                task->executable, task->save->revision, task->save->partitions,
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)));
+          else
+            output = sumhp::preview_transport::request(
+                task->executable,
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)),
+                task->service);
+        }
+      } catch (...) {
+        error = EIO;
+      }
+      if (error)
+        output = sumhp::preview_transport::failure_envelope(error);
+      {
+        const std::lock_guard<std::mutex> result_lock(task->mutex);
+        task->output = std::move(output);
+        task->done = true;
+      }
+      {
+        const std::lock_guard<std::mutex> slot_lock(preview_slot_mutex);
+        preview_slot.reset();
+      }
+      task->finished.notify_all();
+    }).detach();
+  } catch (...) {
+    const std::lock_guard<std::mutex> slot_lock(preview_slot_mutex);
+    preview_slot.reset();
+    return sumhp::preview_transport::failure_envelope(EAGAIN);
+  }
+  std::unique_lock<std::mutex> result_lock(task->mutex);
+  if (!task->finished.wait_until(result_lock, task->deadline,
+                                 [&] { return task->done; }))
+    return sumhp::preview_transport::failure_envelope(ETIMEDOUT);
+  return task->output;
+}
+// MAPS_PREVIEW_WORKER_END
+
+// Profile documents and diffs have their own file budget. Only the small
+// completion receipt crosses JNI; a partial output inode is never a result.
+// Own both descriptors before spawning so a caller timeout/close cannot
+// redirect late native writes into a newly reused Java descriptor.
+// PROFILE_TRANSFER_WORKER_BEGIN
+struct ProfileTransferTask {
+  ProfileTransferTask(std::string path, int input, int output) noexcept
+      : executable(std::move(path)), input_fd(input), output_fd(output) {}
+
+private:
+  friend std::string profile_root_transfer(const std::string &executable,
+                                           int input, int output);
+  std::string executable;
+  Fd input_fd, output_fd;
+  std::chrono::steady_clock::time_point deadline;
+  std::mutex mutex;
+  std::condition_variable finished;
+  bool done = false;
+  std::string receipt;
+};
+std::mutex profile_slot_mutex;
+std::shared_ptr<ProfileTransferTask> profile_slot;
+
+bool private_profile_file(int fd, uid_t owner, bool output,
+                          struct stat &identity) {
+  const int flags = fcntl(fd, F_GETFL);
+  if (flags < 0 || fstat(fd, &identity) != 0)
+    return false;
+  const int access = flags & O_ACCMODE;
+  return S_ISREG(identity.st_mode) && identity.st_nlink == 1 &&
+         identity.st_uid == owner && (identity.st_mode & 0077) == 0 &&
+         !(flags & O_APPEND) &&
+         (output ? (access == O_WRONLY || access == O_RDWR) &&
+                       identity.st_size == 0
+                 : (access == O_RDONLY || access == O_RDWR) &&
+                       identity.st_size > 0 &&
+                       identity.st_size <= 8 * 1024 * 1024 + 4096);
+}
+
+std::string profile_root_transfer(const std::string &executable, int input,
+                                  int output) {
+  if (executable.empty() || executable.front() != '/' ||
+      executable.find('\0') != std::string::npos)
+    return sumhp::profile_transport::failure_receipt(EINVAL);
+  const uid_t owner = getuid();
+  Fd owned_input(fcntl(input, F_DUPFD_CLOEXEC, 3));
+  if (owned_input.get() < 0)
+    return sumhp::profile_transport::failure_receipt(errno);
+  Fd owned_output(fcntl(output, F_DUPFD_CLOEXEC, 3));
+  if (owned_output.get() < 0)
+    return sumhp::profile_transport::failure_receipt(errno);
+  struct stat input_identity{};
+  struct stat output_identity{};
+  if (!private_profile_file(owned_input.get(), owner, false, input_identity) ||
+      !private_profile_file(owned_output.get(), owner, true, output_identity) ||
+      (input_identity.st_dev == output_identity.st_dev &&
+       input_identity.st_ino == output_identity.st_ino))
+    return sumhp::profile_transport::failure_receipt(EINVAL);
+  // Allocate before releasing either descriptor: allocation failure must not
+  // leak one of the caller-independent file references.
+  auto task = std::make_shared<ProfileTransferTask>(
+      executable, owned_input.get(), owned_output.get());
+  (void)owned_input.release();
+  (void)owned_output.release();
+  task->deadline = std::chrono::steady_clock::now() + preview_wait_budget;
+  {
+    const std::unique_lock<std::mutex> lock(profile_slot_mutex,
+                                            std::try_to_lock);
+    if (!lock.owns_lock() || profile_slot)
+      return sumhp::profile_transport::failure_receipt(EBUSY);
+    profile_slot = task;
+  }
+  try {
+    std::thread([task] {
+      std::string receipt;
+      int error = 0;
+      try {
+        const std::unique_lock<std::mutex> root_lock(worker_mutex,
+                                                     std::try_to_lock);
+        if (!root_lock.owns_lock())
+          error = EBUSY;
+        else if (ksu_grant_root() != 0 || geteuid() != 0)
+          error = EPERM;
+        else {
+          const auto remaining =
+              std::chrono::duration_cast<std::chrono::milliseconds>(
+                  task->deadline - std::chrono::steady_clock::now())
+                  .count();
+          if (remaining <= 0)
+            error = ETIMEDOUT;
+          else
+            receipt = sumhp::profile_transport::request(
+                task->executable, task->input_fd.get(), task->output_fd.get(),
+                static_cast<unsigned>(std::min<std::int64_t>(remaining, 8000)));
+        }
+      } catch (...) {
+        error = EIO;
+      }
+      if (error)
+        receipt = sumhp::profile_transport::failure_receipt(error);
+      {
+        const std::lock_guard<std::mutex> lock(task->mutex);
+        task->receipt = std::move(receipt);
+        task->done = true;
+      }
+      {
+        const std::lock_guard<std::mutex> lock(profile_slot_mutex);
+        profile_slot.reset();
+      }
+      task->finished.notify_all();
+    }).detach();
+  } catch (...) {
+    const std::lock_guard<std::mutex> lock(profile_slot_mutex);
+    profile_slot.reset();
+    return sumhp::profile_transport::failure_receipt(EAGAIN);
+  }
+  std::unique_lock<std::mutex> lock(task->mutex);
+  if (!task->finished.wait_until(lock, task->deadline,
+                                 [&] { return task->done; }))
+    return sumhp::profile_transport::failure_receipt(ETIMEDOUT);
+  return task->receipt;
+}
+// PROFILE_TRANSFER_WORKER_END
 
 void start_controller(const std::string &path) {
   if (path.empty() || path.front() != '/' ||
@@ -425,32 +716,49 @@ std::string kernel_snapshot() {
 
 void clear_log(const char *path) {
   const std::string lock_path = std::string(path) + ".lock";
-  const Fd lock(
-      open(lock_path.c_str(), O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0600));
+  const Fd lock(open(lock_path.c_str(),
+                     O_CREAT | O_RDWR | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW,
+                     0600));
+  if (lock.get() < 0)
+    failure("Open daemon log lock");
   struct stat lock_info{};
-  if (lock.get() < 0 || fstat(lock.get(), &lock_info) ||
-      !S_ISREG(lock_info.st_mode) || lock_info.st_nlink != 1)
+  if (fstat(lock.get(), &lock_info))
+    failure("Inspect daemon log lock");
+  if (!S_ISREG(lock_info.st_mode) || lock_info.st_nlink != 1 ||
+      lock_info.st_size < 0)
     failure("Invalid daemon log lock", EINVAL);
-  if (flock(lock.get(), LOCK_EX))
+  // Refuse a busy writer instead of holding the Manager root worker
+  // indefinitely. File opens are also nonblocking so an unexpected FIFO cannot
+  // wait for a peer.
+  if (flock(lock.get(), LOCK_EX | LOCK_NB))
     failure("Lock daemon log");
-  const Fd fd(open(path, O_WRONLY | O_CLOEXEC | O_NOFOLLOW));
+  if (fchmod(lock.get(), 0600))
+    failure("Protect daemon log lock");
+  const Fd fd(open(path, O_WRONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
   if (fd.get() < 0) {
     if (errno == ENOENT)
       return;
     failure("Open daemon log");
   }
   struct stat info{};
-  if (fstat(fd.get(), &info) || !S_ISREG(info.st_mode))
+  if (fstat(fd.get(), &info))
+    failure("Inspect daemon log");
+  // Match the writer's descriptor contract before changing permissions or size.
+  // Clearing never unlinks/replaces the file or repairs a rejected log path.
+  if (!S_ISREG(info.st_mode) || info.st_nlink != 1 || info.st_size < 0)
     failure("Invalid daemon log", EINVAL);
+  if (fchmod(fd.get(), 0600))
+    failure("Protect daemon log");
   if (ftruncate(fd.get(), 0))
     failure("Clear daemon log");
 }
 
-std::string bytes(JNIEnv *env, jbyteArray array) {
+std::string bytes(JNIEnv *env, jbyteArray array,
+                  std::size_t limit = response_limit) {
   if (!array)
     failure("Missing data", EINVAL);
   const jsize size = env->GetArrayLength(array);
-  if (size > static_cast<jsize>(response_limit))
+  if (size > static_cast<jsize>(limit))
     failure("JNI input too large", EOVERFLOW);
   std::string result(static_cast<size_t>(size), '\0');
   env->GetByteArrayRegion(array, 0, size,
@@ -488,6 +796,194 @@ Java_com_zying_zysu_Natives_sumhpRequest(JNIEnv *env, jobject /* thiz */,
     return result(env, [input] {
       return request_controller(input->first, input->second);
     });
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+
+namespace {
+jbyteArray
+fixed_preview(JNIEnv *env, jbyteArray ksud,
+              sumhp::preview_transport::Service service,
+              std::shared_ptr<const PartitionsSaveInput> save = {},
+              std::shared_ptr<const std::string> hide_args = {},
+              std::shared_ptr<const sumhp::module_preview::Input> module = {}) {
+  try {
+    const auto executable = bytes(env, ksud);
+    if (executable.empty() || executable.front() != '/' ||
+        executable.size() > 4096 || executable.find('\0') != std::string::npos)
+      failure("Invalid ksud preview path", EINVAL);
+    // Deliberately bypass result()/root_call(), their join and daemon routing.
+    const auto output =
+        preview_root_call(executable, service, std::move(save),
+                          std::move(hide_args), std::move(module));
+    // 512 KiB raw JSON can expand when embedded in the transport JSON string.
+    std::size_t limit = 4UL * 1024 * 1024;
+    if (service == sumhp::preview_transport::Service::ModulePreview)
+      limit = sumhp::module_preview::envelope_bytes;
+    else if (service == sumhp::preview_transport::Service::TemporaryMaps)
+      limit = sumhp::temporary_maps::envelope_bytes;
+    else if (service == sumhp::preview_transport::Service::DiagnosticPackages)
+      limit = sumhp::diagnostic_package_manager::envelope_bytes;
+    if (output.size() > limit)
+      failure("Preview envelope too large", EOVERFLOW);
+    auto *array = env->NewByteArray(static_cast<jsize>(output.size()));
+    if (array)
+      env->SetByteArrayRegion(array, 0, static_cast<jsize>(output.size()),
+                              reinterpret_cast<const jbyte *>(output.data()));
+    return array;
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+} // namespace
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhProfilesTransfer(JNIEnv *env,
+                                                 jobject /* thiz */,
+                                                 jbyteArray ksud, jint input_fd,
+                                                 jint output_fd) {
+  try {
+    const auto executable = bytes(env, ksud, 4096);
+    const auto receipt = profile_root_transfer(executable, input_fd, output_fd);
+    if (receipt.size() > 1024)
+      failure("Profile transfer receipt capacity", EOVERFLOW);
+    auto *array = env->NewByteArray(static_cast<jsize>(receipt.size()));
+    if (array)
+      env->SetByteArrayRegion(array, 0, static_cast<jsize>(receipt.size()),
+                              reinterpret_cast<const jbyte *>(receipt.data()));
+    return array;
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhMapsPreview(JNIEnv *env, jobject /* thiz */,
+                                            jbyteArray ksud) {
+  return fixed_preview(env, ksud, sumhp::preview_transport::Service::Maps);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhTemporaryMaps(JNIEnv *env, jobject /* thiz */,
+                                              jbyteArray ksud,
+                                              jbyteArray request) {
+  try {
+    auto input = std::make_shared<const std::string>(
+        bytes(env, request, sumhp::temporary_maps::input_bytes));
+    return fixed_preview(env, ksud,
+                         sumhp::preview_transport::Service::TemporaryMaps, {},
+                         std::move(input));
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhDiagnosticPackages(JNIEnv *env,
+                                                   jobject /* thiz */,
+                                                   jbyteArray ksud,
+                                                   jbyteArray request) {
+  try {
+    auto input = std::make_shared<const std::string>(
+        bytes(env, request, sumhp::diagnostic_package_manager::input_bytes));
+    return fixed_preview(env, ksud,
+                         sumhp::preview_transport::Service::DiagnosticPackages,
+                         {}, std::move(input));
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhCapabilities(JNIEnv *env, jobject /* thiz */,
+                                             jbyteArray ksud) {
+  return fixed_preview(env, ksud,
+                       sumhp::preview_transport::Service::Capabilities);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhPartitionDiscovery(JNIEnv *env,
+                                                   jobject /* thiz */,
+                                                   jbyteArray ksud) {
+  return fixed_preview(env, ksud,
+                       sumhp::preview_transport::Service::PartitionDiscovery);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhUserHide(JNIEnv *env, jobject /* thiz */,
+                                         jbyteArray ksud,
+                                         jbyteArray arguments) {
+  try {
+    auto input =
+        std::make_shared<const std::string>(bytes(env, arguments, 48UL * 1024));
+    return fixed_preview(env, ksud, sumhp::preview_transport::Service::UserHide,
+                         {}, std::move(input));
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhOperation(JNIEnv *env, jobject /* thiz */,
+                                          jbyteArray ksud, jbyteArray request) {
+  try {
+    auto input =
+        std::make_shared<const std::string>(bytes(env, request, 48UL * 1024));
+    return fixed_preview(env, ksud,
+                         sumhp::preview_transport::Service::Operation, {},
+                         std::move(input));
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhModulePreview(JNIEnv *env, jobject /* thiz */,
+                                              jbyteArray ksud,
+                                              jbyteArray candidate,
+                                              jbyteArray explain_path) {
+  try {
+    sumhp::module_preview::Input input;
+    if (candidate)
+      input.candidate =
+          bytes(env, candidate, sumhp::module_preview::input_bytes);
+    input.explain_path = bytes(env, explain_path, 4095);
+    return fixed_preview(
+        env, ksud, sumhp::preview_transport::Service::ModulePreview, {}, {},
+        std::make_shared<const sumhp::module_preview::Input>(std::move(input)));
+  } catch (const std::exception &error) {
+    if (!env->ExceptionCheck())
+      env->ThrowNew(env->FindClass("java/io/IOException"), error.what());
+    return nullptr;
+  }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_zying_zysu_Natives_sumhPartitionSave(JNIEnv *env, jobject /* thiz */,
+                                              jbyteArray ksud,
+                                              jbyteArray revision,
+                                              jbyteArray partitions) {
+  try {
+    auto save = std::make_shared<const PartitionsSaveInput>(
+        PartitionsSaveInput{bytes(env, revision), bytes(env, partitions)});
+    return fixed_preview(env, ksud,
+                         sumhp::preview_transport::Service::PartitionDiscovery,
+                         std::move(save));
   } catch (const std::exception &error) {
     if (!env->ExceptionCheck())
       env->ThrowNew(env->FindClass("java/io/IOException"), error.what());

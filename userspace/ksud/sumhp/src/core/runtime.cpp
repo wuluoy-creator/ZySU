@@ -1,4 +1,5 @@
 #include "core/runtime.hpp"
+#include "core/log.hpp"
 #include "core/migration.hpp"
 #include "defs.hpp"
 #include "utils.hpp"
@@ -62,8 +63,16 @@ bool marker_matches_current_boot(const fs::path& path) {
 
 bool write_boot_marker(const fs::path& path, const std::string& detail) {
     const std::string boot_id = runtime_boot_id();
-    return !boot_id.empty() &&
-           ksud::write_file_atomic(path, boot_id + "\n" + (detail.empty() ? "" : detail + "\n"));
+    if (boot_id.empty()) {
+        errno = EIO;
+        return false;
+    }
+    std::string error;
+    if (ksud::write_file_durable(path, boot_id + "\n" + (detail.empty() ? "" : detail + "\n"),
+                                 error))
+        return true;
+    logging::write(logging::Level::Error, "runtime", "write boot marker: " + error);
+    return false;
 }
 
 namespace {

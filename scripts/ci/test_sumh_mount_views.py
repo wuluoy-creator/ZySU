@@ -15,6 +15,7 @@ import sys
 
 sys.dont_write_bytecode = True
 from test_sumh_vfs_helpers import COMMON, ROOT, run_test
+from test_sumh_proc_memory import memory_source
 
 
 def extract(path, name):
@@ -40,6 +41,8 @@ typedef unsigned int uid_t;
 #define ARRAY_SIZE(v) (sizeof(v) / sizeof((v)[0]))
 #define EINVAL 22
 #define ENOMEM 12
+#define EOVERFLOW 75
+#define check_mul_overflow(a, b, out) __builtin_mul_overflow((a), (b), (out))
 #define GFP_KERNEL 0
 static int memcmp(const void *left, const void *right, size_t size) {
     const unsigned char *a = left, *b = right;
@@ -110,6 +113,8 @@ struct sumh_mount_file_proxy {
     enum sumh_proc_proxy_kind kind;
     enum sumh_policy_scope scope;
     bool stream_failed;
+    struct sumh_maps_snapshot *maps_snapshot;
+    bool maps_snapshot_acquired;
     int orig_f_mode, node, state, filter_invalidated, stream_lock;
     long stream_orig_pos, stream_user_pos, stream_generation;
 };
@@ -252,6 +257,7 @@ int main(void) {
     CHECK(sumh_mount_proxy_install_file(&file, kind, scope) == 0);
     CHECK(allocated.scope == SUMH_POLICY_SCOPE_VIEW);
     CHECK(file.f_op == &allocated.proxy_fops && allocated.orig_fops == &original);
+    CHECK(!allocated.maps_snapshot && !allocated.maps_snapshot_acquired);
     CHECK(file.f_mode == (FMODE_LSEEK | FMODE_PREAD));
     CHECK(file.f_op->read == sumh_mount_proxy_read && file.f_op->read_iter == sumh_mount_proxy_read_iter);
     CHECK(file.f_op->splice_read == sumh_mount_proxy_splice_read && file.f_op->poll == sumh_mount_proxy_poll);
@@ -263,6 +269,7 @@ int main(void) {
     CHECK(sumh_mount_proxy_install_file(&file, kind, scope) == 0);
     CHECK(allocated.scope == SUMH_POLICY_SCOPE_SPOOF);
     CHECK(file.f_op == &allocated.proxy_fops && allocated.orig_fops == &original);
+    CHECK(!allocated.maps_snapshot && !allocated.maps_snapshot_acquired);
     CHECK(file.f_op->read == sumh_mount_proxy_read && file.f_op->read_iter == sumh_mount_proxy_read_iter);
     file.f_op = &original; task.uid = 12345;
     allocation_fails = 1;
@@ -331,7 +338,7 @@ static void sort(void *base, size_t count, size_t size, int (*compare)(const voi
                 bytes[(j - 1) * size + k] = bytes[j * size + k]; bytes[j * size + k] = temp;
             }
 }
-struct sumh_mi_snapshot { char *data, *mounts; size_t len, mounts_len; };
+struct sumh_mi_snapshot { char *data, *mounts; size_t len, mounts_len; size_t data_capacity, mounts_capacity; int refs; };
 struct sumh_mi_row { u32 id, parent; u8 state; };
 enum { SUMH_MI_UNVISITED, SUMH_MI_VISITING, SUMH_MI_VISIBLE, SUMH_MI_HIDDEN };
 static char mi_buffer[4096], mo_buffer[4096];
@@ -455,13 +462,12 @@ int main(void) {
     return 0;
 }
 """
-    return COMMON + PRIMITIVES + preamble + bodies + body
+    return COMMON + PRIMITIVES + memory_source() + preamble + bodies + body
 
 
 def local_snapshot_source():
     # Reuse the production classifier, paired filter and their kernel doubles.
     source = snapshot_source().split("int main(void) {", 1)[0]
-    source = source.replace("size_t len, mounts_len; };", "size_t len, mounts_len; int refs; };")
     preamble = r"""
 typedef unsigned long long u64;
 #define EAGAIN 11
@@ -561,7 +567,8 @@ static void reset(void) {
 }
 """
     bodies = "".join(extract("kernel/sumh/features/sumh_fake_mountinfo.c", name)
-                     for name in ("sumh_fake_mi_put_snapshot", "sumh_fake_mi_get_snapshot"))
+                     for name in ("sumh_mi_alloc_buffer", "sumh_mi_free_buffer",
+                                  "sumh_fake_mi_put_snapshot", "sumh_fake_mi_get_snapshot"))
     body = r"""
 int main(void) {
     struct sumh_mi_snapshot *result, *other;
@@ -668,10 +675,12 @@ enum sumh_proc_proxy_kind { SUMH_PROC_PROXY_NONE, SUMH_PROC_PROXY_MOUNTINFO,
     SUMH_PROC_PROXY_MOUNTS, SUMH_PROC_PROXY_MAPS, SUMH_PROC_PROXY_MOUNTINFO_GROUPS };
 struct file;
 struct poll_table_struct { int unused; };
+struct pipe_inode_info { int unused; };
 struct file_operations {
     ssize_t (*read)(struct file *, char *, size_t, loff_t *);
     loff_t (*llseek)(struct file *, loff_t, int);
     __poll_t (*poll)(struct file *, struct poll_table_struct *);
+    ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
 };
 struct file { const struct file_operations *f_op; loff_t f_pos; };
 struct kiocb { struct file *ki_filp; loff_t ki_pos; };
@@ -690,6 +699,7 @@ struct sumh_mount_file_proxy {
 };
 static int sumh_proxy_srcu, lock_depth, srcu_depth, raw_reads, preparations, result_error, missing_snapshot;
 static int puts, seek_error, native_polls, view_polls;
+static int native_splices;
 static __poll_t native_events;
 static u64 view_generation = 1;
 static struct sumh_mi_snapshot prepared = {"clean info\n", "clean mounts\n", 11, 13};
@@ -732,6 +742,13 @@ static int sumh_fake_mi_get_snapshot(struct file *file, const struct file_operat
 static ssize_t raw_read(struct file *file, char *buffer, size_t count, loff_t *pos) {
     (void)file; (void)buffer; (void)count; (void)pos; raw_reads++; return -EINVAL;
 }
+static ssize_t raw_splice(struct file *file, loff_t *pos, struct pipe_inode_info *pipe,
+        size_t count, unsigned int flags) {
+    (void)file; (void)pos; (void)pipe; (void)count; (void)flags; native_splices++; return 0;
+}
+static int sumh_mount_proxy_prepare_groups(struct sumh_mount_file_proxy *proxy, struct file *file) {
+    (void)proxy; (void)file; return -EINVAL;
+}
 static ssize_t sumh_mount_proxy_orig_read_iter(struct sumh_mount_file_proxy *proxy,
         struct kiocb *iocb, struct iov_iter *to) {
     (void)proxy; (void)iocb; (void)to; raw_reads++; return -EINVAL;
@@ -750,12 +767,12 @@ static ssize_t sumh_mount_proxy_filtered_read(struct sumh_mount_file_proxy *prox
                      for name in ("sumh_mount_proxy_prepare_mountinfo", "sumh_mount_proxy_read_buffer",
                                   "sumh_mount_proxy_read_snapshot", "sumh_mount_proxy_read",
                                   "sumh_mount_proxy_read_iter", "sumh_mount_proxy_llseek",
-                                  "sumh_mount_proxy_poll"))
+                                  "sumh_mount_proxy_poll", "sumh_mount_proxy_splice_read"))
     body = r"""
 int main(void) {
-    struct file_operations original = {raw_read, seek_file, poll_file};
+    struct file_operations original = {raw_read, seek_file, poll_file, raw_splice};
     for (int mounts = 0; mounts < 2; mounts++) for (int iter = 0; iter < 2; iter++) {
-        for (int failure = 0; failure < 3; failure++) {
+        for (int failure = 0; failure < 4; failure++) {
             struct sumh_mount_file_proxy proxy = {0};
             proxy.orig_fops = &original;
             proxy.kind = mounts ? SUMH_PROC_PROXY_MOUNTS : SUMH_PROC_PROXY_MOUNTINFO;
@@ -765,7 +782,7 @@ int main(void) {
             struct iov_iter to = {output, 0};
             loff_t pos = 0;
             preparations = raw_reads = 0;
-            result_error = failure == 1 ? -ENOMEM : 0;
+            result_error = failure == 1 ? -ENOMEM : failure == 3 ? -EIO : 0;
             missing_snapshot = failure == 2;
             CHECK((iter ? sumh_mount_proxy_read_iter(&iocb, &to)
                         : sumh_mount_proxy_read(&file, output, 0, &pos)) == 0);
@@ -778,6 +795,10 @@ int main(void) {
             if (failure) {
                 CHECK(ret == (failure == 1 ? -ENOMEM : -EIO));
                 CHECK(!pos && !iocb.ki_pos && !output[0]);
+                native_splices = 0;
+                CHECK(sumh_mount_proxy_splice_read(&file, &pos, NULL, 1, 0) ==
+                      (failure == 1 ? -ENOMEM : -EIO));
+                CHECK(!native_splices && !raw_reads && !pos && !lock_depth);
             } else {
                 CHECK(ret == 3 && !memcmp(output, "cle", 3));
                 size_t length = mounts ? prepared.mounts_len : prepared.len;

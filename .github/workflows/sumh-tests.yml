@@ -2,63 +2,36 @@ name: SUMH regression tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev, 'feat/*']
     paths:
-      - 'kernel/sumh/**'
-      - 'kernel/feature/selinux_hide.c'
-      - 'kernel/selinux/sepolicy.c'
-      - 'uapi/feature.h'
-      - 'scripts/ci/test_selinux_hide_*.py'
-      - 'scripts/ci/test_sepolicy_avtab.py'
-      - 'userspace/ksud/sumhp/**'
-      - 'userspace/ksud/src/cli_args.cpp'
-      - 'userspace/ksud/src/boot/boot_patch.cpp'
-      - 'userspace/ksud/src/core/ksucalls.cpp'
-      - 'userspace/ksud/src/init_event.cpp'
-      - 'userspace/ksud/tests/sumh*'
-      - 'userspace/ksud/tests/run_sumh_host_tests.py'
-      - 'userspace/ksud/tests/run_sumh_planner_host_tests.py'
-      - 'userspace/ksud/tests/run_sumhp_daemon_host_tests.py'
-      - 'userspace/ksud/tests/mount_partition_alias_test.cpp'
-      - 'userspace/ksud/tests/run_mount_alias_host_tests.py'
-      - 'userspace/ksud/tests/magic_mount_lifecycle_test.cpp'
-      - 'userspace/ksud/tests/magic_mount_traversal_test.cpp'
-      - 'userspace/ksud/tests/run_magic_mount_host_tests.py'
-      - 'userspace/ksud/tests/overlay_mount_test.cpp'
-      - 'userspace/ksud/tests/overlay_layer_selection_test.cpp'
-      - 'userspace/ksud/tests/run_overlay_mount_host_tests.py'
-      - 'uapi/sumh.h'
-      - 'scripts/ci/test_sumh*'
-      - '.github/workflows/sumh-tests.yml'
+      # Broad dependency roots deliberately include shared JSON, JNI, policy,
+      # resources and build integration, not only files with SUMH in their name.
+      - 'kernel/**'
+      - 'uapi/**'
+      - 'userspace/**'
+      - 'manager/**'
+      - 'cmake/**'
+      - 'scripts/ci/**'
+      - '.github/actions/**'
+      - '.github/workflows/**'
   pull_request:
     paths:
-      - 'kernel/sumh/**'
-      - 'kernel/feature/selinux_hide.c'
-      - 'kernel/selinux/sepolicy.c'
-      - 'uapi/feature.h'
-      - 'scripts/ci/test_selinux_hide_*.py'
-      - 'scripts/ci/test_sepolicy_avtab.py'
-      - 'userspace/ksud/sumhp/**'
-      - 'userspace/ksud/src/cli_args.cpp'
-      - 'userspace/ksud/src/boot/boot_patch.cpp'
-      - 'userspace/ksud/src/core/ksucalls.cpp'
-      - 'userspace/ksud/src/init_event.cpp'
-      - 'userspace/ksud/tests/sumh*'
-      - 'userspace/ksud/tests/run_sumh_host_tests.py'
-      - 'userspace/ksud/tests/run_sumh_planner_host_tests.py'
-      - 'userspace/ksud/tests/run_sumhp_daemon_host_tests.py'
-      - 'userspace/ksud/tests/mount_partition_alias_test.cpp'
-      - 'userspace/ksud/tests/run_mount_alias_host_tests.py'
-      - 'userspace/ksud/tests/magic_mount_lifecycle_test.cpp'
-      - 'userspace/ksud/tests/magic_mount_traversal_test.cpp'
-      - 'userspace/ksud/tests/run_magic_mount_host_tests.py'
-      - 'userspace/ksud/tests/overlay_mount_test.cpp'
-      - 'userspace/ksud/tests/overlay_layer_selection_test.cpp'
-      - 'userspace/ksud/tests/run_overlay_mount_host_tests.py'
-      - 'uapi/sumh.h'
-      - 'scripts/ci/test_sumh*'
-      - '.github/workflows/sumh-tests.yml'
+      - 'kernel/**'
+      - 'uapi/**'
+      - 'userspace/**'
+      - 'manager/**'
+      - 'cmake/**'
+      - 'scripts/ci/**'
+      - '.github/actions/**'
+      - '.github/workflows/**'
   workflow_dispatch:
+  # Local reusable-workflow calls check out the caller's exact commit. The
+  # release workflow calls this on tags as well, without path-filter bypasses.
+  workflow_call:
+    outputs:
+      commit_sha:
+        description: Commit verified by both native and Manager regressions
+        value: ${{ jobs.gate.outputs.commit_sha }}
 
 permissions:
   contents: read
@@ -69,37 +42,80 @@ env:
 jobs:
   host-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    outputs:
+      commit_sha: ${{ steps.tests.outputs.commit_sha }}
     steps:
-      - uses: actions/checkout@v7
-      - name: SELinux policy AVTAB removal and extended permissions
-        run: python3 scripts/ci/test_sepolicy_avtab.py --cc clang
-      - name: Kernel ownership, VFS helpers and build spoofing
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify regression runner and release gate
+        run: python3 -B -m unittest discover -s scripts/ci -p 'test_sumh_ci.py'
+      - name: Run kernel, userspace, daemon and mount entrypoints
+        id: tests
+        run: python3 scripts/ci/sumh_ci.py host --report out/sumh-ci/native.json
+      - name: Upload native results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: SUMH-native-results
+          path: out/sumh-ci/native.json
+          if-no-files-found: warn
+
+  manager-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      commit_sha: ${{ steps.tests.outputs.commit_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Prepare temporary test signing key
+        uses: ./.github/actions/setup-manager-signing
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: platform-tools
+      - name: Run SUMH JVM and Compose regressions
+        id: tests
+        working-directory: manager
         run: |
-          python3 scripts/ci/test_sumh_core.py --cc clang
-          python3 scripts/ci/test_sumh_vfs_helpers.py --cc clang
-          python3 scripts/ci/test_sumh_directory_names.py --cc clang
-          python3 scripts/ci/test_sumh_directory_stream.py --cc clang
-          python3 scripts/ci/test_sumh_mount_views.py --cc clang
-          python3 scripts/ci/test_sumh_native_namespace.py --cc clang
-          python3 scripts/ci/test_selinux_hide_status.py --cc clang
-          python3 scripts/ci/test_selinux_hide_context.py --cc clang
-          python3 scripts/ci/test_selinux_hide_setprocattr.py --cc clang
-          python3 scripts/ci/test_sumh_guards.py --cc clang
-          python3 scripts/ci/test_sumh_unicode_guard.py --cc clang
-          python3 scripts/ci/test_sumh_kernel_build.py --cc clang
-          python3 scripts/ci/test_sumh_rules.py --cc clang
-          python3 scripts/ci/test_sumh_maps.py --cc clang
-          python3 scripts/ci/test_sumh_kstat.py --cc clang
-      - name: Userspace client, configuration, CLI and restoration
-        run: python3 userspace/ksud/tests/run_sumh_host_tests.py --cxx g++
-      - name: Daemon framing, deadlines and retry handling
-        run: python3 userspace/ksud/tests/run_sumhp_daemon_host_tests.py --cxx g++
-      - name: Module partition aliases and mount planning
-        run: python3 userspace/ksud/tests/run_mount_alias_host_tests.py --cxx g++
-      - name: SUMH module path compilation and preflight
-        run: python3 userspace/ksud/tests/run_sumh_planner_host_tests.py --cxx g++
-      - name: Magic Mount lifecycle, registration and traversal
-        run: python3 userspace/ksud/tests/run_magic_mount_host_tests.py --cxx g++
-      - name: OverlayFS parent and child attribute registration
-        run: python3 userspace/ksud/tests/run_overlay_mount_host_tests.py --cxx g++
+          ./gradlew :app:testDebugUnitTest --tests 'com.zying.zysu.ui.sumh.*' --build-cache --no-daemon -PABI=arm64-v8a
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Upload Manager test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: SUMH-Manager-results
+          path: |
+            manager/app/build/reports/tests/testDebugUnitTest/
+            manager/app/build/test-results/testDebugUnitTest/
+          if-no-files-found: warn
+
+  gate:
+    name: Require SUMH regression success
+    needs: [host-tests, manager-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ steps.gate.outputs.commit_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Summarize and require both jobs at this commit
+        id: gate
+        env:
+          SUMH_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci/sumh_ci.py gate --report out/sumh-ci/gate.json
+      - name: Upload gate result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: SUMH-gate-result
+          path: out/sumh-ci/gate.json
+          if-no-files-found: warn

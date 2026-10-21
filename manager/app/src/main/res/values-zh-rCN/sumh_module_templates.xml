@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_template_open">规则模板</string>
+    <string name="sumh_template_intro">生成完整规则列表，查看差异后再替换编辑草稿。保存模块仍是单独一步。取消会保留模板输入。</string>
+    <string name="sumh_template_finish_edit">请先完成或放弃单条路径编辑，再打开模板。</string>
+    <string name="sumh_template_external">已保存配置发生变化。请返回模块编辑器处理草稿冲突，再使用模板。</string>
+    <string name="sumh_template_draft_changed">模块草稿已变化。请重新查看与当前草稿的差异，再替换。</string>
+    <string name="sumh_template_override">全局后端为 %1$s，可能使模块无法使用 SUMH。模板不会修改全局设置。</string>
+    <string name="sumh_template_limits">模板生成可编辑路径规则，不执行设备或后端预检，仅在模块使用 SUMH 时生效。none 允许更具体的子路径规则；hide 会隐藏全部后代，子规则无法恢复。</string>
+    <string name="sumh_template_all">全部使用</string>
+    <string name="sumh_template_exclude">排除路径</string>
+    <string name="sumh_template_only">仅使用选定路径</string>
+    <string name="sumh_template_except_children">排除目录但保留子项</string>
+    <string name="sumh_template_hide">隐藏指定目标</string>
+    <string name="sumh_template_parent">需要排除的目录</string>
+    <string name="sumh_template_paths">选定的绝对路径</string>
+    <string name="sumh_template_children">需要保留的子路径</string>
+    <string name="sumh_template_path_hint">每行一条路径。保留空格和制表符，请勿添加空行。</string>
+    <string name="sumh_template_paths_required">请至少输入一条绝对路径。</string>
+    <string name="sumh_template_child_outside">所有保留路径都必须是排除目录内的子项。</string>
+    <string name="sumh_template_review">查看草稿差异</string>
+    <string name="sumh_template_review_title">与当前草稿的差异</string>
+    <string name="sumh_template_mode_change">模块模式：%1$s → sumh</string>
+    <string name="sumh_template_diff_count">新增：%1$d · 修改：%2$d · 移除：%3$d</string>
+    <string name="sumh_template_removed">移除 %1$s · %2$s</string>
+    <string name="sumh_template_changed">修改 %1$s · %2$s</string>
+    <string name="sumh_template_added">新增 %1$s · %2$s</string>
+    <string name="sumh_template_complete">完整候选规则列表（%1$d 条）</string>
+    <string name="sumh_template_empty">没有路径例外，全部模块文件使用 SUMH 模块模式。</string>
+    <string name="sumh_template_apply_hint">替换会覆盖编辑草稿中的全部规则。可继续编辑后再保存；当前不会保存配置或应用规则。</string>
+    <string name="sumh_template_apply">替换草稿</string>
+</resources>

@@ -190,8 +190,8 @@ fun KernelPolicyScreen(navigator: DestinationsNavigator, initialPage: Int = 0) {
 
 @Destination<RootGraph>
 @Composable
-fun MountIsolationScreen(navigator: DestinationsNavigator) {
-    var selected by rememberSaveable { mutableIntStateOf(0) }
+fun MountIsolationScreen(navigator: DestinationsNavigator, initialPage: Int = 0) {
+    var selected by rememberSaveable { mutableIntStateOf(initialPage.coerceIn(0, 2)) }
     var sumhSaving by remember { mutableStateOf(false) }
     var isolationSaving by remember { mutableStateOf(false) }
     val saving = sumhSaving || isolationSaving
@@ -209,7 +209,21 @@ fun MountIsolationScreen(navigator: DestinationsNavigator) {
     WorkspaceOperationGuard(saving, MountIsolationScreenDestination.route)
     val labels = listOf(stringResource(R.string.nav_mount), stringResource(R.string.nav_isolation), stringResource(R.string.sumh_workspace_rules))
     WorkspaceScaffold(stringResource(R.string.settings_category_mount_isolation), navigator, navigationEnabled = !saving, tabs = {
-        WorkspaceTabs(labels, selected, { selected = it }, enabled = !saving)
+        Column {
+            WorkspaceTabs(labels, selected, { selected = it }, enabled = !saving)
+            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                TextButton(
+                    onClick = { navigator.navigate(SUMHCapabilitiesScreenDestination) },
+                    enabled = !saving,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.sumh_capabilities_title)) }
+                TextButton(
+                    onClick = { navigator.navigate(SUMHProfilesScreenDestination) },
+                    enabled = !saving,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.sumh_profiles_title)) }
+            }
+        }
     }) {
         KsuIsValid {
             SUMHWorkspace(
@@ -273,6 +287,10 @@ fun DiagnosticsScreen(navigator: DestinationsNavigator) {
                     }
                 } else null)
                 KsuIsValid {
+                    TextButton(onClick = { navigator.navigate(SUMHDiagnosticPackagesScreenDestination) },
+                        enabled = !saving, modifier = Modifier.padding(horizontal = 16.dp).heightIn(min = 48.dp)) {
+                        Text(stringResource(R.string.sumh_packages_title))
+                    }
                     SUMHWorkspace(
                         SUMHSection.Debug,
                         scrollable = false,

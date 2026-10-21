@@ -163,6 +163,8 @@ int sumh_sop_shadow_register_dh(struct super_block *sb)
 		if (!READ_ONCE(sumh_sop_ready) || m->restoring ||
 		    READ_ONCE(sb->s_op) != &m->shadow_sop) {
 			ret = -ESHUTDOWN;
+		} else if (m->dh_clients == UINT_MAX) {
+			ret = -EOVERFLOW;
 		} else {
 			m->dh_clients++;
 			m->accepting_vnodes = true;

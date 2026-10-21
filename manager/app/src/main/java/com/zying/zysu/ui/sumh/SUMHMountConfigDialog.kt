@@ -1,5 +1,6 @@
 package com.zying.zysu.ui.sumh
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,12 +10,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -30,11 +31,7 @@ import com.zying.zysu.ui.sumh.util.validateSUMHModuleRulePath
 import com.zying.zysu.ui.sumh.util.validateSUMHModuleRules
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-
-private val ModuleRulesSaver = listSaver<List<SUMHManager.ModuleRule>, String>(
-    save = { rules -> rules.flatMap { listOf(it.path, it.mode) } },
-    restore = { values -> values.chunked(2).map { SUMHManager.ModuleRule(it[0], it[1]) } },
-)
+import java.util.UUID
 
 internal val SUMH_MODE_COLORS = mapOf(
     "auto" to Color(0xFF1976D2),
@@ -57,25 +54,44 @@ internal fun SUMHMountConfigDialog(
     onSave: suspend (String, String, List<SUMHManager.ModuleRule>) -> Unit = { id, mode, rules ->
         SUMHManager.saveModule(id, mode, rules)
     },
+    previewOperation: SUMHModulePreviewOperations = rememberSUMHModulePreviewOperations(),
+    previewRead: ModulePreviewRead = SUMHManager::previewModule,
 ) {
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
-    var error by rememberSaveable(moduleId) { mutableStateOf<String?>(null) }
+    var error by remember(moduleId) { mutableStateOf<String?>(null) }
     val selectableModes = SUMHManager.mountModes.filter { it != "sumh" || sumhAvailable }
     val selectableRuleModes = listOf("auto", "sumh", "none", "hide").filter { sumhAvailable || it !in listOf("sumh", "hide") }
 
-    var selectedMode by rememberSaveable(moduleId) {
-        mutableStateOf(initialInfo?.mode ?: "auto")
+    val drafts = rememberSUMHEditorDrafts()
+    val draftKey = "module:$moduleId"
+    val currentBaseline = ModuleEditorDraft.baseline(initialInfo?.mode ?: "auto", initialInfo?.rules.orEmpty())
+    val initialDraft = ModuleEditorDraft(initialInfo?.mode ?: "auto", initialInfo?.rules.orEmpty(),
+        newMode = if (sumhAvailable) "sumh" else "auto", baseline = currentBaseline)
+    LaunchedEffect(drafts.loaded, draftKey, drafts.snapshot[draftKey]) {
+        if (drafts.loaded) drafts.ensure(draftKey, initialDraft.record())
     }
-    var rules by rememberSaveable(moduleId, stateSaver = ModuleRulesSaver) {
-        mutableStateOf(initialInfo?.rules ?: emptyList<SUMHManager.ModuleRule>())
+    val draft = drafts.snapshot[draftKey]?.let(ModuleEditorDraft::from) ?: initialDraft
+    fun updateDraft(change: (ModuleEditorDraft) -> ModuleEditorDraft) = drafts.change(draftKey) {
+        change(it?.let(ModuleEditorDraft::from) ?: initialDraft).record()
     }
-    var newPath by rememberSaveable(moduleId) { mutableStateOf("") }
-    var newMode by rememberSaveable(moduleId) { mutableStateOf(if (sumhAvailable) "sumh" else "auto") }
-    var editingPath by rememberSaveable(moduleId) { mutableStateOf<String?>(null) }
+    val selectedMode = draft.mode
+    val rules = draft.rules
+    val newPath = draft.newPath
+    val newMode = draft.newMode
+    val editingPath = draft.editingPath
+    val ready = drafts.loaded && draftKey in drafts.snapshot
+    val conflict = draft.baseline != currentBaseline
     var modeExpanded by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var rulesExpanded by rememberSaveable(moduleId) { mutableStateOf(false) }
+    var templatesOpen by rememberSaveable(moduleId) { mutableStateOf(false) }
+    var previewOpen by rememberSaveable(moduleId) { mutableStateOf(false) }
+    var previewSession by rememberSaveable(moduleId) { mutableStateOf(UUID.randomUUID().toString()) }
+    var previewPath by rememberSaveable(moduleId) { mutableStateOf("") }
+    var previewPathTooLong by remember(moduleId) { mutableStateOf(false) }
+    val managerRevision by SUMHManager.revision.collectAsState()
+    val activity = LocalActivity.current
     val hasDraft = newPath.isNotEmpty() || editingPath != null
     val candidate = remember(rules, editingPath, newPath, newMode) {
         if (hasDraft) updateSUMHModuleRule(rules, editingPath, SUMHManager.ModuleRule(newPath, newMode)) else rules
@@ -90,12 +106,45 @@ internal fun SUMHMountConfigDialog(
     val original = rules.firstOrNull { it.path == editingPath }
     val editorModes = selectableRuleModes + listOfNotNull(original?.mode?.takeIf { it in listOf("overlay", "magic") })
     val draftModeAvailable = !hasDraft || newMode in editorModes || original == SUMHManager.ModuleRule(newPath, newMode)
-    val canSave = !isSaving && candidate != null && rulesError == null && draftModeAvailable
+    val canSave = ready && !conflict && !isSaving && candidate != null && rulesError == null && draftModeAvailable
+    val previewContext = SUMHModulePreviewContext(draft.record(), drafts.editEpoch, currentBaseline,
+        globalMode, sumhAvailable, initialInfo?.strategy.orEmpty(), managerRevision, previewPath,
+        ready && !conflict && !isSaving && !hasDraft && rulesError == null && selectedMode in SUMHManager.mountModes)
+
+    if (previewOpen) {
+        SideEffect { previewOperation.attach(previewSession, moduleId, previewContext) }
+        DisposableEffect(previewOperation, previewSession) {
+            val token = previewSession
+            onDispose { if (activity?.isChangingConfigurations != true) previewOperation.close(token) }
+        }
+        SUMHModulePreviewDialog(
+            moduleId = moduleId, explainPath = previewPath,
+            onExplainPathChange = { value ->
+                previewPathTooLong = !Charsets.UTF_8.newEncoder().canEncode(value) || value.toByteArray(Charsets.UTF_8).size > 4095
+                if (!previewPathTooLong) {
+                    previewPath = value
+                    previewOperation.observe(previewSession, previewContext.copy(explainPath = value))
+                }
+            },
+            busy = previewOperation.busy, stale = previewOperation.stale,
+            canReadSaved = ready && !isSaving && !previewPathTooLong,
+            canReadCandidate = previewContext.candidateAllowed && !previewPathTooLong,
+            result = previewOperation.result, request = previewOperation.request,
+            error = if (previewPathTooLong) stringResource(R.string.sumh_module_preview_path_limit) else null,
+            onReadSaved = { previewOperation.read(previewSession, previewContext, false, previewRead) },
+            onReadCandidate = { previewOperation.read(previewSession, previewContext, true, previewRead) },
+            onClose = { previewOperation.close(previewSession); previewOpen = false },
+            eligibilityMessage = when {
+                hasDraft -> stringResource(R.string.sumh_module_preview_finish_edit)
+                conflict -> stringResource(R.string.sumh_editor_draft_conflict)
+                rulesError != null -> stringResource(moduleRuleErrorResource(rulesError))
+                else -> null
+            },
+        )
+    }
 
     fun cancelEdit() {
-        editingPath = null
-        newPath = ""
-        newMode = if (sumhAvailable) "sumh" else "auto"
+        updateDraft { it.copy(editingPath = null, newPath = "", newMode = if (sumhAvailable) "sumh" else "auto") }
         error = null
     }
 
@@ -108,7 +157,24 @@ internal fun SUMHMountConfigDialog(
         "hide" to stringResource(R.string.sumh_mount_mode_hide),
     )
 
-    YukiAlertDialog(
+    if (templatesOpen) SUMHModuleTemplateDialog(
+        moduleId = moduleId, moduleName = moduleName, currentDraft = draft, drafts = drafts,
+        externalConflict = conflict, enabled = ready && !isSaving && !hasDraft && sumhAvailable,
+        globalMode = globalMode, onDismiss = { templatesOpen = false },
+        onApply = { expected, generated ->
+            var applied = false
+            val changed = drafts.change(draftKey) { existing ->
+                if (existing == expected && !conflict && !isSaving && sumhAvailable) {
+                    applied = true
+                    ModuleEditorDraft.from(requireNotNull(existing)).copy(mode = "sumh", rules = generated).record()
+                } else existing
+            }
+            if (changed && applied) { error = null; templatesOpen = false; rulesExpanded = true }
+            changed && applied
+        },
+    )
+
+    if (!templatesOpen && !previewOpen) YukiAlertDialog(
         onDismissRequest = { if (!isSaving) onDismiss() },
         modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -129,12 +195,33 @@ internal fun SUMHMountConfigDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                SUMHEditorDraftStatus(drafts)
+                if (conflict) {
+                    Text(stringResource(R.string.sumh_editor_draft_conflict), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { updateDraft { initialDraft } }) {
+                        Text(stringResource(R.string.sumh_editor_draft_reload))
+                    }
+                    TextButton(onClick = { updateDraft { it.copy(baseline = currentBaseline) } }) {
+                        Text(stringResource(R.string.sumh_editor_draft_keep))
+                    }
+                }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (!rulesExpanded && rulesError != null) Text(stringResource(moduleRuleErrorResource(rulesError)),
                     color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 Text(stringResource(R.string.sumh_module_rules_reboot), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (globalMode != "auto") Text(stringResource(R.string.sumh_global_override, globalMode))
+                OutlinedButton(
+                    enabled = ready && !isSaving && !hasDraft && sumhAvailable,
+                    onClick = { templatesOpen = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.sumh_template_open)) }
+                OutlinedButton(
+                    enabled = ready && !isSaving && !hasDraft,
+                    onClick = { previewSession = UUID.randomUUID().toString(); previewOpen = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("module_preview_open"),
+                ) { Text(stringResource(R.string.sumh_module_preview_title)) }
+                if (hasDraft) Text(stringResource(R.string.sumh_template_finish_edit),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     text = stringResource(R.string.sumh_mount_mode),
                     style = MaterialTheme.typography.titleSmall
@@ -147,8 +234,8 @@ internal fun SUMHMountConfigDialog(
                     selectableModes.forEach { mode ->
                         FilterChip(
                             selected = selectedMode == mode,
-                            onClick = { selectedMode = mode },
-                            enabled = !isSaving,
+                            onClick = { updateDraft { it.copy(mode = mode) } },
+                            enabled = ready && !isSaving,
                             label = { Text(modeLabels[mode] ?: mode) },
                             leadingIcon = {
                                 YukiIcon(
@@ -170,7 +257,7 @@ internal fun SUMHMountConfigDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
-                        .clickable(enabled = !isSaving, role = Role.Button) { rulesExpanded = !rulesExpanded }
+                        .clickable(enabled = ready && !isSaving, role = Role.Button) { rulesExpanded = !rulesExpanded }
                         .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -212,13 +299,13 @@ internal fun SUMHMountConfigDialog(
                                     )
                                 }
                                 IconButton(
-                                    enabled = !isSaving,
-                                    onClick = { editingPath = rule.path; newPath = rule.path; newMode = rule.mode; error = null }
+                                    enabled = ready && !isSaving,
+                                    onClick = { updateDraft { it.copy(editingPath = rule.path, newPath = rule.path, newMode = rule.mode) }; error = null }
                                 ) { YukiIcon(Icons.Outlined.Edit, stringResource(R.string.sumh_module_rule_edit_label, rule.path)) }
                                 IconButton(
-                                    enabled = !isSaving,
+                                    enabled = ready && !isSaving,
                                     onClick = {
-                                        rules = rules.filter { r -> r != rule }
+                                        updateDraft { it.copy(rules = it.rules.filter { r -> r != rule }) }
                                         if (editingPath == rule.path) cancelEdit()
                                         error = null
                                     }
@@ -229,8 +316,8 @@ internal fun SUMHMountConfigDialog(
                         }
                         OutlinedTextField(
                             value = newPath,
-                            onValueChange = { newPath = it; error = null },
-                            enabled = !isSaving,
+                            onValueChange = { value -> updateDraft { it.copy(newPath = value) }; error = null },
+                            enabled = ready && !isSaving,
                             isError = draftError != null,
                             supportingText = draftError?.let { issue -> { Text(stringResource(moduleRuleErrorResource(issue))) } },
                             label = { Text(stringResource(R.string.sumh_absolute_path)) },
@@ -254,7 +341,7 @@ internal fun SUMHMountConfigDialog(
                         ) {
                             Box {
                                 FilledTonalButton(
-                                    enabled = !isSaving,
+                                    enabled = ready && !isSaving,
                                     onClick = { modeExpanded = true },
                                     modifier = Modifier.heightIn(min = 48.dp)
                                 ) {
@@ -269,7 +356,7 @@ internal fun SUMHMountConfigDialog(
                                         DropdownMenuItem(
                                             text = { Text(modeLabels[mode] ?: mode) },
                                             onClick = {
-                                                newMode = mode
+                                                updateDraft { it.copy(newMode = mode) }
                                                 modeExpanded = false
                                             }
                                         )
@@ -279,9 +366,8 @@ internal fun SUMHMountConfigDialog(
                             FilledTonalButton(
                                 enabled = canSave && hasDraft,
                                 onClick = {
-                                    if (canSave) {
-                                        rules = candidate
-                                        cancelEdit()
+                                    if (canSave && drafts.snapshot[draftKey] == draft.record()) {
+                                        if (updateDraft { it.copy(rules = requireNotNull(candidate)) }) cancelEdit()
                                     }
                                 },
                                 modifier = Modifier.heightIn(min = 48.dp)
@@ -289,7 +375,7 @@ internal fun SUMHMountConfigDialog(
                                 Text(stringResource(if (editingPath == null) R.string.sumh_module_rules_add else R.string.sumh_rule_save))
                             }
                             if (hasDraft) TextButton(
-                                enabled = !isSaving, onClick = { cancelEdit() }, modifier = Modifier.heightIn(min = 48.dp),
+                                enabled = ready && !isSaving, onClick = { cancelEdit() }, modifier = Modifier.heightIn(min = 48.dp),
                             ) { Text(stringResource(R.string.sumh_module_rule_cancel_edit)) }
                         }
                         }
@@ -300,13 +386,15 @@ internal fun SUMHMountConfigDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (isSaving || !canSave) return@Button
+                    if (isSaving || !canSave || drafts.snapshot[draftKey] != draft.record()) return@Button
                     val rulesToSave = candidate
                     val modeToSave = selectedMode
+                    val submittedDraft = draft.record()
                     isSaving = true
                     scope.launch {
                         try {
                             onSave(moduleId, modeToSave, rulesToSave)
+                            drafts.forget(draftKey, submittedDraft)
                             onSaved()
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -329,7 +417,7 @@ internal fun SUMHMountConfigDialog(
     )
 }
 
-private fun moduleRuleErrorResource(error: SUMHModuleRuleError): Int = when (error) {
+internal fun moduleRuleErrorResource(error: SUMHModuleRuleError): Int = when (error) {
     SUMHModuleRuleError.AbsolutePath -> R.string.sumh_maps_input_path_absolute
     SUMHModuleRuleError.ControlCharacter -> R.string.sumh_maps_path_control
     SUMHModuleRuleError.TooLong -> R.string.sumh_maps_path_target_length

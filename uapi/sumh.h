@@ -103,6 +103,167 @@ struct sumh_spoof_kstat {
 #define SUMH_FEATURE_MANAGED_HIDE (1 << 14)
 #define SUMH_FEATURE_KERNEL_BUILD_SPOOF (1 << 15)
 #define SUMH_FEATURE_MANAGED_MAPS (1 << 16)
+#define SUMH_FEATURE_RUNTIME_STATE (1 << 17)
+#define SUMH_FEATURE_RUNTIME_SET (1 << 18)
+#define SUMH_FEATURE_KERNEL_BUILD_CAS (1 << 19)
+#define SUMH_FEATURE_RULE_INVENTORY (1 << 20)
+#define SUMH_FEATURE_TEMPORARY_MAPS_DELETE (1 << 21)
+
+#define SUMH_RULE_INVENTORY_VERSION 1
+#define SUMH_RULE_INVENTORY_PATH_MAX 4096
+#define SUMH_INVENTORY_MAPPING 1
+#define SUMH_INVENTORY_LEGACY_HIDE 2
+#define SUMH_INVENTORY_MERGE 3
+#define SUMH_INVENTORY_MAPS_MANAGED 4
+#define SUMH_INVENTORY_MAPS_TEMPORARY 5
+#define SUMH_INVENTORY_INJECT 6
+#define SUMH_INVENTORY_USER_HIDE 7
+/* Reserved categories: unsupported bits must not be interpreted as empty. */
+#define SUMH_INVENTORY_OVERLAY_XATTR 8
+#define SUMH_INVENTORY_KSTAT 9
+#define SUMH_INVENTORY_VNODE 10
+#define SUMH_INVENTORY_SUPPORTED_CATEGORIES 0x7fU
+#define SUMH_INVENTORY_DEFINITIONS_COHERENT 1U
+#define SUMH_INVENTORY_OWNER_UNATTRIBUTED 0
+#define SUMH_INVENTORY_OWNER_USER_HIDE 1
+#define SUMH_INVENTORY_OWNER_MANAGED_MAPS 2
+#define SUMH_INVENTORY_ID_GENERATION_ORDINAL 1
+#define SUMH_INVENTORY_ID_MANAGED_DEFINITION 2
+#define SUMH_INVENTORY_LEGACY_STORAGE_MANAGED 1U
+
+/* Native rule definitions, not filesystem/binding/observer health. path1 is
+ * the visible path and path2 the backing path for mapping/merge; hide/inject
+ * only use path1. Maps only use numeric fields and path2 (spoofed pathname).
+ * Byte lengths exclude the terminating NUL; unused bytes are zero. No text
+ * tokenization, UTF-8 normalization or pointer values. storage_managed is
+ * legacy bookkeeping, not ownership authority. Unattributed is explicit.
+ * Ordinal IDs are only category+instance+generation scoped, never mutation
+ * handles. Managed-hide IDs/generation describe runtime definitions only;
+ * binding jobs change neither the exported definition nor these IDs.
+ */
+struct sumh_rule_inventory_entry {
+  __u32 category;
+  __u32 owner;
+  __u32 id_kind;
+  __u32 type;
+  __aligned_u64 id;
+  __aligned_u64 definition_generation;
+  __aligned_u64 target_ino;
+  __aligned_u64 target_dev;
+  __aligned_u64 spoofed_ino;
+  __aligned_u64 spoofed_dev;
+  __u32 path1_len;
+  __u32 path2_len;
+  __u32 flags;
+  __u32 reserved;
+  char path1[SUMH_RULE_INVENTORY_PATH_MAX];
+  char path2[SUMH_RULE_INVENTORY_PATH_MAX];
+};
+
+/* GET: exact size/version, category, expected tokens and ordinal cursor;
+ * everything else zero. First request: both tokens/cursor zero. Continuation
+ * (including another category at cursor zero): both tokens nonzero/matching.
+ * Category zero queries supported bits only, cursor zero. The returned
+ * expected_* fields are zero; instance_id/generation identify the collection.
+ * One bounded record per page, count 0/1, next_cursor=cursor+count, complete
+ * 0/1 (including the final record). End cursor yields empty complete page;
+ * past end is EINVAL. Stale token ESTALE, unsupported category EOPNOTSUPP;
+ * oversized stored path EOVERFLOW, never truncation. Failure never mutates.
+ * All covered definitions are serialized control mutations; no async binding
+ * telemetry or current directory contents are included. Across categories,
+ * reuse the same token. These observational IDs never authorize a clear.
+ */
+struct sumh_rule_inventory_arg {
+  __u32 size;
+  __u32 version;
+  __u32 category;
+  __u32 count;
+  __aligned_u64 expected_instance_id;
+  __aligned_u64 expected_generation;
+  __aligned_u64 cursor;
+  __aligned_u64 instance_id;
+  __aligned_u64 generation;
+  __aligned_u64 next_cursor;
+  __u32 supported_categories;
+  __u32 flags;
+  __u32 complete;
+  __u32 reserved;
+  struct sumh_rule_inventory_entry entry;
+};
+
+#define SUMH_RUNTIME_STATE_VERSION 1
+#define SUMH_RUNTIME_DEBUG 1
+#define SUMH_RUNTIME_STEALTH 2
+#define SUMH_RUNTIME_MOUNT_HIDE 3
+#define SUMH_RUNTIME_MAPS_SPOOF 4
+#define SUMH_RUNTIME_STATFS_SPOOF 5
+#define SUMH_RUNTIME_KERNEL_BUILD 6
+#define SUMH_RUNTIME_STATE_COUNT 6
+#define SUMH_RUNTIME_CONTROL_SERIALIZED (1U << 0)
+#define SUMH_RUNTIME_READINESS_SAMPLED (1U << 1)
+
+/* Current kernel toggles, not persisted configuration or observer tests.
+ * active requires configured and available machinery/dependencies; statfs
+ * also needs mount hide configured and available. Debug logging and Kernel
+ * Build's initial-UTS override do not depend on the global view switch.
+ * degraded is configured but
+ * not active. last_error is the latest targeted setter result, including a
+ * failed user copy; success clears it. It is not a readiness error. Entry
+ * flags and reserved are zero in version 1.
+ */
+struct sumh_runtime_feature_state {
+  __u32 id;
+  __u32 supported;
+  __u32 configured;
+  __u32 active;
+  __u32 degraded;
+  __s32 last_error;
+  __u32 flags;
+  __u32 reserved;
+};
+
+/* GET input: exact size, version 1, everything else zero. Output settings
+ * and error records are serialized against control mutations; independently
+ * changing readiness providers are sampled, never globally atomic. Header
+ * flags always declare these two properties. generation is a nonzero control
+ * sequence for attempted mutations/results, not an external readiness or
+ * rule revision. Queries do not change it. instance_id is initialized at
+ * bootstrap (randomized per module lifetime, incremented on reinitialization)
+ * and distinguishes sequences; it is not persistent identity. CLEAR_ALL
+ * retains debug and its error, resets the five other toggles/errors. Errors
+ * start at zero in each instance; stopped providers return -ESHUTDOWN.
+ */
+struct sumh_runtime_state_arg {
+  __u32 size;
+  __u32 version;
+  __u32 count;
+  __u32 flags;
+  __aligned_u64 generation;
+  __aligned_u64 instance_id;
+  __u32 mount_hide_mode;
+  __u32 reserved[3];
+  struct sumh_runtime_feature_state entries[SUMH_RUNTIME_STATE_COUNT];
+};
+
+/* Conditional update for the five simple toggles only (IDs 1..5). Kernel
+ * Build requires its string ABI. Input size/version exact, enable 0/1,
+ * reserved zero, mount_hide_mode NORMAL (zero) for all supported IDs.
+ * expected_* must match the last GET. -ESTALE leaves settings, errors and
+ * generation untouched. Malformed input/unrecognized IDs also leave them
+ * untouched. A valid matched attempt records its result and advances once,
+ * including unsupported enable and successful no-op. No global transaction
+ * across other feature setters, rule sets or persisted config is implied.
+ */
+struct sumh_runtime_set_arg {
+  __u32 size;
+  __u32 version;
+  __u32 id;
+  __u32 enable;
+  __aligned_u64 expected_generation;
+  __aligned_u64 expected_instance_id;
+  __u32 mount_hide_mode;
+  __u32 reserved[3];
+};
 
 #define SUMH_KERNEL_BUILD_MAX 65
 
@@ -120,6 +281,25 @@ struct sumh_kernel_build_arg {
   char release[SUMH_KERNEL_BUILD_MAX];
   char version[SUMH_KERNEL_BUILD_MAX];
   char reserved_tail[2];
+};
+
+/* Conditional form of Kernel Build SET. Schema version1, exact size, enable
+ * 0/1 and all reserved bytes zero. Strings use the legacy canonical contract.
+ * Invalid input or stale expected tokens leaves settings/errors/sequence
+ * untouched. A matched attempt records its result and advances generation
+ * once, even for unavailable enable or successful no-op. This sequence only
+ * tracks SUMH control writers, not third-party writes to init_uts_ns.
+ */
+struct sumh_kernel_build_cas_arg {
+  __u32 size;
+  __u32 version;
+  __u32 enable;
+  __u32 reserved;
+  __aligned_u64 expected_generation;
+  __aligned_u64 expected_instance_id;
+  char release[SUMH_KERNEL_BUILD_MAX];
+  char version_string[SUMH_KERNEL_BUILD_MAX];
+  char reserved_tail[6];
 };
 
 #define SUMH_USER_HIDE_PATH_MAX 4096
@@ -179,6 +359,27 @@ struct sumh_managed_maps_arg {
   __u32 count;
   __aligned_u64 rules;
   __u32 reserved[2];
+};
+
+#define SUMH_MAPS_DELETE_VERSION 1
+
+/* Delete one temporary rule by its exact stored key; target_dev 0 identifies
+ * the wildcard rule itself, never a request to delete another device's rule.
+ * Both expected tokens must be nonzero and match the current inventory.
+ * size/version must match; target_ino must fit the kernel's unsigned long and
+ * target_dev uses the 32-bit MKDEV encoding. Zero ino/dev are valid keys.
+ * Absent or managed-only keys return ENOENT. Stale tokens return ESTALE.
+ * Failure leaves both sets and the generation unchanged; success publishes
+ * once and advances the generation once. No output copy follows publication.
+ * Cleanup is available independently of Maps filtering readiness.
+ */
+struct sumh_maps_delete_arg {
+  __u32 size;
+  __u32 version;
+  __aligned_u64 expected_instance_id;
+  __aligned_u64 expected_generation;
+  __aligned_u64 target_ino;
+  __aligned_u64 target_dev;
 };
 
 /*
@@ -272,5 +473,15 @@ struct sumh_statfs_spoof_arg {
   _IOR(SUMH_IOC_MAGIC, 47, struct sumh_kernel_build_arg)
 #define SUMH_IOC_SET_MANAGED_MAPS                                              \
   _IOW(SUMH_IOC_MAGIC, 48, struct sumh_managed_maps_arg)
+#define SUMH_IOC_GET_RUNTIME_STATE                                             \
+  _IOWR(SUMH_IOC_MAGIC, 49, struct sumh_runtime_state_arg)
+#define SUMH_IOC_SET_RUNTIME_FEATURE                                           \
+  _IOW(SUMH_IOC_MAGIC, 50, struct sumh_runtime_set_arg)
+#define SUMH_IOC_SET_KERNEL_BUILD_CAS                                          \
+  _IOW(SUMH_IOC_MAGIC, 51, struct sumh_kernel_build_cas_arg)
+#define SUMH_IOC_GET_RULE_INVENTORY                                            \
+  _IOWR(SUMH_IOC_MAGIC, 52, struct sumh_rule_inventory_arg)
+#define SUMH_IOC_DELETE_TEMPORARY_MAPS                                         \
+  _IOW(SUMH_IOC_MAGIC, 53, struct sumh_maps_delete_arg)
 
 #endif /* _SUMH_UAPI_H */

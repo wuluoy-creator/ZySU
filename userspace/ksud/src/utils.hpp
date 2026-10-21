@@ -1,5 +1,7 @@
 #pragma once
 
+#include "durable_file.hpp"
+
 // POSIX headers are needed by the streaming line reader below, which has to stay
 // a template (no std::function indirection) and therefore lives in this header.
 #include <fcntl.h>
@@ -192,8 +194,9 @@ bool for_each_file_line(const char* path, Fn&& fn) {
 std::optional<std::string> read_file(const std::string& path);
 bool read_file_bytes(const std::filesystem::path& path, std::vector<uint8_t>* data);
 bool write_file(const std::filesystem::path& path, const std::string& content);
-// Atomically replace a state file; the parent directory must exist. The final
-// mode is applied explicitly (independent of umask), defaulting to private 0600.
+// Atomically replace a file without confirming directory durability. Critical
+// state must use replace_file_durable/write_file_durable instead. The parent
+// directory must exist; mode is explicit, independent of the caller's umask.
 bool write_file_atomic(const std::filesystem::path& path, const std::string& content,
                        mode_t mode = 0600);
 bool write_file_bytes(const std::filesystem::path& path, const uint8_t* data, size_t size,

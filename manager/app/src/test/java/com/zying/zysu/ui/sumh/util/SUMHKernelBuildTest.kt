@@ -3,8 +3,30 @@ package com.zying.zysu.ui.sumh.util
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class SUMHKernelBuildTest {
+    private val runtime = KernelBuildState(true, "6.6.1-android15-spoof", "#2 SMP",
+        "6.1.75-android14-11-original", "#1 SMP", "#1 SMP Fri Aug 23 03:08:10 UTC 2024", "ro.build.date")
+
+    @Test
+    fun systemDateSuggestionRequiresKnownSourceAndValidUtf8Length() {
+        assertEquals(runtime.suggestedVersion, runtime.systemDateSuggestion)
+        assertNull(runtime.copy(suggestedVersion = "").systemDateSuggestion)
+        assertNull(runtime.copy(suggestionSource = "future.source").systemDateSuggestion)
+        assertNull(runtime.copy(suggestedVersion = "界".repeat(22)).systemDateSuggestion)
+        assertNull(runtime.copy(suggestedVersion = "#1 SMP\n2026").systemDateSuggestion)
+    }
+
+    @Test
+    fun kmiLabelUsesOnlyOriginalReleaseAndDoesNotInventUnknownValues() {
+        assertEquals("android14-6.1", runtime.originalKmiLabel)
+        assertEquals("android14-6.1", runtime.copy(release = "6.12.1-android16-custom").originalKmiLabel)
+        assertEquals("6.1", runtime.copy(originalRelease = "6.1.75-custom").originalKmiLabel)
+        assertNull(runtime.copy(originalRelease = "custom-build").originalKmiLabel)
+    }
+
     @Test
     fun eitherFieldCanKeepItsOriginalValue() {
         assertTrue(validKernelBuildOverride(true, "6.1.75-custom", ""))

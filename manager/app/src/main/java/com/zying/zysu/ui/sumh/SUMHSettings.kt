@@ -24,6 +24,7 @@ import com.zying.zysu.R
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.YukiPanel
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as Controller
+import com.zying.zysu.ui.sumh.util.SUMHControlState
 import com.zying.zysu.ui.theme.getCardColors
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardElevation
@@ -45,6 +46,11 @@ internal fun SettingsTab(
     header: @Composable () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
     headingActions: (@Composable RowScope.() -> Unit)? = null,
+    controlState: SUMHControlState = SUMHControlState(),
+    legacyApplyPending: Boolean = runtimeApplyPending,
+    onRefreshState: () -> Unit = {},
+    onPartitionsSaved: (List<String>) -> Unit = {},
+    onPartitionsSaving: (Boolean) -> Unit = {},
 ) {
     val enabled = controlsEnabled
     val mountEnabled = enabled && config.externalOwner.isEmpty()
@@ -55,16 +61,9 @@ internal fun SettingsTab(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         header()
-        if (runtimeApplyPending) {
-            ConfigSection {
-                Text(stringResource(R.string.sumh_runtime_apply_pending), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = onRetryApply, enabled = kernelEnabled, modifier = Modifier.fillMaxWidth()) {
-                    YukiIcon(Icons.Filled.Refresh, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.sumh_retry_apply))
-                }
-            }
-        }
+        SUMHControlStatePanel(controlState, config, section, onRefreshState,
+            onApply = if (kernelEnabled) onRetryApply else null,
+            enabled = controlsEnabled, legacyPending = legacyApplyPending)
         when (section) {
             SUMHSection.Mount -> {
                 ConfigSection(stringResource(R.string.sumh_group_mount_backends), segmented = true, actions = headingActions) {
@@ -95,6 +94,7 @@ internal fun SettingsTab(
                         onConfigChanged(config.copy(mirrorPath = it))
                     }
                 }
+                SUMHPartitionsControls(mountEnabled, config.original.toString(), onPartitionsSaved, onPartitionsSaving)
             }
             SUMHSection.Isolation -> IsolationFeatureSettings(
                 config = config,
@@ -241,18 +241,23 @@ internal fun ConfigChoiceField(
 
 @Composable
 internal fun MountSourceInput(value: String, enabled: Boolean, onSave: (String) -> Unit) {
-    var draft by rememberSaveable(value) { mutableStateOf(value) }
+    val draftState = rememberSUMHRefreshAwareDraft(value)
+    val draft = draftState.text
+    val conflict = draftState.conflict(value)
+    var draftLimit by remember { mutableStateOf(false) }
     val changed = draft != value
     val valid = draft.isNotEmpty() && draft.none { it.isWhitespace() || it.isISOControl() || it == '\\' }
 
     fun save() {
-        if (enabled && changed && valid) onSave(draft)
+        if (enabled && !conflict && changed && valid) { draftState.submitted(); onSave(draft) }
     }
 
     SUMHControlGroup(MoreSettingsItemPosition.Middle) {
+        if (draftLimit) SUMHSmallDraftLimit()
+        SUMHDraftConflict(draftState, value, stringResource(R.string.sumh_mountsource))
         OutlinedTextField(
             value = draft,
-            onValueChange = { draft = it },
+            onValueChange = { draftLimit = !sumhSmallDraftFits(it); if (!draftLimit) draftState.edit(it) },
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
             singleLine = true,
@@ -262,7 +267,7 @@ internal fun MountSourceInput(value: String, enabled: Boolean, onSave: (String) 
             placeholder = { Text("KSU") },
             trailingIcon = if (changed) {
                 {
-                    IconButton(onClick = { save() }, enabled = enabled && valid) {
+                    IconButton(onClick = { save() }, enabled = enabled && !conflict && valid) {
                         YukiIcon(Icons.Filled.Check, stringResource(R.string.sumh_rule_save))
                     }
                 }
@@ -279,12 +284,18 @@ internal fun MountSourceInput(value: String, enabled: Boolean, onSave: (String) 
 @Composable
 private fun EditableConfigPath(title: Int, subtitle: Int, value: String, enabled: Boolean, allowEmpty: Boolean,
     position: MoreSettingsItemPosition = MoreSettingsItemPosition.Middle, save: (String) -> Unit) {
-    var draft by rememberSaveable(value) { mutableStateOf(value) }
+    val draftState = rememberSUMHRefreshAwareDraft(value)
+    val draft = draftState.text
+    val conflict = draftState.conflict(value)
     var invalid by remember(value) { mutableStateOf(false) }
-    SettingTextField(stringResource(title), stringResource(subtitle), draft, { draft = it; invalid = false }, {
-        if (draft.startsWith('/') || (allowEmpty && draft.isEmpty())) save(draft)
-        else invalid = true
-    }, enabled, position = position)
+    var draftLimit by remember { mutableStateOf(false) }
+    SettingTextField(stringResource(title), stringResource(subtitle), draft, { draftLimit = !sumhSmallDraftFits(it); if (!draftLimit) { draftState.edit(it); invalid = false } }, {
+        if (!conflict && (draft.startsWith('/') || (allowEmpty && draft.isEmpty()))) {
+            draftState.submitted(); save(draft)
+        } else invalid = !conflict
+    }, enabled, position = position, confirmEnabled = enabled && !conflict)
+    SUMHDraftConflict(draftState, value, stringResource(title), Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+    if (draftLimit) SUMHSmallDraftLimit()
     if (invalid) Text(
         stringResource(R.string.sumh_absolute_path),
         color = MaterialTheme.colorScheme.error,

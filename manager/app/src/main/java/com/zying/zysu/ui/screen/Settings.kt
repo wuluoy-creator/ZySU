@@ -161,7 +161,7 @@ private fun SettingsWorkspaceIndex(
                     icon = Icons.Filled.Folder,
                     title = stringResource(R.string.settings_category_mount_isolation),
                     summary = stringResource(R.string.settings_category_mount_isolation_summary),
-                    onClick = { navigator.navigate(MountIsolationScreenDestination) },
+                    onClick = { navigator.navigate(MountIsolationScreenDestination()) },
                 )
                 SettingItem(
                     icon = Icons.Filled.Security,

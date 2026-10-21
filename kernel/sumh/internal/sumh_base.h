@@ -2,6 +2,7 @@
 #define _SUMH_BASE_H
 
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/types.h>
 #include <linux/version.h>
 
@@ -27,10 +28,14 @@
 #define SUMH_MERGE_HASH_SIZE (1 << SUMH_MERGE_HASH_BITS)
 
 #define SUMH_PATH_BUF 512
-#define SUMH_ITERATE_PATH_BUF 512
+#define SUMH_ITERATE_PATH_BUF PATH_MAX
 
 #define SUMH_UID_ALLOW_MARKER ((void *)1)
-#define SUMH_MAX_MERGE_TARGETS 4
+#define SUMH_MERGE_MAX_TARGETS 1024U
+#define SUMH_MERGE_MAX_NAMES 16384U
+#define SUMH_MERGE_MAX_RECORDS 65536U
+#define SUMH_MERGE_MAX_PASSES 65536U
+#define SUMH_MERGE_MEMORY_BUDGET (4U * 1024U * 1024U)
 
 extern bool sumh_debug_enabled;
 

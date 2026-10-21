@@ -6,14 +6,18 @@ These checks cover its error paths, not real kernel memory pressure or KMI.
 """
 
 import argparse
+import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
 import sys
+import subprocess
+import tempfile
 
 # Reuse the freestanding runner without leaving bytecode in the source tree.
 sys.dont_write_bytecode = True
-from test_sumh_vfs_helpers import COMMON, function, run_test
+from test_sumh_vfs_helpers import COMMON, ROOT, function, run_test
 
 
 def rules_source():
@@ -30,6 +34,9 @@ def rules_source():
 #define READ_ONCE(value) (value)
 #define CAPACITY (64 * 1024)
 struct sumh_syscall_list_arg { char *buf; size_t size; };
+/* Only types used by the actual dispatch-scope declarations are doubled. */
+typedef unsigned int u32;
+struct sumh_syscall_arg { unsigned char type; };
 struct sumh_entry { const char *src, *target; int type; };
 struct sumh_hide_entry { const char *path; };
 struct sumh_inject_entry { const char *dir; };
@@ -38,7 +45,8 @@ struct sumh_xattr_sb_entry { void *sb; };
 static struct sumh_entry rule = { "/system/test", "/data/adb/modules/demo/system/test", 0 };
 static struct sumh_entry *sumh_paths = &rule;
 static struct sumh_hide_entry *sumh_hide_paths;
-static struct sumh_inject_entry *sumh_inject_dirs;
+static struct sumh_inject_entry inject_rule = { "/visible" };
+static struct sumh_inject_entry *sumh_inject_dirs = &inject_rule;
 static struct sumh_merge_entry *sumh_merge_dirs;
 static struct sumh_xattr_sb_entry *sumh_xattr_sbs;
 static int sumh_enabled = 1, sumh_feature_enabled_mask, sumh_mount_hide_mode;
@@ -150,17 +158,22 @@ static void reset(size_t size) {
 }
 static bool clean(void) { return !live && !rcu_depth && !bad_context; }
 static long list_rules(unsigned int cmd, void *arg) {
-    struct sumh_entry *entry;
-    struct sumh_hide_entry *hide_entry;
-    struct sumh_inject_entry *inject_entry;
 """
+    ioctl = (ROOT / "kernel/sumh/control/sumh_ioctl.c").read_text(encoding="utf-8")
+    dispatch = ioctl.index("static SUMH_NOCFI int sumh_dispatch_cmd(")
+    declarations_start = ioctl.index("{", dispatch) + 1
+    declarations_end = ioctl.index("\n\tif (cmd == SUMH_IOC_CLEAR_ALL)", declarations_start)
+    # Keep the exact declarations actually in dispatch scope. Adding a manual
+    # inject iterator here would mask the production undeclared-name regression.
+    declarations = ioctl[declarations_start:declarations_end]
     branch = function("kernel/sumh/control/sumh_ioctl.c", "if (cmd == SUMH_IOC_LIST_RULES)")
     body = r"""
     return -1;
 }
 int main(void) {
     static const char expected[] = "SUMH Protocol: 1\nSUMH Enabled: 1\n"
-        "add /system/test /data/adb/modules/demo/system/test 0\n";
+        "add /system/test /data/adb/modules/demo/system/test 0\n"
+        "inject /visible\n";
     const size_t length = sizeof(expected) - 1;
 
     /* Fragmentation alone must not turn a small rule dump into ENOMEM. */
@@ -204,14 +217,57 @@ int main(void) {
     return 0;
 }
 """
-    return COMMON + preamble + branch + body
+    return COMMON + preamble + declarations + branch + body
+
+
+def declaration_regression(compiler, source, output=None, manifest=None):
+    """Missing production LIST iterator must fail syntax checking explicitly.
+
+    This is a declaration regression check, not a behavioral mutation. It must
+    never contribute to the injection ownership runner's mutant count.
+    """
+    marker = "\t\tstruct sumh_inject_entry *inject_entry;"
+    if source.count(marker) != 1:
+        raise AssertionError("production-local LIST iterator marker changed")
+    broken = source.replace(marker, "\t\t/* deliberately removed production iterator */", 1)
+    temporary = tempfile.TemporaryDirectory(prefix="sumh-list-declarations-") if output is None else None
+    directory = (output or Path(temporary.name)).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    records = []
+    try:
+        for name, generated, expected in (("actual-declarations", source, 0), ("missing-local-iterator", broken, 1)):
+            path = directory / (name + ".c")
+            path.write_text(generated, encoding="utf-8")
+            command = [compiler, "-std=gnu11", "-ffreestanding", "-fno-builtin", "-Werror", "-Wno-unused-function", "-Wno-unused-variable", "-fsyntax-only"]
+            if os.name == "nt":
+                command += ["--target=x86_64-pc-windows-msvc"]
+            command += [str(path)]
+            result = subprocess.run(command, capture_output=True, text=True)
+            records.append({"name": name, "kind": "declaration-regression-syntax-check", "argv": command,
+                            "exit_code": result.returncode, "source": str(path),
+                            "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                            "stdout": result.stdout, "stderr": result.stderr})
+            if expected == 0 and result.returncode:
+                raise AssertionError(f"actual dispatch/LIST declarations fail syntax: {result.stderr}")
+            if expected and (not result.returncode or "undeclared identifier 'inject_entry'" not in result.stderr):
+                raise AssertionError(f"missing iterator did not fail for its intended undeclared identifier: {result.stderr}")
+        print("PASS LIST declaration regression: exact dispatch declarations compile; removing the production-local iterator fails syntax as expected")
+    finally:
+        if manifest:
+            manifest.write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
+        if temporary:
+            temporary.cleanup()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cc", default=os.environ.get("CC") or shutil.which("clang") or shutil.which("cc"))
+    parser.add_argument("--declaration-out-dir", type=Path)
+    parser.add_argument("--declaration-manifest", type=Path)
     args = parser.parse_args()
     if not args.cc:
         parser.error("a C compiler is required; pass --cc")
     compiler = shutil.which(args.cc) or str(Path(args.cc).resolve())
-    run_test(compiler, "rules", rules_source())
+    source = rules_source()
+    run_test(compiler, "rules", source)
+    declaration_regression(compiler, source, args.declaration_out_dir, args.declaration_manifest)

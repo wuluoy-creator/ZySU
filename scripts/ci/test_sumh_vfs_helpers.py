@@ -8,6 +8,7 @@ These tests do not replace a kernel build or concurrent on-device validation.
 import argparse
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -36,7 +37,8 @@ typedef _Bool bool;
 #define false 0
 #define NULL ((void *)0)
 #define SUMH_NOCFI
-#define CHECK(test) do { if (!(test)) return __LINE__; } while (0)
+/* Process exit status is only 8 bits on POSIX. Keep every failure in 1..255. */
+#define CHECK(test) do { if (!(test)) return ((__LINE__ - 1) % 255) + 1; } while (0)
 void *memset(void *dst, int value, size_t n) {
     char *d = dst; for (size_t i = 0; i < n; i++) d[i] = value; return dst;
 }
@@ -453,14 +455,25 @@ int main(void) {
     return COMMON + preamble + wrapper + ingress + body
 
 
+def directory_limits():
+    """Use production limits; PATH_MAX is Linux's byte ABI, not host MAX_PATH."""
+    text = (ROOT / "kernel/sumh/internal/sumh_base.h").read_text(encoding="utf-8")
+    return "#define PATH_MAX 4096\n" + "\n".join(
+        re.search(rf"^#define {name} .+$", text, re.MULTILINE).group(0)
+        for name in ("SUMH_ITERATE_PATH_BUF",)
+    ) + "\n"
+
+
 def directory_source():
     preamble = r"""
 typedef long long loff_t;
 typedef unsigned int u32;
 #define ENOENT 2
+#define ENOMEM 12
+#define EIO 5
+#define ENAMETOOLONG 36
 #define GFP_ATOMIC 0
-#define SUMH_ITERATE_PATH_BUF 128
-#define SUMH_MAX_MERGE_TARGETS 8
+#define GFP_KERNEL 1
 #define SUMH_HASH_BITS 4
 #define SUMH_MAGIC_POS 0x1000000000000000ULL
 #define AS_FLAGS_SUMH_DIR_HAS_HIDDEN 0
@@ -469,6 +482,7 @@ typedef unsigned int u32;
 #define ERR_PTR(v) ((void *)(ssize_t)(v))
 #define IS_ERR(v) ((ssize_t)(v) < 0)
 #define IS_ERR_OR_NULL(v) (!(v) || IS_ERR(v))
+#define PTR_ERR(v) ((ssize_t)(v))
 enum sumh_policy_scope { SUMH_POLICY_SCOPE_NONE, SUMH_POLICY_SCOPE_VIEW, SUMH_POLICY_SCOPE_SPOOF };
 struct mapping { unsigned long flags; };
 struct inode { struct mapping *i_mapping; };
@@ -477,29 +491,21 @@ struct dentry { struct inode *inode; struct qstr d_name; int refs; };
 struct path { struct dentry *dentry; const char *name; };
 struct file { struct path f_path; };
 struct dir_context { bool (*actor)(void); loff_t pos; };
-struct sumh_filldir_wrapper {
-    struct dir_context wrap_ctx, *orig_ctx;
-    struct dentry *parent_dentry;
-    int dir_path_len;
-    bool dir_has_hidden;
-    const char *dir_path;
-    bool dir_has_inject, inject_done, inject_pending, has_iterate_client, stopped;
-    loff_t inject_pos;
-    unsigned int emitted;
-    bool view_allowed, spoof_allowed;
-    int merge_target_count;
-    struct dentry *merge_target_dentries[SUMH_MAX_MERGE_TARGETS];
-    char dir_path_buf[SUMH_ITERATE_PATH_BUF];
-};
+PRODUCTION_WRAPPER
 struct sumh_inject_entry { const char *dir; };
 struct sumh_merge_entry { const char *src, *resolved_src; struct dentry *target_dentry; };
-static struct sumh_merge_entry merge;
+static struct sumh_merge_entry merges[1];
+#define merge merges[0]
+static int merge_count = 1;
 static int sumh_ioctl_tgid, sumh_rule_count = 1, sumh_enabled = 1;
 static int sumh_stealth_enabled, sumh_filldir_cache, current;
 static int rcu_depth, bad_dget, freed, allocated_count, allocation_attempts;
 static int policy_scope = SUMH_POLICY_SCOPE_VIEW, allow_hide, hide_checks;
-static int allocation_fails, path_calls, path_fails;
-static struct sumh_filldir_wrapper allocated[16], *nested_wrapper;
+static int allocation_fails, path_calls, path_fails, fallback_calls, malformed;
+static int path_allocation_fails, path_allocations, path_frees, path_attempts, bad_context;
+static int wrapper_live[4], path_live[4];
+static unsigned char path_storage[4][PATH_MAX + 2];
+static struct sumh_filldir_wrapper allocated[4], *nested_wrapper;
 static struct file *nested_file;
 static struct dir_context *nested_ctx;
 static int nest;
@@ -510,11 +516,33 @@ static int nest;
 #define hash_min(hash, bits) (0)
 #define full_name_hash(p, name, len) ((u32)(len))
 #define hlist_for_each_entry_rcu(ie, table, node) for ((ie) = NULL; (ie); (ie) = NULL)
-#define hash_for_each_rcu(table, bucket, me, node) for ((bucket) = 0, (me) = &merge; (bucket) < 1; (bucket)++)
+#define hash_for_each_rcu(table, bucket, me, node) \
+    for ((bucket) = 0; (bucket) < merge_count && ((me) = &merges[bucket], 1); (bucket)++)
 static void rcu_read_lock(void) { rcu_depth++; }
 static void rcu_read_unlock(void) { rcu_depth--; }
 static struct dentry *dget(struct dentry *d) { if (!rcu_depth) bad_dget++; d->refs++; return d; }
 static void dput(struct dentry *d) { d->refs--; }
+struct sumh_merge_snapshot { struct dentry *target; };
+static struct sumh_merge_snapshot snapshots[4];
+static int snapshot_live[4], snapshot_calls, snapshot_error;
+static int sumh_merge_snapshot_create(struct file *file, const char *primary, struct sumh_merge_snapshot **out) {
+    (void)file; snapshot_calls++; *out = NULL;
+    if (rcu_depth) bad_context++;
+    if (snapshot_error) return -snapshot_error;
+    for (int i = 0; i < 4; i++) if (!snapshot_live[i]) {
+        snapshot_live[i] = 1; snapshots[i].target = NULL;
+        if (!strcmp(primary, merge.src)) { rcu_depth++; snapshots[i].target = dget(merge.target_dentry); rcu_depth--; }
+        *out = &snapshots[i]; return 0;
+    }
+    bad_context++; return -ENOMEM;
+}
+static void sumh_merge_snapshot_destroy(struct sumh_merge_snapshot *s) {
+    if (!s) return;
+    int index = (int)(s - snapshots);
+    if (index < 0 || index >= 4 || !snapshot_live[index] || rcu_depth) { bad_context++; return; }
+    if (s->target) dput(s->target);
+    snapshot_live[index] = 0;
+}
 static struct inode *d_inode(struct dentry *d) { return d->inode; }
 static int sumh_policy_current_scope(void) { return policy_scope; }
 static bool sumh_policy_current_is_hide_target(struct inode *i) { (void)i; hide_checks++; return allow_hide; }
@@ -522,20 +550,57 @@ static bool sumh_filldir_filter(void) { return true; }
 static bool sumh_merge_filldir(void) { return true; }
 static bool ordinary_actor(void) { return true; }
 static void *kmem_cache_zalloc(int cache, int flags) {
-    (void)cache; (void)flags;
+    (void)cache;
+    if (rcu_depth || flags != GFP_KERNEL) bad_context++;
     allocation_attempts++;
     if (allocation_fails) return NULL;
-    struct sumh_filldir_wrapper *w = &allocated[allocated_count++];
-    char *p = (char *)w; for (size_t i = 0; i < sizeof(*w); i++) p[i] = 0;
-    return w;
+    for (int i = 0; i < 4; i++) if (!wrapper_live[i]) {
+        wrapper_live[i] = 1; allocated_count++;
+        memset(&allocated[i], 0, sizeof(allocated[i])); return &allocated[i];
+    }
+    bad_context++; return NULL;
 }
-static void kmem_cache_free(int cache, void *ptr) { (void)cache; (void)ptr; freed++; }
+static void kmem_cache_free(int cache, void *ptr) {
+    (void)cache;
+    for (int i = 0; i < 4; i++) if (ptr == &allocated[i]) {
+        if (!wrapper_live[i] || rcu_depth) bad_context++;
+        wrapper_live[i] = 0; freed++; return;
+    }
+    bad_context++;
+}
+static void *kmalloc(size_t size, int flags) {
+    path_attempts++;
+    if (rcu_depth || flags != GFP_KERNEL || size != PATH_MAX) bad_context++;
+    if (path_allocation_fails) return NULL;
+    for (int i = 0; i < 4; i++) if (!path_live[i]) {
+        path_live[i] = 1; path_allocations++;
+        memset(path_storage[i], 0x5a, sizeof(path_storage[i])); return path_storage[i] + 1;
+    }
+    bad_context++; return NULL;
+}
+static void kfree(void *ptr) {
+    if (!ptr) return;
+    for (int i = 0; i < 4; i++) if (ptr == path_storage[i] + 1) {
+        if (!path_live[i] || rcu_depth || path_storage[i][0] != 0x5a ||
+            path_storage[i][PATH_MAX + 1] != 0x5a) bad_context++;
+        path_live[i] = 0; path_frees++; return;
+    }
+    bad_context++;
+}
 struct sumh_filldir_wrapper *sumh_iterate_prepare_wrapper(struct file *, struct dir_context *);
 void sumh_iterate_finish_wrapper(struct sumh_filldir_wrapper *);
 static char *absolute_path(const struct path *path, char *buffer, size_t size) {
     path_calls++;
-    if (path_fails) return ERR_PTR(-ENOENT);
+    if (size != PATH_MAX || rcu_depth) bad_context++;
+    if (path_fails) return ERR_PTR(-path_fails);
+    if (malformed == 1) return NULL;
+    if (malformed == 2) return buffer - 1;
+    if (malformed == 3) return buffer + size;
+    if (malformed == 4) { memcpy(buffer, "relative", 9); return buffer; }
+    if (malformed == 5) { memset(buffer, '/', size); return buffer; }
+    if (malformed == 6) { buffer[size - 1] = '/'; return buffer + size - 1; }
     size_t len = strlen(path->name);
+    if (len >= size) return ERR_PTR(-ENAMETOOLONG);
     char *out = buffer + size - len - 1;
     memcpy(out, path->name, len + 1);
     if (nest) {
@@ -545,8 +610,15 @@ static char *absolute_path(const struct path *path, char *buffer, size_t size) {
     return out;
 }
 static char *(*sumh_d_absolute_path)(const struct path *, char *, size_t) = absolute_path;
-static char *dentry_path_raw(struct dentry *d, char *buffer, size_t size) {
-    (void)d; (void)buffer; (void)size; return ERR_PTR(-ENOENT);
+static char *d_path(const struct path *path, char *buffer, int size) {
+    fallback_calls++; return absolute_path(path, buffer, (size_t)size);
+}
+static void make_path(char *out, int bytes, int encoding) {
+    out[0] = '/';
+    for (int i = 1; i < bytes; i++) out[i] = i % 32 == 0 && i + 1 < bytes ? '/' : 'a';
+    if (encoding == 1) { out[1] = (char)0xe7; out[2] = (char)0x95; out[3] = (char)0x8c; }
+    if (encoding == 2) { out[1] = (char)0x80; out[2] = (char)0xff; }
+    out[bytes] = 0;
 }
 """
     body = r"""
@@ -580,7 +652,7 @@ int main(void) {
     allow_hide = 1;
     w = sumh_iterate_prepare_wrapper(&first, &ctx);
     CHECK(w && w->dir_has_hidden && !w->dir_has_inject);
-    CHECK(w->view_allowed && !w->spoof_allowed && !path_calls);
+    CHECK(w->view_allowed && !w->spoof_allowed && !path_calls && !path_attempts);
     sumh_iterate_finish_wrapper(w);
 
     /* Injection is restricted to the view scope, even with the flag set. */
@@ -623,7 +695,7 @@ int main(void) {
     sumh_ioctl_tgid = 0;
     CHECK(allocation_attempts == 3 && !path_calls);
     allocation_fails = 1;
-    CHECK(!sumh_iterate_prepare_wrapper(&first, &ctx));
+    CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(-ENOMEM));
     CHECK(allocation_attempts == 4 && allocated_count == 3 && !path_calls);
     allocation_fails = 0;
     mapping.flags = 2;
@@ -634,7 +706,7 @@ int main(void) {
     CHECK(w && nested_wrapper);
     CHECK(!strcmp(w->dir_path, "/system"));
     CHECK(!strcmp(nested_wrapper->dir_path, "/vendor"));
-    CHECK(w->merge_target_count == 1 && target.refs == 2 && !bad_dget);
+    CHECK(w->merge_snapshot && target.refs == 2 && !bad_dget);
     CHECK(rcu_depth == 0);
     dput(&target); /* Simulate CLEAR releasing the rule after an RCU grace period. */
     CHECK(target.refs == 1);
@@ -646,28 +718,97 @@ int main(void) {
     sumh_iterate_finish_wrapper(NULL);
     CHECK(freed == 2);
 
-    /* Keep affected directories wrapped when path lookup cannot complete,
-     * or rules change between the inode flag read and rule-count read. */
-    path_fails = 1;
-    w = sumh_iterate_prepare_wrapper(&first, &ctx);
-    CHECK(w && w->dir_has_inject && !w->dir_path && w->inject_done);
-    CHECK(w->wrap_ctx.pos == 42 && !w->merge_target_count);
-    sumh_iterate_finish_wrapper(w);
+    /* A required view must not silently omit its path on resolve failure. */
+    path_fails = ENOENT;
+    CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(-ENOENT));
+    CHECK(ctx.pos == 42 && !fallback_calls);
     path_fails = 0;
     sumh_rule_count = 0;
     int previous_path_calls = path_calls;
     w = sumh_iterate_prepare_wrapper(&first, &ctx);
     CHECK(w && w->dir_has_inject && path_calls == previous_path_calls);
     sumh_iterate_finish_wrapper(w);
-    CHECK(allocated_count == freed && !rcu_depth);
+    CHECK(allocated_count == freed && path_allocations == path_frees && !rcu_depth);
+
+    /* Production PATH_MAX handles both sides of the old512-byte boundary.
+     * Components stay below NAME_MAX; opaque kernel bytes remain untouched. */
+    static char long_path[PATH_MAX + 1];
+    const int lengths[] = { 255, 256, 510, 511, 512, 513, 4094, 4095 };
+    sumh_rule_count = 1; target.refs = 1; ctx.pos = 0;
+    first.f_path.name = long_path;
+    for (int encoding = 0; encoding < 3; encoding++) {
+        for (unsigned int index = 0; index < sizeof(lengths) / sizeof(lengths[0]); index++) {
+            make_path(long_path, lengths[index], encoding); merge.src = long_path;
+            w = sumh_iterate_prepare_wrapper(&first, &ctx);
+            CHECK(w && !IS_ERR(w) && w->dir_path && !strcmp(w->dir_path, long_path));
+            CHECK(strlen(w->dir_path) == (size_t)lengths[index] && w->merge_snapshot);
+            CHECK(target.refs == 2 && !rcu_depth);
+            sumh_iterate_finish_wrapper(w);
+            CHECK(target.refs == 1 && allocated_count == freed && path_allocations == path_frees);
+        }
+    }
+    make_path(long_path, 4096, 0); ctx.pos = SUMH_MAGIC_POS + 7;
+    CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(-ENAMETOOLONG));
+    CHECK(ctx.pos == (loff_t)SUMH_MAGIC_POS + 7 && target.refs == 1);
+
+    /* A missing primary symbol uses d_path; existing primary errors do not. */
+    first.f_path.name = "/system"; merge.src = "/system";
+    sumh_d_absolute_path = NULL;
+    w = sumh_iterate_prepare_wrapper(&first, &ctx);
+    CHECK(w && !IS_ERR(w) && !strcmp(w->dir_path, "/system") && fallback_calls == 1);
+    sumh_iterate_finish_wrapper(w);
+    sumh_d_absolute_path = absolute_path;
+    const int errors[] = { ENOENT, ENOMEM, EIO, ENAMETOOLONG };
+    for (unsigned int i = 0; i < sizeof(errors) / sizeof(errors[0]); i++) {
+        path_fails = errors[i]; ctx.pos = SUMH_MAGIC_POS + 7;
+        CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(-errors[i]));
+        CHECK(fallback_calls == 1 && ctx.pos == (loff_t)SUMH_MAGIC_POS + 7);
+        CHECK(allocated_count == freed && path_allocations == path_frees && target.refs == 1);
+    }
+    sumh_d_absolute_path = NULL; path_fails = EIO;
+    CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(-EIO) && fallback_calls == 2);
+    sumh_d_absolute_path = absolute_path; path_fails = 0;
+    for (malformed = 1; malformed <= 6; malformed++) {
+        CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(malformed >= 5 ? -ENAMETOOLONG : -EIO));
+        CHECK(ctx.pos == (loff_t)SUMH_MAGIC_POS + 7 && fallback_calls == 2);
+        CHECK(allocated_count == freed && path_allocations == path_frees);
+    }
+    malformed = 0; path_allocation_fails = 1;
+    previous_path_calls = path_calls;
+    CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(-ENOMEM));
+    CHECK(path_calls == previous_path_calls && ctx.pos == (loff_t)SUMH_MAGIC_POS + 7);
+    CHECK(allocated_count == freed && path_allocations == path_frees);
+    path_allocation_fails = 0;
+    /* Failure of a nested prepare cannot release/change an outer path. */
+    w = sumh_iterate_prepare_wrapper(&first, &ctx);
+    CHECK(w && !IS_ERR(w) && target.refs == 2);
+    path_allocation_fails = 1;
+    CHECK(sumh_iterate_prepare_wrapper(&second, &second_ctx) == ERR_PTR(-ENOMEM));
+    CHECK(!strcmp(w->dir_path, "/system") && target.refs == 2);
+    path_allocation_fails = 0; sumh_iterate_finish_wrapper(w);
+    CHECK(target.refs == 1 && allocated_count == freed && path_allocations == path_frees);
+
+    /* Snapshot producer failure is distinct from wrapper/path failure. The
+     * real producer and complete file/mount ownership are tested separately. */
+    snapshot_error = EIO; ctx.pos = SUMH_MAGIC_POS + 3;
+    CHECK(sumh_iterate_prepare_wrapper(&first, &ctx) == ERR_PTR(-EIO));
+    CHECK(ctx.pos == (loff_t)SUMH_MAGIC_POS + 3);
+    snapshot_error = 0;
+    CHECK(allocated_count == freed && path_allocations == path_frees);
+    CHECK(!bad_context && !bad_dget);
     return 0;
 }
 """
     guard = function("kernel/sumh/overlay/sumh_overlay.c", "bool sumh_is_merge_context")
     position = function("kernel/sumh/hooks/sumh_vfs_hooks.c", "static bool sumh_iterate_injected_pos(")
+    cleanup = function("kernel/sumh/hooks/sumh_vfs_hooks.c", "static void sumh_iterate_free_wrapper(")
     prepare = function("kernel/sumh/hooks/sumh_vfs_hooks.c", "SUMH_NOCFI struct sumh_filldir_wrapper *")
     finish = function("kernel/sumh/hooks/sumh_vfs_hooks.c", "void sumh_iterate_finish_wrapper")
-    return COMMON + preamble + guard + position + prepare + finish + body
+    wrapper = function("kernel/sumh/internal/sumh_types.h", "struct sumh_filldir_wrapper {") + ";\n"
+    # LLP64 Windows differs from the supported ARM64 kernel pointer model.
+    prepare = prepare.replace("unsigned long", "__UINTPTR_TYPE__")
+    preamble = preamble.replace("PRODUCTION_WRAPPER", wrapper)
+    return COMMON + directory_limits() + preamble + guard + position + cleanup + prepare + finish + body
 
 
 def run_test(compiler, name, source):
@@ -688,7 +829,7 @@ def run_test(compiler, name, source):
         if result.returncode:
             lines = source.splitlines()
             candidates = [f"{i}: {line.strip()}" for i, line in enumerate(lines, 1)
-                          if "CHECK(" in line and i % 256 == result.returncode % 256]
+                          if "CHECK(" in line and (i - 1) % 255 + 1 == result.returncode]
             raise AssertionError(f"{name}: exit {result.returncode}; " + "; ".join(candidates))
         print(f"PASS {name}")
 

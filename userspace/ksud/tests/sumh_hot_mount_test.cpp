@@ -1,4 +1,5 @@
 // Execute the real hot-mount marker transaction with filesystem fault injection.
+#include "mount/module_rebuild.hpp"
 #include "sumhp/config.hpp"
 
 #include <cassert>
@@ -15,11 +16,14 @@ namespace {
 realfs::path fixture_dir;
 realfs::path marker;
 bool write_ok = true;
+bool durability_ok = true;
 bool remove_ok = true;
 bool inspect_ok = true;
 bool mkdir_ok = true;
 bool refresh_ok = true;
 bool mappings_applied = false;
+bool rebuild_allowed = true;
+bool partial_or_unknown = false;
 bool fail_rollback_write = false;
 bool expected_unmounted = false;
 int refresh_calls = 0;
@@ -56,14 +60,20 @@ bool create_directories(const path& value, std::error_code& ec) {
 }  // namespace fixture
 
 namespace ksud {
-bool write_file_atomic(const realfs::path& path, const std::string& content) {
+bool write_file_durable(const realfs::path& path, const std::string& content, std::string& error) {
     ++write_calls;
     if (!write_ok) {
         errno = ENOSPC;
+        error = "file not replaced: ENOSPC";
         return false;
     }
     std::ofstream output(path, std::ios::binary | std::ios::trunc);
     output << content;
+    if (!durability_ok) {
+        errno = EIO;
+        error = "file replaced but durability is unconfirmed: EIO";
+        return false;
+    }
     return output.good();
 }
 }  // namespace ksud
@@ -83,9 +93,19 @@ fs::path data_dir() {
     return fixture_dir;
 }
 namespace mount {
-bool refresh_sumh_modules(const Config&, bool* applied) {
+namespace sumh {
+bool module_rebuild_allowed(std::string& error) {
+    if (!rebuild_allowed)
+        error = "unresolved rebuild guard";
+    return rebuild_allowed;
+}
+}  // namespace sumh
+bool refresh_sumh_modules(const Config&, bool* applied, sumh::ModuleRebuildOutcome* outcome) {
     ++refresh_calls;
     *applied = mappings_applied || refresh_ok;
+    *outcome = partial_or_unknown ? sumh::ModuleRebuildOutcome::PartialOrUnknown
+               : *applied         ? sumh::ModuleRebuildOutcome::Applied
+                                  : sumh::ModuleRebuildOutcome::Unchanged;
     assert(realfs::exists(marker) == expected_unmounted);
     if (fail_rollback_write)
         write_ok = false;
@@ -125,6 +145,13 @@ int main() {
     assert(refresh_calls == 0 && !realfs::exists(marker));
     write_ok = true;
 
+    durability_ok = false;
+    assert(!change_module_mount_state("example", true, config, error));
+    assert(refresh_calls == 0 && realfs::is_regular_file(marker));
+    assert(error.find("file replaced but durability is unconfirmed") != std::string::npos);
+    durability_ok = true;
+    realfs::remove(marker);
+
     // Rebuild observes the requested state and successful requests retain it.
     assert(change_module_mount_state("example", true, config, error));
     assert(refresh_calls == 1 && realfs::is_regular_file(marker));
@@ -139,12 +166,12 @@ int main() {
     assert(change_module_mount_state("example", false, config, error));
     assert(refresh_calls == 3 && !realfs::exists(marker));
 
-    // Compile/apply failure restores the prior selection in both directions.
+    // Only confirmed pre-mutation failure restores the prior selection.
     refresh_ok = false;
     expected_unmounted = true;
     assert(!change_module_mount_state("example", true, config, error));
     assert(!realfs::exists(marker));
-    assert(ksud::write_file_atomic(marker, "previous\n"));
+    assert(ksud::write_file_durable(marker, "previous\n", error));
     expected_unmounted = false;
     assert(!change_module_mount_state("example", false, config, error));
     assert(realfs::is_regular_file(marker));
@@ -164,6 +191,26 @@ int main() {
     assert(!change_module_mount_state("example", true, config, error));
     assert(realfs::is_regular_file(marker));
     assert(error.find("requested hot-mount state retained") != std::string::npos);
+
+    mappings_applied = false;
+    partial_or_unknown = true;
+    expected_unmounted = false;
+    assert(!change_module_mount_state("example", false, config, error));
+    assert(!realfs::exists(marker));
+    assert(error.find("partially applied or outcome unknown") != std::string::npos);
+    expected_unmounted = true;
+    assert(!change_module_mount_state("example", true, config, error));
+    assert(realfs::exists(marker));
+    assert(error.find("module rebuild-status") != std::string::npos);
+    rebuild_allowed = false;
+    const int calls_before_guard = refresh_calls;
+    const int writes_before_guard = write_calls;
+    assert(!change_module_mount_state("example", false, config, error));
+    assert(realfs::exists(marker) && refresh_calls == calls_before_guard &&
+           write_calls == writes_before_guard);
+    rebuild_allowed = true;
+    partial_or_unknown = false;
+    mappings_applied = true;
     expected_unmounted = false;
     assert(!change_module_mount_state("example", false, config, error));
     assert(!realfs::exists(marker));

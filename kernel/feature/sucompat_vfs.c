@@ -21,8 +21,7 @@ static DEFINE_MUTEX(su_view_lock);
 static bool su_ready;
 static bool su_enabled;
 static char su_path[KSU_SU_PATH_MAX] = KSU_SU_PATH_DEFAULT;
-static struct path su_parent;
-static char su_name[NAME_MAX + 1];
+static struct sumh_dh_claim *su_binding;
 static unsigned long su_ino;
 static unsigned long su_next_ino = (1UL << 63) | 0x53550000UL;
 static const struct inode_operations su_inode_ops;
@@ -108,19 +107,39 @@ int ksu_sucompat_vfs_setup_inode(struct inode *inode)
 	return ret;
 }
 
+static void su_release_binding_locked(void)
+{
+	struct sumh_dh_claim *old = su_binding;
+	struct sumh_dh_retire retired;
+
+	su_binding = NULL;
+	WRITE_ONCE(su_ino, 0);
+	if (!old)
+		return;
+	sumh_dh_retire_init(&retired, false);
+	sumh_dh_detach(old, &retired);
+	sumh_dh_retire_finish(&retired);
+	sumh_dh_claim_put(old);
+}
+
 static int su_bind_locked(const char *path)
 {
 	const struct cred *old;
-	struct path parent = {};
-	unsigned long ino;
+	struct sumh_dh_claim *candidate = NULL, *previous;
+	struct sumh_dh_spec spec = {.kind = SUMH_DH_OWNER_SU,
+				    .flags = SUMH_VNODE_F_SU};
+	struct sumh_dh_change change;
+	struct sumh_dh_retire retired;
 	int ret;
 
 	lockdep_assert_held(&su_view_lock);
+	if (!su_ready || !sumh_is_ready())
+		return -ESHUTDOWN;
 	if (!ksu_cred)
 		return -EAGAIN;
 	old = override_creds(ksu_cred);
 	if (su_enabled && !strcmp(path, su_path)) {
-		ret = sumh_dirhijack_match_su(path, &su_parent,
+		ret = sumh_dirhijack_match_su(path, su_binding,
 					      READ_ONCE(su_ino));
 		if (ret) {
 			if (ret > 0)
@@ -132,21 +151,29 @@ static int su_bind_locked(const char *path)
 		ret = -EOVERFLOW;
 		goto out;
 	}
-	ino = ++su_next_ino;
-	ret = sumh_dirhijack_add_su(path, ino, &parent);
-	if (!ret) {
-		unsigned long previous = READ_ONCE(su_ino);
-
-		/* Publish one binding; old dentries and in-flight execs lose
-		 * admission. */
-		WRITE_ONCE(su_ino, ino);
-		if (su_parent.dentry) {
-			sumh_dirhijack_del_su(&su_parent, su_name, previous);
-			path_put(&su_parent);
-		}
-		su_parent = parent;
-		strscpy(su_name, strrchr(path, '/') + 1, sizeof(su_name));
+	spec.v_ino = ++su_next_ino;
+	ret = sumh_dh_prepare_path(path, &spec, &candidate, NULL);
+	if (ret)
+		goto out;
+	/* CLEAR can invalidate this reservation without taking su_view_lock. */
+	if (!su_ready || !sumh_is_ready()) {
+		ret = -ESHUTDOWN;
+		goto abort;
 	}
+	previous = su_binding;
+	ret = sumh_dh_change_begin(candidate, previous, &change);
+	if (ret)
+		goto abort;
+	sumh_dh_retire_init(&retired, false);
+	sumh_dh_change_commit(&change, &retired);
+	WRITE_ONCE(su_ino, spec.v_ino);
+	su_binding = candidate;
+	sumh_dh_change_end();
+	sumh_dh_retire_finish(&retired);
+	sumh_dh_claim_put(previous);
+	goto out;
+abort:
+	sumh_dh_abort(candidate);
 out:
 	revert_creds(old);
 	return ret;
@@ -222,11 +249,8 @@ int ksu_sucompat_vfs_set_config(const struct ksu_su_path_config *config)
 		if (ret)
 			goto out;
 		WRITE_ONCE(su_enabled, true);
-	} else if (strcmp(su_path, config->path) && su_parent.dentry) {
-		sumh_dirhijack_del_su(&su_parent, su_name, READ_ONCE(su_ino));
-		path_put(&su_parent);
-		memset(&su_parent, 0, sizeof(su_parent));
-		WRITE_ONCE(su_ino, 0);
+	} else if (strcmp(su_path, config->path) && su_binding) {
+		su_release_binding_locked();
 	}
 	strscpy(su_path, config->path, sizeof(su_path));
 out:
@@ -262,13 +286,7 @@ void ksu_sucompat_vfs_exit(void)
 {
 	mutex_lock(&su_view_lock);
 	WRITE_ONCE(su_enabled, false);
-	if (su_parent.dentry) {
-		sumh_dirhijack_del_su(&su_parent, su_name, READ_ONCE(su_ino));
-		path_put(&su_parent);
-		memset(&su_parent, 0, sizeof(su_parent));
-	}
-	if (su_ready) {
-		WRITE_ONCE(su_ready, false);
-	}
+	WRITE_ONCE(su_ready, false);
+	su_release_binding_locked();
 	mutex_unlock(&su_view_lock);
 }

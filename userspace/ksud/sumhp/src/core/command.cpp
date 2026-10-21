@@ -1,14 +1,28 @@
 #include "core/command.hpp"
+#include "core/capture_buffer.hpp"
+#include "core/operation_submit.hpp"
+#include "core/user_hide.hpp"
 #include "sumhp/embedded.hpp"
 
 #include <chrono>
 #include "core/daemon.hpp"
+#include "core/diagnostic_package.hpp"
 #include "core/json.hpp"
 #include "core/log.hpp"
+#include "core/profile.hpp"
+#include "core/rule_inventory.hpp"
 #include "core/runtime.hpp"
+#include "core/runtime_status.hpp"
+#include "core/state_ledger.hpp"
 #include "defs.hpp"
 #include "mount/backend.hpp"
+#include "mount/development.hpp"
+#include "mount/kernel_build_apply.hpp"
 #include "mount/magic_mount.hpp"
+#include "mount/maps_preview.hpp"
+#include "mount/maps_temporary.hpp"
+#include "mount/module_preview.hpp"
+#include "mount/module_rebuild.hpp"
 #include "mount/mount_fs.hpp"
 #include "mount/overlayfs.hpp"
 #include "mount/storage.hpp"
@@ -17,6 +31,7 @@
 #include "sumhp/kernel_build.hpp"
 #include "sumhp/sumh_client.hpp"
 #include "uapi/sumh.h"
+#include "userspace/common/temporary_maps_request.hpp"
 #include "utils.hpp"
 
 #include <sys/statvfs.h>
@@ -65,7 +80,22 @@ void print_usage() {
         << "  ksud sumhp config merge-json JSON\n"
         << "  ksud sumhp config apply\n"
         << "  ksud sumhp daemon status|serve|call|ping|stop\n"
-        << "  ksud sumhp api system|storage|sumh|features|hooks|backends|meta\n"
+        << "  ksud sumhp api "
+           "system|storage|sumh|runtime|state|features|hooks|backends|meta|capabilities\n"
+        << "  ksud sumhp doctor --input <absolute-file|->  (read-only diagnostic JSON)\n"
+        << "  ksud sumhp doctor package create <id> --input <absolute-file|-> "
+           "[--include-identifiers]\n"
+        << "  ksud sumhp doctor package list  |  doctor package preview <id>\n"
+        << "  ksud sumhp doctor package export|remove <id> --revision <sha256-v1:...>\n"
+        << "  ksud sumhp api inventory [category [instance_id generation cursor]]\n"
+        << "  ksud sumhp operation list|show <id>|result <id>|wait <id> <timeout-ms>\n"
+        << "  ksud sumhp operation prepare --input <absolute-file|->\n"
+        << "  ksud sumhp operation execute <id> --input <absolute-file|->\n"
+        << "  ksud sumhp profile list|show <id>|export <id>\n"
+        << "  ksud sumhp profile preview <id> --resources <all|comma-separated-resources>\n"
+        << "  ksud sumhp profile import-preview --input <absolute-file|-> --resources <scopes>\n"
+        << "  ksud sumhp profile capture|import|clone|rename|remove --input <absolute-file|->\n"
+        << "    Profiles stay inactive; activation/restoration are not implemented.\n"
         << "  ksud sumhp module "
            "list|add|delete|configure|set-mode|add-rule|remove-rule|hot-mount|hot-unmount|check-"
            "conflicts|mount-all|unmount|normalize\n"
@@ -75,7 +105,16 @@ void print_usage() {
            "version|list|clear|fix-mounts|hide-overlay-xattrs|mount-hide "
            "off|normal|aggressive|maps\n"
         << "  ksud sumhp sumh kernel-build show|set <release> <version>|reset\n"
-        << "  ksud sumhp sumh maps list-paths|apply\n"
+        << "  ksud sumhp sumh maps list-paths|preview|apply\n"
+        << "  ksud sumhp sumh maps list-temporary [instance generation cursor]\n"
+        << "  ksud sumhp sumh maps remove <ino> <dev> --instance <id> --generation <generation>\n"
+        << "  ksud sumhp config discover-partitions\n"
+        << "  ksud sumhp config set-partitions <revision> <JSON-array>\n"
+        << "  ksud sumhp module inspect <absolute-module-path>\n"
+        << "  ksud sumhp module normalize <absolute-module-path> --dry-run\n"
+        << "  ksud sumhp module plan [--input <absolute-file|->]\n"
+        << "  ksud sumhp module rebuild-status\n"
+        << "  ksud sumhp module explain <absolute-path> [--input <absolute-file|->]\n"
         << "  ksud sumhp sumh maps add-path <target-path> <replacement-path>\n"
         << "  ksud sumhp sumh maps remove-path <target-path>\n";
 }
@@ -114,11 +153,6 @@ std::string read_file(const fs::path& path) {
     return ksud::read_file(path.string()).value_or("");
 }
 
-bool is_builtin_partition(const std::string& name) {
-    return std::find(managed_partitions().begin(), managed_partitions().end(), name) !=
-           managed_partitions().end();
-}
-
 bool parse_unsigned_long(const std::string& value, unsigned long& out) {
     try {
         std::size_t parsed = 0;
@@ -128,18 +162,6 @@ bool parse_unsigned_long(const std::string& value, unsigned long& out) {
         }
         out = result;
         return true;
-    } catch (...) {
-        return false;
-    }
-}
-
-bool module_has_partition_content(const fs::path& module_path, const std::string& partition) {
-    const fs::path root = module_path / partition;
-    if (!fs::is_directory(root)) {
-        return false;
-    }
-    try {
-        return fs::recursive_directory_iterator(root) != fs::recursive_directory_iterator();
     } catch (...) {
         return false;
     }
@@ -265,9 +287,9 @@ bool read_mount_config(Config& config, std::string& error) {
 
 bool write_hot_mount_marker(const fs::path& marker, bool unmounted, std::string& error) {
     if (unmounted) {
-        if (ksud::write_file_atomic(marker, "\n"))
+        if (ksud::write_file_durable(marker, "\n", error))
             return true;
-        error = "write hot-mount state: " + std::string(std::strerror(errno ? errno : EIO));
+        error = "write hot-mount state: " + error;
         return false;
     }
     std::error_code ec;
@@ -281,6 +303,8 @@ bool write_hot_mount_marker(const fs::path& marker, bool unmounted, std::string&
 
 bool change_module_mount_state(const std::string& id, bool unmounting, const Config& config,
                                std::string& error) {
+    if (!mount::sumh::module_rebuild_allowed(error))
+        return false;
     const fs::path marker = data_dir() / "run" / "hot_unmounted" / id;
     std::error_code ec;
     const auto status = fs::symlink_status(marker, ec);
@@ -306,11 +330,15 @@ bool change_module_mount_state(const std::string& id, bool unmounting, const Con
             return false;
     }
     bool mappings_applied = false;
-    if (mount::refresh_sumh_modules(config, &mappings_applied))
+    mount::sumh::ModuleRebuildOutcome outcome = mount::sumh::ModuleRebuildOutcome::Unchanged;
+    if (mount::refresh_sumh_modules(config, &mappings_applied, &outcome))
         return true;
-    if (mappings_applied) {
-        error = "module mappings updated, but SUMH feature restoration failed; "
-                "requested hot-mount state retained (see controller log)";
+    if (outcome != mount::sumh::ModuleRebuildOutcome::Unchanged) {
+        error = std::string(outcome == mount::sumh::ModuleRebuildOutcome::Applied
+                                ? "module rule calls acknowledged, but follow-up failed; "
+                                : "module rebuild partially applied or outcome unknown; ") +
+                "requested hot-mount state retained; query 'module rebuild-status' "
+                "before further action (see controller log)";
         return false;
     }
     error = "failed to refresh SUMH mappings";
@@ -405,7 +433,11 @@ int print_sumh_snapshot_json() {
               << ",\"enabled\":" << (available && sumh::enabled_state() > 0 ? "true" : "false")
               << ",\"features\":";
     print_features_json(bitmask);
-    std::cout << ",\"hooks\":" << json_quote(available ? sumh::hooks() : "") << "}\n";
+    std::cout << ",\"hooks\":" << json_quote(available ? sumh::hooks() : "")
+              << ",\"runtime_status\":"
+              << runtime_status_json(query_runtime_status(),
+                                     read_first_line("/proc/sys/kernel/random/boot_id"))
+              << "}\n";
     return 0;
 }
 
@@ -432,20 +464,28 @@ int apply_config_file() {
         return print_sumh_snapshot_json();
     }
 
-    if (!mount::sumh::apply_feature_config(config, error, true)) {
-        // Feature orchestration owns cleanup. Maps resolution failures preserve
-        // the previous rule set and must not disable unrelated active features.
-        std::cerr << error << "\n";
-        return 1;
-    }
+    // These features have separate state and failure boundaries. Report every
+    // attempted group and retain successful work when a later group fails.
+    std::string failures;
+    const auto failed = [&](const std::string& detail) {
+        if (!failures.empty())
+            failures += "; ";
+        failures += detail;
+    };
+    if (!mount::sumh::apply_feature_config(config, error, true))
+        failed(error);
     if (!mount::fsutil::run_in_init_mount_ns(
             [&]() { return mount::overlay::restore_xattr_hiding(config); })) {
-        std::string cleanup_error;
-        (void)mount::sumh::reset_feature_state(cleanup_error);
-        std::cerr << "failed to restore OverlayFS xattr hiding\n";
+        failed("overlay_xattr_hide=partial_or_unknown: restoration failed; "
+               "unrelated features retained");
+    }
+    if (!mount::sumh::restore_persisted_hide_rules(error, RestoreTrigger::UserRequested)) {
+        failed("user_hide=partial_or_unknown: restoration failed: " + error);
+    }
+    if (!failures.empty()) {
+        std::cerr << "configuration application incomplete: " << failures << "\n";
         return 1;
     }
-    (void)mount::sumh::restore_persisted_hide_rules(error);
     return print_sumh_snapshot_json();
 }
 
@@ -513,18 +553,94 @@ int print_system_json() {
 }
 
 int print_meta_json(bool include_backends = true) {
-    std::cout << "{"
-              << "\"embedded\":true,\"native_control\":true,\"module_configure\":true,\"external_"
-                 "mount_owner\":"
-              << json_quote(embedded_external_mount_owner()) << ","
-              << "\"version\":" << json_quote(ksud::VERSION_NAME) << ","
-              << "\"data_dir\":" << json_quote(runtime_data_dir().string()) << ","
-              << "\"modules_dir\":" << json_quote(runtime_modules_dir().string()) << ","
-              << "\"config_file\":" << json_quote(runtime_config_file().string()) << ","
-              << "\"socket\":" << json_quote(runtime_socket_file().string()) << ","
-              << "\"pid_file\":" << json_quote(runtime_pid_file().string()) << ","
-              << "\"log_file\":" << json_quote(runtime_log_file().string()) << ","
-              << "\"backends\":";
+    std::cout
+        << "{"
+        << "\"embedded\":true,\"native_control\":true,\"module_configure\":true,\"external_"
+           "mount_owner\":"
+        << json_quote(embedded_external_mount_owner()) << ","
+        << "\"runtime_status_schema\":1,\"state_ledger_schema\":1,\"state_ledger_storage_schema\":"
+           "3,"
+        << "\"capability_snapshot_schema\":1,\"capability_snapshot_read_only\":true,"
+        << "\"capability_snapshot_transport_schema\":1,\"capability_snapshot_response_bytes\":"
+           "65536,"
+        << "\"diagnostics_schema\":1,\"diagnostics_read_only\":true,\"diagnostics_transport_"
+           "schema\":1,"
+        << "\"diagnostics_input_bytes\":4096,\"diagnostics_response_bytes\":65536,"
+        << "\"diagnostics_scenarios\":[\"rule-not-effective\",\"module-fallback\",\"maps-failure\","
+           "\"boot-protection\"],"
+        << "\"diagnostics_manager\":false,\"diagnostics_repair\":false,"
+        << "\"diagnostic_package_schema\":1,\"diagnostic_package_create\":true,\"diagnostic_"
+           "package_preview\":true,"
+        << "\"diagnostic_package_export\":true,\"diagnostic_package_remove\":true,\"diagnostic_"
+           "package_manager\":true,"
+        << "\"diagnostic_package_manager_schema\":1,"
+        << "\"diagnostic_package_sampling_read_only\":true,\"diagnostic_package_storage_"
+           "mutations\":true,"
+        << "\"diagnostic_package_default_privacy\":\"redacted\",\"diagnostic_package_identifiers_"
+           "opt_in\":true,"
+        << "\"diagnostic_package_bytes\":" << diagnostic_package::package_limit << ","
+        << "\"diagnostic_package_bank_bytes\":" << diagnostic_package::bank_limit << ","
+        << "\"diagnostic_package_count_limit\":" << diagnostic_package::package_count_limit << ","
+        << "\"operation_query_schema\":2,\"operation_list\":true,\"operation_show\":true,"
+           "\"operation_wait\":true,"
+        << "\"operation_submission_schema\":1,\"operation_prepare\":true,\"operation_execute\":"
+           "true,\"operation_reserved_id\":true,"
+        << "\"operation_manager_transport_schema\":1,\"operation_resource_result_schema\":1,"
+           "\"operation_result\":true,"
+        << "\"operation_resource_result_resources\":[\"user_hide_mutation\",\"temporary_maps_"
+           "mutation\"],"
+        << "\"operation_local_temporary_maps_remove\":true,\"operation_resource_store_schema\":2,"
+        << "\"operation_wait_max_ms\":10000,\"operation_history_limit\":16,\"operation_caller_id\":"
+           "false,"
+        << "\"operation_input_bytes\":49152,\"operation_output_stream_bytes\":65536,"
+        << "\"hide_definitions_schema\":1,\"hide_status\":true,\"hide_definition_mutations\":true,"
+        << "\"hide_manager_transport_schema\":1,"
+        << "\"hide_definition_import_schema\":1,\"hide_definition_exchange_schema\":1,\"hide_"
+           "definition_export_page_schema\":1,"
+        << "\"hide_status_page_size\":16,\"hide_result_item_limit\":64,\"hide_mutation_requires_"
+           "revision\":true,"
+        << "\"rule_inventory_schema\":1,"
+        << "\"maps_temporary_list\":true,\"maps_temporary_remove_schema\":1,"
+        << "\"maps_temporary_manager_schema\":1,\"maps_temporary_manager_channel\":true,"
+        << "\"maps_temporary_remove_requires_kernel_capability\":true,\"maps_temporary_operation_"
+           "journal\":false,"
+        << "\"maps_temporary_tracked_cli\":true,\"maps_temporary_tracked_manager\":true,"
+        << "\"operation_manager_temporary_maps_schema\":2,"
+        << "\"profile_schema\":1,\"profile_bank_schema\":1,\"profile_capture\":true,\"profile_"
+           "import\":true,"
+        << "\"profile_export\":true,\"profile_clone\":true,\"profile_rename\":true,\"profile_"
+           "remove\":true,"
+        << "\"profile_list\":true,\"profile_show\":true,\"profile_import_preview\":true,\"profile_"
+           "diff_preview\":true,"
+        << "\"profile_activate\":false,\"profile_restore\":false,\"profile_manager_transport\":"
+           "true,"
+        << "\"profile_manager_schema\":1,\"profile_manager_actions\":{\"list\":true,\"show\":true,"
+           "\"export\":true,"
+        << "\"preview\":true,\"import-preview\":true,\"capture\":true,\"import\":true,\"clone\":"
+           "true,\"rename\":true,\"remove\":true},"
+        << "\"profile_operation_journal\":false,\"profile_input_bytes\":"
+        << profiles::PROFILE_INPUT_MAX_BYTES << ","
+        << "\"profile_document_bytes\":" << profiles::PROFILE_MAX_BYTES << ","
+        << "\"profile_bank_bytes\":" << profiles::BANK_MAX_BYTES << ","
+        << "\"profile_count_limit\":" << profiles::BANK_MAX_PROFILES << ","
+        << "\"module_plan\":true,\"module_explain\":true,\"module_plan_schema\":1,"
+        << "\"module_manager_preview_transport_schema\":1,\"module_manager_inline_candidate\":true,"
+        << "\"module_manager_saved_preview\":true,\"module_manager_explain\":true,"
+        << "\"module_inspect\":true,\"module_apply\":false,\"module_normalize_preview\":true,"
+        << "\"module_rebuild_status\":true,\"module_rebuild_status_schema\":1,"
+        << "\"module_rebuild_owner_transaction\":false,\"module_rebuild_history_bytes\":524288,"
+        << "\"partition_discovery\":true,\"partition_save_only\":true,\"partition_workflow_"
+           "schema\":1,"
+        << "\"module_plan_input_bytes\":" << mount::MODULE_PREVIEW_INPUT_BYTES << ","
+        << "\"module_plan_response_bytes\":" << mount::MODULE_PREVIEW_RESPONSE_BYTES << ","
+        << "\"version\":" << json_quote(ksud::VERSION_NAME) << ","
+        << "\"data_dir\":" << json_quote(runtime_data_dir().string()) << ","
+        << "\"modules_dir\":" << json_quote(runtime_modules_dir().string()) << ","
+        << "\"config_file\":" << json_quote(runtime_config_file().string()) << ","
+        << "\"socket\":" << json_quote(runtime_socket_file().string()) << ","
+        << "\"pid_file\":" << json_quote(runtime_pid_file().string()) << ","
+        << "\"log_file\":" << json_quote(runtime_log_file().string()) << ","
+        << "\"backends\":";
     if (include_backends)
         print_backend_statuses_json();
     else
@@ -634,6 +750,10 @@ int print_sumh_rules_json() {
 
 int handle_config(const std::vector<std::string>& args) {
     const auto sub = arg_or_default(args, 1, "");
+    if (mount::is_development_prefix(args)) {
+        std::cerr << "partition discovery/save requires the exact local command; no daemon route\n";
+        return 1;
+    }
     if (sub == "show") {
         std::string config = read_file(config_file());
         if (config.empty()) {
@@ -645,8 +765,9 @@ int handle_config(const std::vector<std::string>& args) {
             std::cerr << "invalid stored config: " << parse_error << "\n";
             return 1;
         }
-        prune_config_fields(stored);
-        std::cout << stringify_json(stored, 2);
+        // Return exact stored bytes: unknown fields and large numeric values
+        // must remain available for inspection without a lossy reserialization.
+        std::cout << config;
         return 0;
     }
     if (sub == "gen") {
@@ -680,39 +801,16 @@ int handle_config(const std::vector<std::string>& args) {
         }
         return apply_config_file();
     }
-    if (sub == "sync-partitions") {
-        std::set<std::string> partitions;
-        const fs::path module_root = modules_dir();
-        if (fs::is_directory(module_root)) {
-            for (const auto& module : fs::directory_iterator(module_root)) {
-                if (!module.is_directory()) {
-                    continue;
-                }
-                for (const auto& child : fs::directory_iterator(module.path())) {
-                    if (child.is_directory()) {
-                        const std::string name = child.path().filename().string();
-                        if (!is_builtin_partition(name) &&
-                            module_has_partition_content(module.path(), name)) {
-                            partitions.insert(name);
-                        }
-                    }
-                }
-            }
-        }
-        if (partitions.empty()) {
-            std::cout << "No new partitions\n";
-        } else {
-            for (const auto& partition : partitions) {
-                std::cout << "Added partition: " << partition << "\n";
-            }
-        }
-        return 0;
-    }
     print_usage();
     return 1;
 }
 
 int handle_api(const std::vector<std::string>& args) {
+    if (args.size() >= 2 && args[1] == "inventory")
+        return inventory::command(args, read_first_line("/proc/sys/kernel/random/boot_id"),
+                                  std::cout);
+    if (args.size() == 2 && args[1] == "state")
+        return state::print_state_json();
     if (args.size() == 2 && args[1] == "mounts")
         return print_mount_status_json();
     const auto sub = arg_or_default(args, 1, "");
@@ -724,6 +822,16 @@ int handle_api(const std::vector<std::string>& args) {
     }
     if (sub == "sumh") {
         return print_sumh_snapshot_json();
+    }
+    if (sub == "runtime" && args.size() == 2) {
+        const auto status = query_runtime_status();
+        std::cout << runtime_status_json(status, read_first_line("/proc/sys/kernel/random/boot_id"))
+                  << '\n';
+        const bool failed =
+            std::string(status.status) == "error" || std::string(status.status) == "unavailable";
+        if (failed)
+            errno = status.error_number ? status.error_number : EIO;
+        return failed ? 1 : 0;
     }
     if (sub == "features") {
         const auto version = sumh::version_info();
@@ -752,6 +860,12 @@ int handle_api(const std::vector<std::string>& args) {
 
 int handle_module(const std::vector<std::string>& args) {
     const auto sub = arg_or_default(args, 1, "");
+    if (sub == "plan" || sub == "explain" || sub == "manager-preview" || sub == "rebuild-status" ||
+        mount::is_development_prefix(args)) {
+        std::cerr << "module preview requires the exact local command: ksud sumhp module " << sub
+                  << "; daemon routing is not a read-only preview entry\n";
+        return 1;
+    }
     if (sub == "list") {
         mount::ModuleModeMap modes;
         mount::ModuleRuleMap rule_map;
@@ -941,7 +1055,11 @@ int handle_module(const std::vector<std::string>& args) {
             std::cerr << error << "\n";
             return 1;
         }
-        const auto modules = mount::enumerate_mountable_modules();
+        std::vector<mount::ModuleEntry> modules;
+        if (!mount::enumerate_mountable_modules_checked(modules, error)) {
+            std::cerr << error << '\n';
+            return 1;
+        }
         const auto parts = mount::fsutil::managed_partitions(cfg.partitions);
         std::map<std::string, std::vector<std::string>> owners;
         for (const auto& module : modules) {
@@ -999,15 +1117,14 @@ int handle_module(const std::vector<std::string>& args) {
         return report.ok ? 0 : 1;
     }
     if (sub == "normalize") {
-        const std::string path = arg_or_default(args, 2, "");
-        if (path.empty()) {
-            std::cerr << "usage: ksud sumhp module normalize <module_path>\n";
+        if (args.size() != 3 || !mount::valid_module_rule_path(args[2])) {
+            std::cerr << "usage: ksud sumhp module normalize <absolute-module-path> [--dry-run]\n";
             return 1;
         }
-        const bool ok = mount::magic::normalize_module(path);
-        std::cout << "{\"ok\":" << (ok ? "true" : "false") << ",\"module\":" << json_quote(path)
-                  << "}\n";
-        return ok ? 0 : 1;
+        const auto result = mount::normalize_module_result_json(args[2]);
+        std::cout << stringify_json(result) << '\n';
+        const auto* ok = result.find("ok");
+        return ok && ok->is_bool() && ok->b ? 0 : 1;
     }
     if (sub == "unmount") {
         // Tear down SUMHP's own mounts (source-gated; never touches real partitions).
@@ -1070,18 +1187,26 @@ int handle_sumh(const std::vector<std::string>& args) {
             // cannot be parsed. Save the disabled state even if runtime reset
             // fails, so the next boot cannot reapply a broken configuration.
             std::string error;
-            const bool runtime_ok = sumh::set_kernel_build(false);
-            const int runtime_errno = errno;
+            const auto outcome = mount::sumh::apply_kernel_build_config(
+                {false, {}, {}}, sumh::feature_capabilities());
+            const bool runtime_ok = outcome.state == mount::sumh::FeatureApplyState::Applied ||
+                                    outcome.state == mount::sumh::FeatureApplyState::Deferred;
             const bool saved_ok = reset_kernel_build_config(error);
             if (!saved_ok)
                 std::cerr << error << "\n";
             if (!runtime_ok)
-                std::cerr << "failed to reset SUMH kernel build: " << std::strerror(runtime_errno)
-                          << "\n";
+                std::cerr << "SUMH kernel build reset: " << outcome.detail << "\n";
+            std::cout << "{\"ok\":" << (saved_ok && runtime_ok ? "true" : "false")
+                      << ",\"enabled\":false,\"saved\":" << (saved_ok ? "true" : "false")
+                      << ",\"applied\":"
+                      << (outcome.state == mount::sumh::FeatureApplyState::Applied ? "true"
+                                                                                   : "false")
+                      << ",\"runtime_result\":"
+                      << json_quote(mount::sumh::feature_apply_state_name(outcome.state))
+                      << ",\"detail\":" << json_quote(outcome.detail) << "}\n";
             if (!saved_ok || !runtime_ok)
-                return 1;
-            std::cout << "{\"ok\":true,\"enabled\":false}\n";
-            return 0;
+                errno = outcome.error_number ? outcome.error_number : EIO;
+            return saved_ok && runtime_ok ? 0 : 1;
         }
         const auto caps = sumh::feature_capabilities();
         if (!caps.ok || !(caps.bitmask & SUMH_FEATURE_KERNEL_BUILD_SPOOF)) {
@@ -1091,13 +1216,7 @@ int handle_sumh(const std::vector<std::string>& args) {
         }
         const auto release = args[3] == "default" ? "" : args[3];
         const auto version = args[4] == "default" ? "" : args[4];
-        Config previous;
         std::string error;
-        errno = 0;
-        if (!read_config_file(previous, error) && errno != ENOENT) {
-            std::cerr << error << "\n";
-            return 1;
-        }
         JsonValue patch;
         patch.type = JsonValue::Type::Object;
         patch.o["enable_kernel_build_spoof"] = JsonValue(enable);
@@ -1110,33 +1229,56 @@ int handle_sumh(const std::vector<std::string>& args) {
             std::cerr << error << "\n";
             return 1;
         }
-        if (!sumh::set_kernel_build(enable, release, version)) {
-            const int apply_error = errno;
-            patch.o["enable_kernel_build_spoof"] = JsonValue(previous.enable_kernel_build_spoof);
-            patch.o["kernel_build_release"] = JsonValue(previous.kernel_build_release);
-            patch.o["kernel_build_version"] = JsonValue(previous.kernel_build_version);
-            if (!merge_config_json(stringify_json(patch), error))
-                std::cerr << "failed to restore saved kernel build settings: " << error << "\n";
-            errno = apply_error;
-            std::cerr << "failed to apply SUMH kernel build: " << std::strerror(errno) << "\n";
-            return 1;
-        }
-        std::cout << "{\"ok\":true,\"enabled\":" << (enable ? "true" : "false") << "}\n";
-        return 0;
+        const auto outcome = mount::sumh::apply_kernel_build_config({true, release, version}, caps);
+        const bool applied = outcome.state == mount::sumh::FeatureApplyState::Applied;
+        // The saved intent is independent from runtime success. Never rewrite
+        // old configuration after a failed/unknown ioctl: another writer may
+        // already have changed it, and an acknowledgement may have been lost.
+        if (!applied)
+            std::cerr << "Kernel Build settings saved; runtime "
+                      << mount::sumh::feature_apply_state_name(outcome.state) << ": "
+                      << outcome.detail << "; query state before retry\n";
+        std::cout << "{\"ok\":" << (applied ? "true" : "false")
+                  << ",\"enabled\":true,\"saved\":true,\"applied\":" << (applied ? "true" : "false")
+                  << ",\"runtime_result\":"
+                  << json_quote(mount::sumh::feature_apply_state_name(outcome.state))
+                  << ",\"detail\":" << json_quote(outcome.detail) << "}\n";
+        if (!applied)
+            errno = outcome.error_number ? outcome.error_number : EIO;
+        return applied ? 0 : 1;
     }
     if (sub == "maps") {
         const std::string op = arg_or_default(args, 2, "");
+        if (op == "preview") {
+            if (!mount::sumh::is_maps_preview_command(args)) {
+                std::cerr << "usage: ksud sumhp sumh maps preview\n";
+                return 1;
+            }
+            std::cout << mount::sumh::maps_preview_json() << '\n';
+            return std::cout.good() ? 0 : 1;
+        }
         if (op == "list-paths" || op == "add-path" || op == "remove-path" || op == "apply") {
+            const bool automatic = op == "apply" && args.size() == 4 && args[3] == "--automatic";
             std::size_t expected = 3;
             if (op == "add-path")
                 expected = 5;
             else if (op == "remove-path")
                 expected = 4;
-            if (args.size() != expected) {
+            if (args.size() != expected && !automatic) {
                 std::cerr
                     << "usage: ksud sumhp sumh maps list-paths|apply|"
                        "add-path <target-path> <replacement-path>|remove-path <target-path>\n";
                 return 1;
+            }
+            // Lifecycle requests are rechecked in the daemon; a cold start or
+            // delayed request must not turn an automatic restore into a user action.
+            if (automatic &&
+                !should_restore(
+                    {ksud::is_safe_mode(), ksud::getprop("sys.boot_completed").value_or("0") == "1",
+                     sumh::is_available(), !embedded_external_mount_owner().empty()},
+                    RestoreFeature::Maps)) {
+                std::cout << "{\"saved\":false,\"applied\":false,\"skipped\":true}\n";
+                return 0;
             }
             Config config;
             std::string error;
@@ -1182,18 +1324,39 @@ int handle_sumh(const std::vector<std::string>& args) {
             }
             // Automatic boot restoration uses apply too: disabled definitions
             // must not resolve missing files or reinstall stale identities.
-            const bool applied = op == "apply"
-                                     ? mount::sumh::apply_maps_config(config, error)
-                                     : mount::sumh::restore_managed_maps_rules(config, error);
+            mount::sumh::FeatureApplyOutcome outcome;
+            mount::sumh::ManagedMapsRestoreState managed_state =
+                mount::sumh::ManagedMapsRestoreState::Unchanged;
+            const bool applied =
+                op == "apply"
+                    ? mount::sumh::apply_maps_config(
+                          config, error, true, &outcome,
+                          automatic ? RestoreTrigger::Automatic : RestoreTrigger::UserRequested)
+                    : mount::sumh::restore_managed_maps_rules(config, error, &managed_state,
+                                                              RestoreTrigger::UserRequested);
             const int apply_errno = errno;
+            if (op != "apply") {
+                if (applied)
+                    outcome.state = mount::sumh::FeatureApplyState::Applied;
+                else if (managed_state == mount::sumh::ManagedMapsRestoreState::Unknown)
+                    outcome.state = mount::sumh::FeatureApplyState::Unknown;
+                else if (managed_state == mount::sumh::ManagedMapsRestoreState::Replaced)
+                    outcome.state = mount::sumh::FeatureApplyState::Partial;
+                else
+                    outcome.state = mount::sumh::FeatureApplyState::Failed;
+            }
             if (!applied && error.empty())
                 error = std::strerror(apply_errno);
             std::cout << "{\"saved\":" << (saving ? "true" : "false")
                       << ",\"applied\":" << (applied ? "true" : "false")
-                      << ",\"count\":" << config.maps_rules.size() << "}\n";
+                      << ",\"count\":" << config.maps_rules.size() << ",\"runtime_result\":"
+                      << json_quote(mount::sumh::feature_apply_state_name(outcome.state))
+                      << ",\"detail\":" << json_quote(error) << "}\n";
             if (!applied) {
-                std::cerr << (saving ? "maps paths saved; apply failed: " : "maps apply failed: ")
-                          << error << "; retry with 'ksud sumhp sumh maps apply'\n";
+                std::cerr
+                    << (saving ? "maps paths saved; apply failed: " : "maps apply failed: ")
+                    << error
+                    << "; query 'ksud sumhp sumh maps preview' before an explicit new apply\n";
                 errno = apply_errno;
                 return 1;
             }
@@ -1233,8 +1396,8 @@ int handle_sumh(const std::vector<std::string>& args) {
             }
             return 0;
         }
-        std::cerr
-            << "usage: ksud sumhp sumh maps clear|add|list-paths|add-path|remove-path|apply ...\n";
+        std::cerr << "usage: ksud sumhp sumh maps "
+                     "clear|add|list-paths|preview|add-path|remove-path|apply ...\n";
         return 1;
     }
     if (sub == "clear") {
@@ -1304,15 +1467,25 @@ int handle_sumh(const std::vector<std::string>& args) {
 }
 
 int handle_hide(const std::vector<std::string>& args) {
+    if (hide::definition_command(args))
+        return hide::run_definition_command(args);
+    if (args.size() >= 2 && (args[1] == "add" || args[1] == "remove" || args[1] == "retry-path"))
+        return hide::run_path_command(args);
     const auto sub = arg_or_default(args, 1, "");
     if (sub == "apply") {
+        const bool automatic = args.size() == 3 && args[2] == "--automatic";
+        if (args.size() != 2 && !automatic) {
+            std::cerr << "usage: ksud sumhp hide apply\n";
+            return 1;
+        }
         Config config;
         std::string error;
         if (!read_config_file(config, error)) {
             std::cerr << error << "\n";
             return 1;
         }
-        if (!mount::sumh::restore_persisted_hide_rules(error)) {
+        if (!mount::sumh::restore_persisted_hide_rules(
+                error, automatic ? RestoreTrigger::Automatic : RestoreTrigger::UserRequested)) {
             std::cerr << error << "\n";
             return 1;
         }
@@ -1329,58 +1502,6 @@ int handle_hide(const std::vector<std::string>& args) {
         std::cout << "\n";
         return 0;
     }
-    if (sub == "add") {
-        const std::string path = arg_or_default(args, 2, "");
-        if (path.empty() || path[0] != '/' || path.find('\0') != std::string::npos ||
-            path.size() >= SUMH_USER_HIDE_PATH_MAX) {
-            std::cerr << "hide path must be absolute, NUL-free and shorter than "
-                      << SUMH_USER_HIDE_PATH_MAX << " bytes\n";
-            return 1;
-        }
-        std::vector<std::string> rules;
-        std::string error;
-        if (!load_user_hide_rules(rules, error)) {
-            std::cerr << error << "\n";
-            return 1;
-        }
-        if (std::find(rules.begin(), rules.end(), path) == rules.end()) {
-            rules.push_back(path);
-        }
-        if (!save_user_hide_rules(rules)) {
-            return 1;
-        }
-        bool managed = false;
-        if (sumh::is_available() &&
-            (!sumh::managed_hide_mode(managed) ||
-             !(managed ? sumh::upsert_user_hide(path) : sumh::hide_path(path)))) {
-            std::cerr << "hide rule saved, but the kernel rejected it: " << std::strerror(errno)
-                      << "\n";
-            return 1;
-        }
-        return 0;
-    }
-    if (sub == "remove") {
-        const std::string path = arg_or_default(args, 2, "");
-        std::vector<std::string> rules;
-        std::string error;
-        if (!load_user_hide_rules(rules, error)) {
-            std::cerr << error << "\n";
-            return 1;
-        }
-        rules.erase(std::remove(rules.begin(), rules.end(), path), rules.end());
-        if (!save_user_hide_rules(rules)) {
-            return 1;
-        }
-        bool managed = false;
-        if (sumh::is_available() &&
-            (!sumh::managed_hide_mode(managed) ||
-             !(managed ? sumh::delete_user_hide(path) : sumh::delete_rule(path)))) {
-            std::cerr << "hide rule removed from config, but kernel removal failed: "
-                      << std::strerror(errno) << "\n";
-            return 1;
-        }
-        return 0;
-    }
     print_usage();
     return 1;
 }
@@ -1388,13 +1509,18 @@ int handle_hide(const std::vector<std::string>& args) {
 int handle_recovery(const std::vector<std::string>& args) {
     const auto sub = arg_or_default(args, 1, "status");
     if (sub == "reset") {
-        mount::recovery_reset();
-        std::cout << "{\"ok\":true,\"action\":\"reset\"}\n";
-        return 0;
+        std::string error;
+        const bool ok = mount::recovery_reset(error);
+        std::cout << "{\"ok\":" << (ok ? "true" : "false")
+                  << ",\"action\":\"reset\",\"error\":" << json_quote(error) << "}\n";
+        if (!ok)
+            std::cerr << error << "\n";
+        return ok ? 0 : 1;
     }
     if (sub == "status") {
-        std::cout << mount::recovery_status_json() << "\n";
-        return 0;
+        bool ok = false;
+        std::cout << mount::recovery_status_json(&ok) << "\n";
+        return ok ? 0 : 1;
     }
     std::cerr << "usage: ksud sumhp recovery status|reset\n";
     return 1;
@@ -1402,6 +1528,36 @@ int handle_recovery(const std::vector<std::string>& args) {
 }  // namespace
 
 int run_command(const std::vector<std::string>& args) {
+    if (!args.empty() && args[0] == "doctor") {
+        std::cerr << "SUMH diagnostics require the exact local CLI route; daemon dispatch is not "
+                     "supported\n";
+        return 2;
+    }
+    if (maps_temporary::is_prefix(args) || temporary_maps::is_manager_prefix(args)) {
+        std::cerr << "temporary Maps commands require the exact local CLI route; daemon dispatch "
+                     "is not supported\n";
+        return 2;
+    }
+    if (!args.empty() && args[0] == "profile") {
+        std::cerr << "SUMH profiles require the exact local CLI route; daemon dispatch is not "
+                     "supported\n";
+        return 2;
+    }
+    if (args.size() >= 2 && args[0] == "api" && args[1] == "capabilities") {
+        std::cerr << "capability queries require the exact local CLI route; daemon dispatch is not "
+                     "supported\n";
+        return 2;
+    }
+    if (args.size() >= 2 && args[0] == "hide" && hide::definition_query(args[1])) {
+        std::cerr << "hide definition queries require the exact local CLI route; daemon dispatch "
+                     "is not supported\n";
+        return 2;
+    }
+    if (!args.empty() && args[0] == "operation") {
+        std::cerr << "operation queries require the exact local CLI route; daemon dispatch is not "
+                     "supported\n";
+        return 2;
+    }
     if (args.empty() || args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
         print_usage();
         return args.empty() ? 1 : 0;
@@ -1450,13 +1606,17 @@ bool is_query(const std::vector<std::string>& args) {
     if (args.empty())
         return true;
     const auto sub = arg_or_default(args, 1, "");
-    return args[0] == "api" || args[0] == "version" || args[0] == "help" ||
+    return mount::is_development_prefix(args) || args[0] == "profile" || args[0] == "operation" ||
+           args[0] == "api" || args[0] == "version" || args[0] == "help" ||
            (args[0] == "config" && sub == "show") ||
-           (args[0] == "module" && (sub == "list" || sub == "check-conflicts")) ||
-           (args[0] == "hide" && sub == "list") ||
+           (args[0] == "module" &&
+            (sub == "list" || sub == "check-conflicts" || sub == "plan" || sub == "explain" ||
+             sub == "manager-preview" || sub == "rebuild-status")) ||
+           (args[0] == "hide" && (sub == "list" || hide::definition_query(sub))) ||
            (args[0] == "sumh" &&
             (sub == "version" || sub == "list" || sub == "features" || sub == "hooks" ||
              (sub == "maps" && arg_or_default(args, 2, "") == "list-paths") ||
+             mount::sumh::is_maps_preview_command(args) ||
              (sub == "kernel-build" && arg_or_default(args, 2, "show") == "show"))) ||
            (args[0] == "recovery" && sub == "status");
 }
@@ -1503,25 +1663,155 @@ std::string operation_description(const std::vector<std::string>& args) {
 }
 }  // namespace
 
-CommandResult run_command_capture(const std::vector<std::string>& args) {
+CommandResult run_command_capture(const std::vector<std::string>& args,
+                                  const std::string& prepared_id,
+                                  const std::string& request_revision, CaptureRoute route) {
+    const bool local_maps = route == CaptureRoute::LocalTemporaryMaps;
+    maps_temporary::DeleteRequest local_request;
+    if (local_maps && (!state::valid_operation_id(prepared_id) || request_revision.empty() ||
+                       !maps_temporary::parse_tracked_delete(args, local_request))) {
+        CommandResult rejected;
+        rejected.exit_code = 2;
+        rejected.error_number = EINVAL;
+        rejected.operation_id = prepared_id;
+        rejected.operation_status = "rejected";
+        rejected.stderr_text =
+            "local temporary Maps execution requires a matching reservation and canonical delete\n";
+        return rejected;
+    }
     const auto started = std::chrono::steady_clock::now();
     const auto operation = operation_description(args);
     const auto level = is_query(args) ? logging::Level::Debug : logging::Level::Info;
     logging::write(level, "command", "begin " + operation);
-    std::stringbuf stdout_buffer;
-    std::stringbuf stderr_buffer;
+    const auto capture_limit = prepared_id.empty() ? std::numeric_limits<std::size_t>::max()
+                                                   : state::OPERATION_OUTPUT_BYTES;
+    CaptureBuffer stdout_buffer(capture_limit);
+    CaptureBuffer stderr_buffer(capture_limit);
     auto* old_stdout = std::cout.rdbuf(&stdout_buffer);
     auto* old_stderr = std::cerr.rdbuf(&stderr_buffer);
+    class RestoreStreams {
+    public:
+        RestoreStreams(std::streambuf* output, std::streambuf* errors) : out(output), err(errors) {}
+        RestoreStreams(const RestoreStreams&) = delete;
+        RestoreStreams& operator=(const RestoreStreams&) = delete;
+        RestoreStreams(RestoreStreams&&) = delete;
+        RestoreStreams& operator=(RestoreStreams&&) = delete;
+        ~RestoreStreams() {
+            std::cout.rdbuf(out);
+            std::cerr.rdbuf(err);
+        }
+
+    private:
+        std::streambuf* out;
+        std::streambuf* err;
+    };
+    const RestoreStreams restore_streams{old_stdout, old_stderr};
     errno = 0;
     int exit_code;
+    std::unique_ptr<state::Journal> journal;
+    bool operation_recorded = false;
+    CommandResult result;
+    result.operation_id = prepared_id;
+    result.operation_status = "not_started";
     try {
-        exit_code = run_command(args);
+        bool may_run = prepared_id.empty();
+        if (local_maps || state::command_needs_journal(args)) {
+            auto candidate = std::make_unique<state::Journal>();
+            std::string journal_error;
+            const std::string name = args[0] + (args.size() > 1 ? " " + args[1] : "") +
+                                     (args[0] == "sumh" && args.size() > 2 &&
+                                              (args[1] == "maps" || args[1] == "kernel-build")
+                                          ? " " + args[2]
+                                          : "");
+            if (prepared_id.empty())
+                may_run = candidate->begin(name, journal_error);
+            else {
+                const auto status =
+                    candidate->begin_prepared(prepared_id, name, request_revision, journal_error);
+                may_run = status == state::ReservedStart::Started;
+                switch (status) {
+                case state::ReservedStart::Started:
+                    result.operation_status = "started";
+                    break;
+                case state::ReservedStart::Existing:
+                    result.operation_status = "already_started_or_finished";
+                    break;
+                case state::ReservedStart::NotRetained:
+                    result.operation_status = "not_retained";
+                    break;
+                case state::ReservedStart::Conflict:
+                    result.operation_status = "request_conflict";
+                    break;
+                case state::ReservedStart::StaleBoot:
+                    result.operation_status = "boot_mismatch";
+                    break;
+                case state::ReservedStart::Failed:
+                    result.operation_status = "journal_unavailable";
+                    break;
+                }
+                if (const auto* observed = candidate->observed_operation())
+                    result.observed_record_json =
+                        stringify_json(state::operation_record_json(*observed, runtime_boot_id()));
+            }
+            if (may_run)
+                journal = std::move(candidate);
+            if (!may_run) {
+                std::cerr << "operation not started: " << journal_error << '\n';
+            }
+        }
+        // Ledger IO can leave ENOENT/EINTR behind after a successful begin;
+        // only the command's own failure may populate its result errno.
+        if (may_run)
+            errno = 0;
+        result.command_executed = may_run;
+        if (!may_run)
+            exit_code = 1;
+        else if (local_maps)
+            exit_code =
+                maps_temporary::command(args, std::cout, std::cerr, journal->operation_id());
+        else
+            exit_code = run_command(args);
     } catch (const std::exception& error) {
         std::cerr << "SUMHP: " << error.what() << '\n';
         errno = EIO;
         exit_code = 1;
     }
-    const int error_number = exit_code == 0 ? 0 : (errno != 0 ? errno : EIO);
+    int error_number = exit_code == 0 ? 0 : (errno != 0 ? errno : EIO);
+    result.command_exit_code = exit_code;
+    result.command_errno = error_number;
+    if (journal) {
+        std::string journal_error;
+        bool recorded = false;
+        try {
+            if (!journal->retain_resource(args, stdout_buffer.str(), stdout_buffer.complete(),
+                                          exit_code, error_number, journal_error))
+                std::cerr << "operation resource retention unconfirmed: " << journal_error << '\n';
+        } catch (const std::exception&) {
+            std::cerr << "operation resource retention unconfirmed\n";
+        }
+        try {
+            const auto* detail = exit_code == 0
+                                     ? "command_completed; inspect each resource state"
+                                     : "command_failed_or_partial; inspect runtime before retry";
+            recorded = local_maps ? journal->finish_record_only(exit_code, error_number, detail,
+                                                                journal_error)
+                                  : journal->finish(exit_code, error_number, detail, journal_error);
+        } catch (const std::exception& failure) {
+            journal_error = failure.what();
+        }
+        if (!recorded) {
+            std::cerr << "operation result persistence unconfirmed: " << journal_error
+                      << "; runtime/configuration may have changed; query api state before retry\n";
+            exit_code = 1;
+            error_number = EIO;
+        }
+        operation_recorded = recorded;
+        if (!recorded)
+            result.operation_status = "outcome_unknown";
+        else
+            result.operation_status =
+                result.command_exit_code == 0 ? "command_completed" : "failed_or_partial";
+    }
     std::cout.rdbuf(old_stdout);
     std::cerr.rdbuf(old_stderr);
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1534,7 +1824,16 @@ CommandResult run_command_capture(const std::vector<std::string>& args) {
     if (!stderr_buffer.str().empty())
         logging::write(exit_code == 0 ? logging::Level::Warning : logging::Level::Error, "command",
                        operation + ": " + stderr_buffer.str());
-    return {exit_code, error_number, stdout_buffer.str(), stderr_buffer.str()};
+    result.exit_code = exit_code;
+    result.error_number = error_number;
+    result.stdout_text = stdout_buffer.str();
+    result.stderr_text = stderr_buffer.str();
+    if (journal)
+        result.operation_id = journal->operation_id();
+    result.operation_recorded = operation_recorded;
+    result.stdout_complete = stdout_buffer.complete();
+    result.stderr_complete = stderr_buffer.complete();
+    return result;
 }
 
 }  // namespace sumhp

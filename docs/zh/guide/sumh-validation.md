@@ -2,7 +2,15 @@
 
 SUMH 是内核中的 VFS 视图引擎；`ksud` 内置的 SUMHP 控制器负责配置、模块挂载规划、规则恢复及诊断接口。管理器通过 JNI 和控制器呈现状态及执行配置操作。本文给出当前仓库已有的回归入口和设备验证范围，不作为某个设备或发行版的通过证明。
 
+普通进程、isolated service 与 root 的实际样本可使用[独立观察者工具链](sumh-observer-kit.md)采集，再按声明期望离线比较。该工具已经有源码与本地构建/宿主测试；设备安装、SUMH 规则布置、独立测试 owner 和完整设备矩阵尚未完成。权限拒绝、截断或仅采集完成都不能当作隐藏测试通过。
+
 ## 验证对象
+
+第二十七批增加 ADD/MERGE 安装源身份、完整挂载/目录引用和回收验证；[实施记录](../../plans/SUMH-implementation-validation-batch27-2026-10-17.md)分别列出实际源码宿主测试、ARM 对象编译与未执行的完整内核/设备门禁。新入口未开放 owner 事务或 F06 应用命令。
+
+第二十八批补实际捕获/元数据/释放函数测试，以及 MERGE 完整收集、锁外安装、相对持有父目录捕获、递归共享预算和失败清理测试；[实施记录](../../plans/SUMH-implementation-validation-batch28-2026-10-17.md)单独记录测试工具退出码修正、反例与当前证据，不改写旧批次结果。
+
+第三十一批针对链接跟随后 nofollow 检查，补持续替换、mount 身份变化、查询失败、引用清理及明确的 ABA/检查后变化反例。实际运行与静态设计分列于[实施记录](../../plans/SUMH-implementation-validation-batch31-2026-10-17.md)；宿主结果不能证明原子配对或真实 namei/安全策略语义。
 
 | 层次 | 实现入口 | 重点 |
 | --- | --- | --- |
@@ -15,12 +23,24 @@ SUMH 是内核中的 VFS 视图引擎；`ksud` 内置的 SUMHP 控制器负责�
 
 ## 主机回归
 
+模块重建新增两组生产函数执行测试，分别验证记录/存储故障与 namespace/热状态结果传递。宿主模型不代替真实 fsync、fork、内核 ioctl 或设备掉电；本批证据见[第二十四批验证](../../plans/SUMH-implementation-validation-batch24-2026-10-17.md)。
+
+```sh
+python3 userspace/ksud/tests/run_module_rebuild_host_tests.py --cxx g++
+python3 userspace/ksud/tests/run_module_rebuild_namespace_host_tests.py --cxx g++
+```
+
 以下命令从仓库根目录运行。推荐使用与 CI 一致的 Linux 环境，安装 Python 3、Clang 和支持 C++17 的 G++。
 
 ### 内核函数与接口
 
 ```sh
 python3 scripts/ci/test_sumh_core.py --cc clang
+python3 scripts/ci/test_sumh_host_harness.py --cc clang
+python3 scripts/ci/test_sumh_source_capture.py --cc clang
+python3 scripts/ci/test_sumh_source_identity.py --cc clang
+python3 scripts/ci/test_sumh_merge_install.py --cc clang
+python3 scripts/ci/test_sumh_merge_snapshot.py --cc clang
 python3 scripts/ci/test_sumh_vfs_helpers.py --cc clang
 python3 scripts/ci/test_sumh_directory_names.py --cc clang
 python3 scripts/ci/test_sumh_directory_stream.py --cc clang
@@ -37,6 +57,11 @@ python3 scripts/ci/test_sumh_kstat.py --cc clang
 | 测试脚本 | 覆盖范围 |
 | --- | --- |
 | `test_sumh_core.py` | 规则回收、引用所有权、setattr 和错误分支 |
+| `test_sumh_host_harness.py` | 故意失败的断言不能被 POSIX 8 位退出码截断为成功，成功对照与错误行定位 |
+| `test_sumh_source_capture.py` | 实际普通源单次捕获、借用引用、原生链接委托及后置 mount+dentry 检查、错误/元数据/类型与引用释放；保留 ABA 和检查后变化边界，不声称原子配对 |
+| `test_sumh_source_identity.py` | 实际 ADD 控制入口及 store 对完整挂载/目录身份、可选 nofollow 身份和副作用的处理 |
+| `test_sumh_merge_install.py` | 实际 MERGE 登记、至 EOF 收集、迭代锁外安装、持有父目录解析、递归共享预算和部分发布错误 |
+| `test_sumh_merge_snapshot.py` | 通用 MERGE 读取快照及实际消费者、全部目标、旧根引用、完整名称收集和容量错误 |
 | `test_sumh_vfs_helpers.py` | xattr 边界、目录遍历、无处理需求时的快速路径 |
 | `test_sumh_directory_names.py` | 目录名称索引、合并和虚拟目录去重、首条优先与输出顺序、非 NUL 结尾名称及分配失败恢复 |
 | `test_sumh_directory_stream.py` | 小缓冲目录续读、注入与原生目录 cookie 边界、合并规则与单独文件规则组合、负 dentry 及过滤后空批次 |
@@ -47,6 +72,7 @@ python3 scripts/ci/test_sumh_kstat.py --cc clang
 | `test_sumh_kernel_build.py` | 内核构建字段校验、状态更新和恢复语义 |
 | `test_sumh_rules.py` | 规则导出的分配与清理失败分支 |
 | `test_sumh_maps.py` | 受管规则替换、失败原子性、临时规则与精确设备匹配优先级 |
+| `test_sumh_maps_delete.py` | 实际 store/删除 ioctl/外层控制：精确键与 managed 保留、token 校验、失败不推进、旧代引用及满额/预算；ARM ABI/模型编译单列 |
 | `test_sumh_kstat.py` | 显式属性规则的设备身份、路径重绑定、RCU 替换、失败保留与残留 hook 标记 |
 
 这些脚本读取生产 C 函数或源文件，以 VFS、RCU、工作队列、锁等测试替身执行关键分支。它们不加载内核模块，也不进行真实并发压力测试。分支内分配或锁计数的改善不能换算为设备延迟提升比例。
@@ -71,6 +97,18 @@ SUMH 用户空间测试覆盖客户端响应长度/文本边界、驱动探测�
 挂载规划回归还覆盖规则前缀的分区别名、解析后的模式冲突、whiteout 拆分为既有隐藏操作，以及准备失败时不发送挂载请求。生命周期回归检查热挂载标记写入/恢复失败、重建前配置校验、Overlay 挂载身份变化、回滚残留记录和挂载信息读取失败。设备上仍需验证真实命名空间、whiteout 属性和挂载系统调用。
 
 自动化入口为 [`.github/workflows/sumh-tests.yml`](../../../.github/workflows/sumh-tests.yml)。工作流存在或曾执行过，不代表当前提交所有目标的测试已通过；验证报告应记录具体提交、命令、编译器和结果。
+
+与 CI 相同的 Linux 原生回归集合可统一执行：
+
+```sh
+python3 scripts/ci/sumh_ci.py host --report out/sumh-ci/native.json
+```
+
+该入口逐个执行 24 个测试脚本的 `main()`，包括启动挂载完成通知、daemon、耐久文件写入和两种挂载后端。单项失败后继续收集其他结果，最后返回失败退出码；JSON 记录提交、命令、退出码和耗时。`unittest discover` 只导入这些脚本，不能替代原生入口的编译和执行。门禁自身的回归可用 `python3 -B -m unittest discover -s scripts/ci -p 'test_sumh_ci.py'` 验证。
+
+独立工作流同时运行 `com.zying.zysu.ui.sumh.*` 包中的 Manager JVM/Compose 测试，上传 JUnit XML 和 HTML 报告。主分支、dev、feat 分支及 PR 中的 Manager、用户态、共享接口、内核和构建依赖变化都会触发；tag 发布通过本地可复用工作流调用同一套检查。发布必须等待 native 和 Manager 两个 job 成功，且测试、汇总和构建提交完全一致；失败、取消、跳过、缺少任务或提交不一致都不能放行。普通完整 Manager 构建也包含 SUMH 包测试。
+
+CI 的 `SUMH-native-results`、`SUMH-Manager-results` 和 `SUMH-gate-result` 分别保存原生结果、Manager 报告及汇总状态。任务未执行或环境准备失败时，汇总记录对应 job 的失败/跳过状态，不把缺失报告视为通过。首次接通后仍需在实际 Actions 运行中核对报告，并用失败分支验证发布停止；本地主机门禁测试不能作为远端 Actions 已通过的证据。
 
 Windows 下，内核脚本可通过 `--cc` 指定 NDK 的 `clang.exe`，使用同目录 `ld.lld.exe` 构建本机测试。SUMH 用户空间测试可使用 `--zig` 指定 Zig。daemon 测试的 `--portable-only` 仅执行可移植故障注入部分；`--target x86_64-linux-musl --compile-only` 仅交叉编译，不运行 Linux socket 测试。Windows 模拟传输头不能验证 Android ioctl ABI。
 
@@ -126,6 +164,18 @@ Maps 数字规则的 inode/device 输入使用无符号十进制值，负数、�
 
 ## 设备基线采集
 
+### 配置格式与故障检查
+
+控制器的新配置包含 `schema_version: 1`。没有版本字段的旧配置仍可读取；读取和预检不会写回。首次明确保存旧配置前，控制器会将原始字节备份到同目录的 `config.json.pre-schema-1.bak`，备份未完成则不覆盖配置。后续保存当前版本不会覆盖这份迁移备份。`schema_version` 由控制器管理，不能通过普通配置补丁修改。
+
+文件加载和 CLI/Manager 更新共用字段类型、枚举、整数范围、路径及分区名校验。分区名接受 1–255 字节的英文字母、数字、下划线和连字符；工作目录须为绝对路径，镜像目录允许留空使用自动配置。无效字段返回具体错误，失败时不更新调用者持有的配置；仅校验不会切换日志状态。Kernel Build reset 仍可修复其已知字段并关闭保存开关，但不再顺带改写存在未知字段的文件。
+
+兼容例外只用于无版本旧文档：空 `fs_type` 和 `mount_backend` 读作 `auto`，空 `mount_hide_mode` 读作 `normal`，与旧版一致；schema 1 和新 patch 仍拒绝空值。只读加载不修改原文，首次显式保存才迁移并备份原文件。
+
+`config show` 返回原配置内容，保留未知字段和原始数字。当前版本包含未知字段时可以读取已知设置，但合并、生成默认配置及 Kernel Build 配置重置会拒绝写入；未来版本号会拒绝加载和写入。应保留原文件，使用理解该格式的控制器或经过验证的格式转换，不能靠旧客户端重新保存来降级。迁移备份仅恢复持久配置，不代表运行规则或源文件已恢复。
+
+主机回归覆盖全部已知字段的错误类型、NUL、相对路径、非法枚举与分区名、旧版本、未来版本、未知字段、UTF-8 路径、备份失败和失败时原值保留。设备上还需验证磁盘故障、启动读取、CLI/Manager 提示和恢复后的实际规则；主机通过不代表这些设备用例已通过。
+
 先记录源码提交、设备型号、Android 版本、内核 KMI、管理器/ksud 版本、加载方式、模块列表和文件系统。在已获授权的 root shell 中读取控制器状态：
 
 ```sh
@@ -147,9 +197,16 @@ Maps 数字规则的 inode/device 输入使用无符号十进制值，负数、�
 | --- | --- |
 | 挂载后端 | 分别使用 SUMH、OverlayFS、Magic Mount，检查模块优先级、覆盖文件、链接、读写、属性与目录内容；以运行状态确认实际选用后端 |
 | 规则并发 | 持续遍历目录时添加、删除和清空测试规则，检查内核日志、引用生命周期及目录位置是否异常 |
+| 目录缓存生命周期 | 在专用测试挂载验证注入独有缓存、共享目录客户端、普通卸载/延迟卸载、freeze、CLEAR/stop、旧目录 FD 和外部 i_fop 替换；记录 inode→superblock 释放顺序、最终 shutdown 时机、lockdep/KASAN/KCSAN 及内存峰值。宿主测试与 ARM 提取对象见[第三十二批记录](../../plans/SUMH-implementation-validation-batch32-2026-10-17.md)，不代表实际内核卸载或 CFI 通过；不得用全局 clear 作为生产环境单条规则撤销 |
+| 注入目录归属 | 专用测试环境验证两个映射共用父目录、映射与 MERGE 共用 inode、分区别名、同键换 inode、相同 ADD、部分物化、重复 MERGE、派生键 DEL 的 EBUSY 与零副作用；延迟旧回调跨替换/CLEAR/重装后，核对索引、计数、精确 inode 标记和引用。补原生路径/渲染/分配/FOP 故障、最后使用者退出、缓存与声明两种释放顺序、卸载/freeze/旧 FD 及 lockdep/KASAN/KCSAN。代码与主机证据边界见[第三十三批记录](../../plans/SUMH-implementation-validation-batch33-2026-10-17.md)；测试规则尚无独立完整 owner 时只能在可恢复的专用环境布置 |
+| 映射源对象 | 普通源单次捕获、捕获后 rename/替换、同 dentry 不同挂载、持有父目录的非链接子项解析、DT_UNKNOWN/错误 d_type、源根替换与根内子项替换、原地写入、旧 FD/新 open/mmap；真实迭代锁外安装、分页至 EOF、cookie 不前进、递归预算/循环和引用回收。链接后置检查分别测试持续替换、ABA、动态链接和检查后变化，不能当成原子源树；另测 marker 缺失/锁竞争、权限/I/O 错误、部分发布和重建拒绝重放 |
+| Maps 快照与预算 | 旧/新/零字节/初始空流、跨块与扩容重滤、复制故障、临时 1024 + 受管 256、旧代保留及预算拒绝后旧集合完整性；按[场景 23](sumh-usage-scenarios.md#23-maps-更新后分别验证旧流与新流)核对，并采多读者/写入并发下的 P99、吞吐和内存峰值 |
+| Manager 临时 Maps | 按[场景 26](sumh-usage-scenarios.md#26-在-manager-核对并删除一条临时-maps-规则)验证能力未知/不支持、手动分页/过期、历史行禁删、精确确认、单次提交、所有结果刷新、旋转/后台/关闭重开/进程恢复；英文/中文、大字体、横屏与 TalkBack 分开记录。[第三十批记录](../../plans/SUMH-implementation-validation-batch30-2026-10-17.md)区分本地渲染、编译和未执行设备门禁 |
+| 临时 Maps 条件删除 | 按[场景 25](sumh-usage-scenarios.md#25-撤销一条临时-maps-覆盖并保留受管规则)核对精确键/通配/managed、旧实例/过期 generation、无过滤入口清理、失败保留/满额/最后一项/旧流 pin；输出失败和断连不自动重放；root/普通应用观察分开。宿主与 ARM 模型结果见[第二十九批记录](../../plans/SUMH-implementation-validation-batch29-2026-10-17.md)，真实设备未执行 |
 | 文件属性 | 只读/可写源挂载、chmod、chown、truncate、已有文件句柄以及目标内核使用的 idmap 接口 |
 | xattr | size-only 查询、短缓冲区、大列表、OverlayFS 属性过滤和原生错误返回 |
 | 持久化/恢复 | 规则文件缺失、损坏、不可读、恢复正常及控制请求短暂失败后的重试；读取失败不能被当作清空规则 |
+| 未启用配置方案 | [方案工作流](sumh-profiles.md)的真实 namespace/SELinux、文件/stdin 输入、合作并发、未知结果查询、fsync/掉电故障；所有 profile 操作前后核对活动配置、内核和启动标记无变化。激活和运行恢复尚未实现，不能验成通过 |
 | 管理器操作 | 刷新与保存互斥、能力不可用、保存失败、保存成功但应用失败、重试及离开页面后的反馈 |
 | 普通应用视图 | 主进程和 isolatedProcess 的模块保留/卸载策略、mountinfo、maps、statfs、namespace 身份及已打开文件句柄 |
 | 重启 | post-fs-data 与 boot-completed 恢复、应用冷启动、不同加载方式下的能力变化 |

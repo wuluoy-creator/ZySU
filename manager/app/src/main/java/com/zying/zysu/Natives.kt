@@ -25,6 +25,17 @@ object Natives {
     external fun getFullVersion(): String
 
     external fun sumhpRequest(ksudPath: ByteArray, request: ByteArray): ByteArray
+    external fun sumhMapsPreview(ksudPath: ByteArray): ByteArray
+    external fun sumhTemporaryMaps(ksudPath: ByteArray, request: ByteArray): ByteArray
+    external fun sumhDiagnosticPackages(ksudPath: ByteArray, request: ByteArray): ByteArray
+    /** Private FD transfer; only complete receipts authorize reading the output. */
+    external fun sumhProfilesTransfer(ksudPath: ByteArray, inputFd: Int, outputFd: Int): ByteArray
+    external fun sumhCapabilities(ksudPath: ByteArray): ByteArray
+    external fun sumhPartitionDiscovery(ksudPath: ByteArray): ByteArray
+    external fun sumhPartitionSave(ksudPath: ByteArray, revision: ByteArray, partitionsJson: ByteArray): ByteArray
+    external fun sumhUserHide(ksudPath: ByteArray, args: ByteArray): ByteArray
+    external fun sumhOperation(ksudPath: ByteArray, request: ByteArray): ByteArray
+    external fun sumhModulePreview(ksudPath: ByteArray, candidate: ByteArray?, explainPath: ByteArray): ByteArray
     external fun sumhKernelSnapshot(): ByteArray
     external fun sumhRetryUserHide(path: ByteArray): ByteArray
     external fun sumhIsInitialized(): Boolean

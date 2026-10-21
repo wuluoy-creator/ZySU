@@ -155,6 +155,17 @@ void test_atomic_write(const fs::path& directory) {
     assert(ksud::write_file_atomic(path, ""));
     assert(contents(path).empty());
     assert(stat(path.c_str(), &status) == 0 && (status.st_mode & 0777) == 0600);
+
+    const auto durable = ksud::replace_file_durable(path, "durable", 0640);
+    assert(durable.complete() && durable.replaced() && durable.error_number == 0);
+    assert(contents(path) == "durable");
+    assert(stat(path.c_str(), &status) == 0 && (status.st_mode & 0777) == 0640);
+    const auto missing = ksud::replace_file_durable(directory / "absent" / "state", "value");
+    assert(!missing.replaced() && missing.error_number == ENOENT);
+    std::string error;
+    assert(!ksud::write_file_durable(blocked, "value", error));
+    assert(error.find("file not replaced") != std::string::npos);
+    assert(contents(blocked / "keep") == "retained");
 }
 
 void test_commands(const fs::path& directory) {

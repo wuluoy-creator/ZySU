@@ -695,6 +695,47 @@ bool write_file_atomic(const std::filesystem::path& path, const std::string& con
     return ok;
 }
 
+DurableWriteResult replace_file_durable(const std::filesystem::path& path,
+                                        const std::string& content, mode_t mode) {
+    const auto parent =
+        path.parent_path().empty() ? std::filesystem::path(".") : path.parent_path();
+    const int directory = open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (directory < 0)
+        return {DurableWriteState::NotCommitted, errno};
+    if (!write_file_atomic(path, content, mode)) {
+        const int error = errno;
+        close(directory);
+        errno = error;
+        return {DurableWriteState::NotCommitted, error};
+    }
+    int synced;
+    do {
+        synced = fsync(directory);
+    } while (synced != 0 && errno == EINTR);
+    const int sync_error = synced == 0 ? 0 : errno;
+    const int closed = close(directory);
+    const int close_error = closed == 0 ? 0 : errno;
+    const int error = sync_error != 0 ? sync_error : close_error;
+    if (error != 0) {
+        errno = error;
+        return {DurableWriteState::ReplacedDurabilityUnconfirmed, error};
+    }
+    return {DurableWriteState::Complete, 0};
+}
+
+bool write_file_durable(const std::filesystem::path& path, const std::string& content,
+                        std::string& error, mode_t mode) {
+    error.clear();
+    const auto result = replace_file_durable(path, content, mode);
+    if (result.complete())
+        return true;
+    error =
+        result.replaced() ? "file replaced but durability is unconfirmed: " : "file not replaced: ";
+    error += path.string() + ": " + std::strerror(result.error_number);
+    errno = result.error_number;
+    return false;
+}
+
 bool write_file_bytes(const std::filesystem::path& path, const uint8_t* data, size_t size,
                       mode_t mode) {
     if (size != 0 && data == nullptr) {

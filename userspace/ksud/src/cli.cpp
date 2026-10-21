@@ -579,16 +579,79 @@ int cmd_flash_new(const std::vector<std::string>& args, const CliArguments& cli)
 }  // namespace
 
 int cli_run(int argc, char** argv) {
-    // Initialize logging
-    log_init("KernelSU");
-    log_set_cli_mode(false);
-    setup_sigsys_handler();
-
-    // Check if invoked as su or sh
+    // Preserve argv[0] dispatch before recognizing the dedicated query: an
+    // invocation as su/sh must keep its original argument interpretation.
     const std::string arg0 = argv[0];
     const size_t last_slash = arg0.rfind('/');
     const std::string basename =
         (last_slash != std::string::npos) ? arg0.substr(last_slash + 1) : arg0;
+
+    // The public queries and private Maps transport deliberately bypass the
+    // generic parser/logging path. That parser has no private --channel option,
+    // and ordinary SUMHP dispatch may cold-start a restoring daemon. Forward
+    // the whole preview prefix, including invalid tails, to the root-checked
+    // embedded handler so malformed requests also fail without side effects.
+    const bool maps_preview = argc >= 5 && std::strcmp(argv[2], "sumh") == 0 &&
+                              std::strcmp(argv[3], "maps") == 0 &&
+                              std::strcmp(argv[4], "preview") == 0;
+    const bool maps_temporary =
+        argc >= 5 && std::strcmp(argv[2], "sumh") == 0 && std::strcmp(argv[3], "maps") == 0 &&
+        (std::strcmp(argv[4], "remove") == 0 || std::strcmp(argv[4], "list-temporary") == 0 ||
+         std::strcmp(argv[4], "manager") == 0);
+    const bool module_preview =
+        argc >= 4 && std::strcmp(argv[2], "module") == 0 &&
+        (std::strcmp(argv[3], "plan") == 0 || std::strcmp(argv[3], "manager-preview") == 0 ||
+         std::strcmp(argv[3], "explain") == 0 || std::strcmp(argv[3], "rebuild-status") == 0 ||
+         std::strcmp(argv[3], "inspect") == 0 ||
+         (std::strcmp(argv[3], "normalize") == 0 &&
+          std::any_of(argv + 4, argv + argc,
+                      [](const char* word) { return std::strcmp(word, "--dry-run") == 0; })));
+    const bool partitions = argc >= 4 && std::strcmp(argv[2], "config") == 0 &&
+                            (std::strcmp(argv[3], "discover-partitions") == 0 ||
+                             std::strcmp(argv[3], "sync-partitions") == 0 ||
+                             std::strcmp(argv[3], "set-partitions") == 0);
+    const bool operations = argc >= 3 && std::strcmp(argv[2], "operation") == 0;
+    const bool sumh_profiles = argc >= 3 && std::strcmp(argv[2], "profile") == 0;
+    const bool diagnostics = argc >= 3 && std::strcmp(argv[2], "doctor") == 0;
+    const bool hide_status =
+        argc >= 4 && std::strcmp(argv[2], "hide") == 0 &&
+        (std::strcmp(argv[3], "status") == 0 || std::strcmp(argv[3], "definitions") == 0 ||
+         std::strcmp(argv[3], "export") == 0);
+    const bool hide_channel = argc >= 4 && std::strcmp(argv[2], "hide") == 0 &&
+                              std::strcmp(argv[argc - 1], "--channel") == 0;
+    const bool capabilities_channel = argc >= 4 && std::strcmp(argv[2], "api") == 0 &&
+                                      std::strcmp(argv[3], "meta") == 0 &&
+                                      std::strcmp(argv[argc - 1], "--channel") == 0;
+    const bool capability_snapshot =
+        argc >= 4 && std::strcmp(argv[2], "api") == 0 && std::strcmp(argv[3], "capabilities") == 0;
+    if (basename != "su" && basename != "sh" && argc >= 2 && std::strcmp(argv[1], "sumhp") == 0 &&
+        (maps_preview || maps_temporary || module_preview || partitions || operations ||
+         sumh_profiles || diagnostics || hide_status || hide_channel || capabilities_channel ||
+         capability_snapshot)) {
+        // Driver discovery and failed ioctls otherwise write /dev/log/main.
+        // The dedicated child and its sampler inherit this process-local
+        // silence; restore the prior level if an embedding caller continues.
+        class RestoreLogLevel {
+        public:
+            explicit RestoreLogLevel(LogLevel previous) : level_(previous) {}
+            RestoreLogLevel(const RestoreLogLevel&) = delete;
+            RestoreLogLevel& operator=(const RestoreLogLevel&) = delete;
+            RestoreLogLevel(RestoreLogLevel&&) = delete;
+            RestoreLogLevel& operator=(RestoreLogLevel&&) = delete;
+            ~RestoreLogLevel() { log_set_level(level_); }
+
+        private:
+            LogLevel level_;
+        };
+        const RestoreLogLevel restore_log_level{log_get_level()};
+        log_set_level(LogLevel::OFF);
+        return sumhp::embedded_command(std::vector<std::string>(argv + 2, argv + argc));
+    }
+
+    // Existing commands retain logging and SIGSYS setup, including su/sh.
+    log_init("KernelSU");
+    log_set_cli_mode(false);
+    setup_sigsys_handler();
 
     if (basename == "su") {
         return su_main(argc, argv);

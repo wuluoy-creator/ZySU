@@ -98,6 +98,10 @@ void log_set_level(LogLevel level) {
     g_log_level = level;
 }
 
+LogLevel log_get_level() {
+    return g_log_level;
+}
+
 void log_set_cli_mode(bool verbose) {
     g_log_cli_mode = isatty(STDERR_FILENO) == 1;
     g_log_verbose = verbose;

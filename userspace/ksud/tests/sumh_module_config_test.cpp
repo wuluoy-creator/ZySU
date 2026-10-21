@@ -19,14 +19,18 @@ namespace {
 std::map<std::string, std::string> files;
 std::string unreadable;
 bool write_ok = true;
+bool durability_ok = true;
 bool lock_ok = true;
 int writes = 0;
+int reads = 0;
+int locks = 0;
 const std::string mode_file = "module_mode.json";
 const std::string rules_file = "module_rules.json";
 }  // namespace
 
 namespace ksud {
 std::optional<std::string> read_file(const std::string& path) {
+    ++reads;
     const auto name = std::filesystem::path(path).filename().string();
     if (name == unreadable) {
         errno = EACCES;
@@ -36,13 +40,20 @@ std::optional<std::string> read_file(const std::string& path) {
     errno = it == files.end() ? ENOENT : 0;
     return it == files.end() ? std::nullopt : std::optional<std::string>(it->second);
 }
-bool write_file_atomic(const std::filesystem::path& path, const std::string& content) {
+bool write_file_durable(const std::filesystem::path& path, const std::string& content,
+                        std::string& error) {
     ++writes;
     if (!write_ok) {
         errno = ENOSPC;
+        error = "file not replaced: ENOSPC";
         return false;
     }
     files[path.filename().string()] = content;
+    if (!durability_ok) {
+        errno = EIO;
+        error = "file replaced but durability is unconfirmed: EIO";
+        return false;
+    }
     return true;
 }
 }  // namespace ksud
@@ -61,6 +72,7 @@ void mlog(const std::string&, logging::Level) {}
 class ModuleConfigLock {
 public:
     bool acquire(std::string& error) {
+        ++locks;
         if (!lock_ok)
             error = "injected lock error";
         return lock_ok;
@@ -126,6 +138,12 @@ int main() {
     assert(!configure_module("selected", "none", {{"/change", "hide"}}, error));
     assert(!error.empty() && files == saved);
     write_ok = true;
+    durability_ok = false;
+    assert(!configure_module("selected", "none", {{"/change", "hide"}}, error));
+    assert(error.find("file replaced but durability is unconfirmed") != std::string::npos);
+    assert(files != saved);  // Never report a post-rename failure as unchanged.
+    durability_ok = true;
+    files = saved;
     lock_ok = false;
     assert(!set_module_mode("selected", "none", error));
     assert(files == saved);
@@ -207,5 +225,47 @@ int main() {
     assert(json_quote(stringify_json(module_rules_json(sample))).size() + 6 == 53);
     assert(run_module_update({"module", "configure", "selected", "sumh"}) == 1);
     assert(files == saved);
+
+    // Preview parses the exact same records without acquiring a lock, reading
+    // files or mutating them. Canonical auto suppresses an old legacy mode.
+    const std::vector<std::pair<std::string, std::string>> documents{
+        {"{}", "{}"},
+        {R"({"same":"magic","legacy":"overlay"})",
+         R"({"same":{"mode":"auto","rules":[]},"legacy":[{"path":"/keep ","mode":"none"}]})"},
+        {R"({"same":null})", R"({"same":{"mode":"sumh","rules":[]}})"},
+        {R"({"old":"sumh"})", stringify_json(legacy)},
+        {"[]", "{}"},
+        {"{}", "null"},
+        {R"({"bad":"invalid"})", "{}"},
+        {"{}", R"({"new":{"mode":"sumh","rules":[],"future":true}})"},
+        {"{}", R"({"new":[{"path":"/bad\npath","mode":"hide"}]})"},
+    };
+    for (const auto& [mode_json, rule_json] : documents) {
+        files = {{mode_file, mode_json}, {rules_file, rule_json}};
+        ModuleModeMap loaded_modes{{"untouched", "none"}};
+        ModuleRuleMap loaded_rules{{"untouched", {{"/old", "hide"}}}};
+        ModuleModeMap pure_modes = loaded_modes;
+        ModuleRuleMap pure_rules = loaded_rules;
+        std::string loaded_error;
+        const bool loaded = load_module_configuration(loaded_modes, loaded_rules, loaded_error);
+        const auto original_files = files;
+        const int old_reads = reads;
+        const int old_locks = locks;
+        const int old_writes = writes;
+        lock_ok = false;
+        unreadable = mode_file;
+        const bool pure = parse_module_configuration_documents(mode_json, rule_json, pure_modes,
+                                                               pure_rules, error);
+        lock_ok = true;
+        unreadable.clear();
+        assert(pure == loaded && error == loaded_error && pure_modes == loaded_modes);
+        assert(pure_rules.size() == loaded_rules.size());
+        for (const auto& [id, entries] : loaded_rules)
+            assert(stringify_json(module_rules_json(entries)) ==
+                   stringify_json(module_rules_json(pure_rules.at(id))));
+        assert(reads == old_reads && locks == old_locks && writes == old_writes &&
+               files == original_files);
+    }
+    files = saved;
     std::cout << "sumh_module_config_test: all checks passed\n";
 }

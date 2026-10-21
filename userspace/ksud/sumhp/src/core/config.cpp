@@ -1,8 +1,16 @@
 #include "sumhp/config.hpp"
 
+#include "core/checked_document.hpp"
+#include "core/config_document.hpp"
 #include "core/json.hpp"
 #include "core/log.hpp"
+#include "core/partition_config.hpp"
+#include "core/rule_inventory.hpp"
 #include "core/runtime.hpp"
+#include "core/state_ledger.hpp"
+#include "core/user_hide_store.hpp"
+#include "durable_file.hpp"
+#include "mount/partition_discovery.hpp"
 #include "uapi/sumh.h"
 #include "utils.hpp"
 
@@ -38,7 +46,7 @@ public:
         }
     }
 
-    bool acquire(std::string& error) {
+    bool acquire(std::string& error, bool nonblocking = false) {
         if (!prepare_private_directory(runtime_data_dir(), error)) {
             return false;
         }
@@ -48,7 +56,14 @@ public:
             error = "open " + lock_path + ": " + std::strerror(errno);
             return false;
         }
-        if (::flock(fd_, LOCK_EX) != 0) {
+        struct stat metadata{};
+        if (::fstat(fd_, &metadata) != 0 || !S_ISREG(metadata.st_mode) || metadata.st_nlink != 1 ||
+            metadata.st_uid != 0 || (metadata.st_mode & 0077) != 0) {
+            error = "invalid private config lock";
+            errno = EACCES;
+            return false;
+        }
+        if (::flock(fd_, LOCK_EX | (nonblocking ? LOCK_NB : 0)) != 0) {
             error = "lock " + lock_path + ": " + std::strerror(errno);
             return false;
         }
@@ -61,6 +76,7 @@ private:
 
 std::string default_config_json() {
     return R"({
+  "schema_version": 1,
   "mountsource": "KSU",
   "work_dir": "/dev/sumhp",
   "mirror_dir": "",
@@ -89,14 +105,53 @@ std::string default_config_json() {
 )";
 }
 
-void prune_config_fields(json::Value& config) {
-    static const auto defaults = json::parse(default_config_json());
-    for (auto it = config.o.begin(); it != config.o.end();) {
-        if (!defaults.find(it->first))
-            it = config.o.erase(it);
-        else
-            ++it;
+bool parse_config_document(const std::string& input, ConfigDocument& document, std::string& error) {
+    error.clear();
+    ConfigDocument parsed;
+    if (!parse_json(input, parsed.fields, error))
+        return false;
+    if (!parsed.fields.is_object()) {
+        error = "config root must be a JSON object";
+        return false;
     }
+    if (const auto* version = parsed.fields.find("schema_version")) {
+        if (!version->is_number() || !std::isfinite(version->n) || version->n < 1 ||
+            std::floor(version->n) != version->n) {
+            error = "configuration field 'schema_version' must be a positive integer";
+            return false;
+        }
+        if (version->n > CONFIG_SCHEMA_VERSION) {
+            error = "unsupported config schema_version; use a compatible controller or "
+                    "an explicit downgrade conversion";
+            return false;
+        }
+        parsed.schema_version = static_cast<int>(version->n);
+    }
+    if (parsed.schema_version == 0) {
+        // Older CLI versions accepted these empty values as defaults. Normalize
+        // only unversioned documents; explicit schema-1 files and patches keep
+        // the strict contract. The writer backs up the untouched input bytes.
+        for (const auto* key : {"fs_type", "mount_backend", "mount_hide_mode"}) {
+            const auto* value = parsed.fields.find(key);
+            if (value && value->is_string() && value->s.empty())
+                parsed.fields.o[key] = std::string(key) == "mount_hide_mode" ? "normal" : "auto";
+        }
+    }
+    document = std::move(parsed);
+    return true;
+}
+
+bool config_document_is_writable(const ConfigDocument& document, std::string& error) {
+    static const auto defaults = json::parse(default_config_json());
+    for (const auto& [key, value] : document.fields.o) {
+        (void)value;
+        if (!defaults.find(key)) {
+            error = "configuration field '" + key +
+                    "' is unknown; refusing to rewrite stored configuration";
+            return false;
+        }
+    }
+    return true;
 }
 
 json::Value maps_path_rules_json(const std::vector<MapsPathRule>& rules) {
@@ -179,6 +234,7 @@ bool parse_maps_path_rules(const JsonValue& value, std::vector<MapsPathRule>& ru
 }  // namespace
 
 bool validate_config_patch(const json::Value& patch, std::string& error) {
+    error.clear();
     if (!patch.is_object()) {
         error = "config updates must be a JSON object";
         return false;
@@ -189,6 +245,8 @@ bool validate_config_patch(const json::Value& patch, std::string& error) {
         return false;
     };
     for (const auto& [key, value] : patch.o) {
+        if (key == "schema_version")
+            return reject(key, "is managed by the controller and cannot be patched");
         const auto* expected = defaults.find(key);
         if (!expected)
             return reject(key, "is unknown");
@@ -222,21 +280,25 @@ bool validate_config_patch(const json::Value& patch, std::string& error) {
         if ((key == "work_dir" && (value.s.empty() || value.s.front() != '/')) ||
             (key == "mirror_dir" && !value.s.empty() && value.s.front() != '/'))
             return reject(key, "must be an absolute path");
-        if (key == "mount_hide_mode" && !value.s.empty() && value.s != "normal" &&
-            value.s != "aggressive")
+        if ((key == "work_dir" || key == "mirror_dir") && value.s.size() >= 4096)
+            return reject(key, "must be shorter than 4096 UTF-8 bytes");
+        if (key == "mount_hide_mode" && value.s != "normal" && value.s != "aggressive")
             return reject(key, "must be normal or aggressive");
-        if (key == "fs_type" && !value.s.empty() && value.s != "auto" && value.s != "tmpfs" &&
-            value.s != "ext4" && value.s != "erofs")
+        if (key == "fs_type" && value.s != "auto" && value.s != "tmpfs" && value.s != "ext4" &&
+            value.s != "erofs")
             return reject(key, "must be auto, tmpfs, ext4 or erofs");
-        if (key == "mount_backend" && !value.s.empty() && value.s != "auto" && value.s != "sumh" &&
+        if (key == "mount_backend" && value.s != "auto" && value.s != "sumh" &&
             value.s != "overlay" && value.s != "magic" && value.s != "none")
             return reject(key, "must be auto, sumh, overlay, magic or none");
         if (key == "partitions") {
             for (const auto& partition : value.a) {
-                if (!partition.is_string() || partition.s.empty() || partition.s == "." ||
-                    partition.s == ".." || partition.s.find('/') != std::string::npos ||
-                    partition.s.find('\0') != std::string::npos)
-                    return reject(key, "must contain relative partition names without slashes");
+                if (!partition.is_string() || partition.s.empty() || partition.s.size() > 255 ||
+                    !std::all_of(partition.s.begin(), partition.s.end(), [](unsigned char c) {
+                        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                               (c >= '0' && c <= '9') || c == '_' || c == '-';
+                    }))
+                    return reject(key, "must contain partition names using letters, digits, '_' "
+                                       "or '-' (at most 255 bytes)");
             }
         }
         if (key == "maps_rules") {
@@ -250,16 +312,43 @@ bool validate_config_patch(const json::Value& patch, std::string& error) {
 
 namespace {
 bool save_config(const std::string& data, std::string& error) {
-    if (ksud::write_file_atomic(runtime_config_file(), data))
+    if (ksud::write_file_durable(runtime_config_file(), data, error))
         return true;
-    error = "write config: " + std::string(std::strerror(errno));
+    error = "write config: " + error;
     return false;
 }
 }  // namespace
 
+bool save_config_document(ConfigDocument& document, const std::optional<std::string>& original,
+                          std::string& error) {
+    // Parsing/read-only queries never migrate. Keep the exact original bytes
+    // before the first explicit write that introduces the version marker.
+    if (document.schema_version == 0 && original &&
+        !ksud::write_file_durable(runtime_config_file().string() + ".pre-schema-1.bak", *original,
+                                  error)) {
+        error = "backup config before schema migration: " + error;
+        return false;
+    }
+    document.fields.o["schema_version"] = CONFIG_SCHEMA_VERSION;
+    return save_config(stringify_json(document.fields, 2) + "\n", error);
+}
+
 bool write_default_config(std::string& error) {
     ConfigFileLock lock;
-    return lock.acquire(error) && save_config(default_config_json(), error);
+    if (!lock.acquire(error))
+        return false;
+    errno = 0;
+    const auto input = ksud::read_file(runtime_config_file().string());
+    if (!input && errno != ENOENT) {
+        error = "read config: " + std::string(std::strerror(errno ? errno : EIO));
+        return false;
+    }
+    ConfigDocument document;
+    if (!parse_config_document(input.value_or(default_config_json()), document, error) ||
+        !config_document_is_writable(document, error))
+        return false;
+    document.fields = json::parse(default_config_json());
+    return save_config_document(document, input, error);
 }
 
 namespace {
@@ -278,34 +367,10 @@ std::vector<std::string> json_string_array_or_empty(const JsonValue* value) {
 }  // namespace
 
 bool load_user_hide_rules(std::vector<std::string>& rules, std::string& error) {
-    errno = 0;
-    const auto input = ksud::read_file((runtime_data_dir() / "user_hide_rules.json").string());
-    if (!input) {
-        if (errno == ENOENT) {
-            rules.clear();
-            return true;
-        }
-        error = "read user hide rules: " + std::string(std::strerror(errno ? errno : EIO));
+    hide::Stored source;
+    if (!hide::read_store(source, error))
         return false;
-    }
-    JsonValue root;
-    std::string parse_error;
-    if (!parse_json(*input, root, parse_error) || !root.is_array()) {
-        error = "invalid user hide rules: " +
-                (parse_error.empty() ? std::string("expected a JSON array") : parse_error);
-        return false;
-    }
-    std::vector<std::string> parsed;
-    parsed.reserve(root.a.size());
-    for (const auto& item : root.a) {
-        if (!item.is_string() || item.s.empty() || item.s.front() != '/' ||
-            item.s.find('\0') != std::string::npos || item.s.size() >= SUMH_USER_HIDE_PATH_MAX) {
-            error = "invalid user hide rule at index " + std::to_string(parsed.size());
-            return false;
-        }
-        parsed.push_back(item.s);
-    }
-    rules = std::move(parsed);
+    rules = hide::enabled_paths(source.document);
     return true;
 }
 
@@ -317,13 +382,41 @@ std::vector<std::string> load_user_hide_rules() {
     return rules;
 }
 
+bool save_user_hide_rules(const std::vector<std::string>& rules, std::string& error) {
+    // This compatibility API has no way to distinguish disabling from deleting
+    // a rich definition. New controller writers use the full transaction model.
+    hide::Transaction transaction;
+    if (!transaction.begin(error))
+        return false;
+    auto values = JsonValue::array();
+    for (const auto& path : rules)
+        values.a.emplace_back(path);
+    hide::Document candidate;
+    if (!hide::parse_document(stringify_json(values), candidate, error))
+        return false;
+    const auto& source = transaction.stored();
+    if (!source.missing && source.document.source_schema == 1) {
+        auto before = hide::enabled_paths(source.document);
+        auto after = hide::enabled_paths(candidate);
+        std::sort(before.begin(), before.end());
+        std::sort(after.begin(), after.end());
+        if (before != after) {
+            error = "structured user hide definitions require definition-aware edits";
+            errno = EOPNOTSUPP;
+            return false;
+        }
+        candidate = source.document;
+    }
+    const auto result = transaction.save(candidate, error);
+    return result == hide::SaveResult::Saved || result == hide::SaveResult::Unchanged;
+}
+
 bool save_user_hide_rules(const std::vector<std::string>& rules) {
-    JsonValue root;
-    root.type = JsonValue::Type::Array;
-    for (const auto& rule : rules)
-        root.a.emplace_back(rule);
-    return ksud::write_file_atomic(runtime_data_dir() / "user_hide_rules.json",
-                                   stringify_json(root, 2) + "\n");
+    std::string error;
+    const bool saved = save_user_hide_rules(rules, error);
+    if (!saved)
+        logging::write(logging::Level::Error, "config", error);
+    return saved;
 }
 
 namespace {
@@ -344,33 +437,27 @@ int json_int_or(const JsonValue* root, const char* key, int fallback) {
 }  // namespace
 
 bool parse_config_json(const std::string& json, Config& config, std::string& error) {
-    JsonValue root;
-    if (!parse_json(json, root, error)) {
+    ConfigDocument document;
+    if (!parse_config_document(json, document, error))
         return false;
+    const auto& root = document.fields;
+    // Every known field uses the same contract as a patch. Unknown fields are
+    // left in the document for inspection and make the document non-writable.
+    static const auto defaults = json::parse(default_config_json());
+    JsonValue fields = JsonValue::object();
+    for (const auto& [key, value] : root.o) {
+        if (key != "schema_version" && defaults.find(key))
+            fields.o[key] = value;
     }
-    if (!root.is_object()) {
-        error = "config root must be a JSON object";
+    if (!validate_config_patch(fields, error))
         return false;
-    }
-
-    // Validate these fields even when loading a manually edited config. Invalid
-    // definitions must never be applied or silently replaced by an empty set.
-    JsonValue build_fields;
-    build_fields.type = JsonValue::Type::Object;
-    for (const auto* key :
-         {"enable_kernel_build_spoof", "kernel_build_release", "kernel_build_version",
-          "kernel_build_apply_stage", "enable_maps_spoof"}) {
-        if (const auto* value = root.find(key))
-            build_fields.o[key] = *value;
-    }
-    if (!validate_config_patch(build_fields, error))
-        return false;
+    Config parsed;
     const bool build_enabled =
-        json_bool_or(&root, "enable_kernel_build_spoof", config.enable_kernel_build_spoof);
+        json_bool_or(&root, "enable_kernel_build_spoof", parsed.enable_kernel_build_spoof);
     const auto build_release =
-        json_string_or(&root, "kernel_build_release", config.kernel_build_release);
+        json_string_or(&root, "kernel_build_release", parsed.kernel_build_release);
     const auto build_version =
-        json_string_or(&root, "kernel_build_version", config.kernel_build_version);
+        json_string_or(&root, "kernel_build_version", parsed.kernel_build_version);
     if (build_enabled && build_release.empty() && build_version.empty()) {
         error = "kernel build spoof requires a custom kernel_build_release or kernel_build_version";
         return false;
@@ -381,52 +468,55 @@ bool parse_config_json(const std::string& json, Config& config, std::string& err
             return false;
     }
 
-    config.mount_source = json_string_or(&root, "mountsource", config.mount_source);
-    config.work_dir = json_string_or(&root, "work_dir", config.work_dir);
-    config.mirror_dir = json_string_or(&root, "mirror_dir", config.mirror_dir);
-    config.mirror_img_size_mb = json_int_or(&root, "mirror_img_size_mb", config.mirror_img_size_mb);
-    config.overlay_writable = json_bool_or(&root, "overlay_writable", config.overlay_writable);
-    config.fs_type = json_string_or(&root, "fs_type", config.fs_type);
-    config.debug = json_bool_or(&root, "debug", config.debug);
-    config.verbose = json_bool_or(&root, "verbose", config.verbose);
-    logging::set_debug_enabled(config.debug || config.verbose);
-    config.enable_kernel_debug =
-        json_bool_or(&root, "enable_kernel_debug", config.enable_kernel_debug);
-    config.enable_stealth = json_bool_or(&root, "enable_stealth", config.enable_stealth);
-    config.enable_overlay_xattr_hide =
-        json_bool_or(&root, "enable_overlay_xattr_hide", config.enable_overlay_xattr_hide);
-    config.enable_mount_hide = json_bool_or(&root, "enable_mount_hide", config.enable_mount_hide);
-    config.mount_hide_mode = json_string_or(&root, "mount_hide_mode", config.mount_hide_mode);
-    if (config.mount_hide_mode != "normal" && config.mount_hide_mode != "aggressive")
-        config.mount_hide_mode = "normal";
-    config.enable_maps_spoof = json_bool_or(&root, "enable_maps_spoof", config.enable_maps_spoof);
-    config.maps_rules = std::move(maps_rules);
-    config.enable_statfs_spoof =
-        json_bool_or(&root, "enable_statfs_spoof", config.enable_statfs_spoof);
-    config.enable_kernel_build_spoof = build_enabled;
-    config.kernel_build_release = build_release;
-    config.kernel_build_version = build_version;
-    config.kernel_build_apply_stage =
-        json_string_or(&root, "kernel_build_apply_stage", config.kernel_build_apply_stage);
-    config.overlayfs_enabled = json_bool_or(&root, "overlayfs_enabled", config.overlayfs_enabled);
-    config.magic_mount_enabled =
-        json_bool_or(&root, "magic_mount_enabled", config.magic_mount_enabled);
-    config.mount_backend = json_string_or(&root, "mount_backend", config.mount_backend);
-    config.partitions = json_string_array_or_empty(root.find("partitions"));
+    parsed.mount_source = json_string_or(&root, "mountsource", parsed.mount_source);
+    parsed.work_dir = json_string_or(&root, "work_dir", parsed.work_dir);
+    parsed.mirror_dir = json_string_or(&root, "mirror_dir", parsed.mirror_dir);
+    parsed.mirror_img_size_mb = json_int_or(&root, "mirror_img_size_mb", parsed.mirror_img_size_mb);
+    parsed.overlay_writable = json_bool_or(&root, "overlay_writable", parsed.overlay_writable);
+    parsed.fs_type = json_string_or(&root, "fs_type", parsed.fs_type);
+    parsed.debug = json_bool_or(&root, "debug", parsed.debug);
+    parsed.verbose = json_bool_or(&root, "verbose", parsed.verbose);
+    parsed.enable_kernel_debug =
+        json_bool_or(&root, "enable_kernel_debug", parsed.enable_kernel_debug);
+    parsed.enable_stealth = json_bool_or(&root, "enable_stealth", parsed.enable_stealth);
+    parsed.enable_overlay_xattr_hide =
+        json_bool_or(&root, "enable_overlay_xattr_hide", parsed.enable_overlay_xattr_hide);
+    parsed.enable_mount_hide = json_bool_or(&root, "enable_mount_hide", parsed.enable_mount_hide);
+    parsed.mount_hide_mode = json_string_or(&root, "mount_hide_mode", parsed.mount_hide_mode);
+    parsed.enable_maps_spoof = json_bool_or(&root, "enable_maps_spoof", parsed.enable_maps_spoof);
+    parsed.maps_rules = std::move(maps_rules);
+    parsed.enable_statfs_spoof =
+        json_bool_or(&root, "enable_statfs_spoof", parsed.enable_statfs_spoof);
+    parsed.enable_kernel_build_spoof = build_enabled;
+    parsed.kernel_build_release = build_release;
+    parsed.kernel_build_version = build_version;
+    parsed.kernel_build_apply_stage =
+        json_string_or(&root, "kernel_build_apply_stage", parsed.kernel_build_apply_stage);
+    parsed.overlayfs_enabled = json_bool_or(&root, "overlayfs_enabled", parsed.overlayfs_enabled);
+    parsed.magic_mount_enabled =
+        json_bool_or(&root, "magic_mount_enabled", parsed.magic_mount_enabled);
+    parsed.mount_backend = json_string_or(&root, "mount_backend", parsed.mount_backend);
+    parsed.partitions = json_string_array_or_empty(root.find("partitions"));
+    config = std::move(parsed);
 
     return true;
 }
 
 bool read_config_file(Config& config, std::string& error) {
+    errno = 0;
     const auto input = ksud::read_file(runtime_config_file().string());
     if (!input) {
-        error = "read config: " + std::string(std::strerror(errno));
+        error = "read config: " + std::string(std::strerror(errno ? errno : EIO));
         return false;
     }
-    return parse_config_json(*input, config, error);
+    if (!parse_config_json(*input, config, error))
+        return false;
+    logging::set_debug_enabled(config.debug || config.verbose);
+    return true;
 }
 
 bool merge_config_json(const std::string& updates, std::string& error) {
+    error.clear();
     JsonValue patch;
     if (!parse_json(updates, patch, error) || !patch.is_object()) {
         if (error.empty()) {
@@ -442,51 +532,201 @@ bool merge_config_json(const std::string& updates, std::string& error) {
         return false;
     }
 
+    errno = 0;
     const auto input = ksud::read_file(runtime_config_file().string());
     if (!input && errno != ENOENT) {
         error = "read config: " + std::string(std::strerror(errno));
         return false;
     }
-    JsonValue root;
-    if (!parse_json(input.value_or(default_config_json()), root, error) || !root.is_object()) {
-        if (error.empty()) {
-            error = "config root must be an object";
-        }
+    ConfigDocument document;
+    if (!parse_config_document(input.value_or(default_config_json()), document, error) ||
+        !config_document_is_writable(document, error)) {
         return false;
     }
-
-    prune_config_fields(root);
-    prune_config_fields(patch);
+    auto& root = document.fields;
     for (const auto& [key, value] : patch.o) {
         root.o[key] = value;
     }
     Config validated;
     if (!parse_config_json(stringify_json(root), validated, error))
         return false;
-    const bool saved = save_config(stringify_json(root, 2) + "\n", error);
+    const bool saved = save_config_document(document, input, error);
     if (saved)
         logging::set_debug_enabled(json_bool_or(&root, "debug", false) ||
                                    json_bool_or(&root, "verbose", false));
     return saved;
 }
 
+bool valid_config_revision(const std::string& revision) {
+    return revision.size() == 74 && revision.compare(0, 10, "sha256-v1:") == 0 &&
+           std::all_of(revision.begin() + 10, revision.end(), [](unsigned char c) {
+               return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+           });
+}
+
+bool parse_partition_config(const std::string& bytes, Config& config, std::string& error) {
+    JsonValue strict;
+    ConfigDocument document;
+    return bytes.size() <= checked::document_limit && inventory::valid_utf8(bytes) &&
+           json::Parser(bytes, true).parse(strict, error) &&
+           parse_config_document(bytes, document, error) &&
+           config_document_is_writable(document, error) && parse_config_json(bytes, config, error);
+}
+
+JsonValue save_partitions_conditional(const std::string& revision, const std::string& array_json) {
+    auto out = JsonValue::object();
+    out.o["schema_version"] = 1;
+    out.o["kind"] = "sumh.partitions.save";
+    out.o["read_only"] = false;
+    out.o["saved"] = false;
+    out.o["applied"] = false;
+    out.o["requires_reboot"] = true;
+    out.o["readback_confirmed"] = false;
+    out.o["durability_confirmed"] = false;
+    out.o["config_revision"] = JsonValue{};
+    out.o["previous_revision"] = JsonValue{};
+    out.o["saved_partitions"] = JsonValue::array();
+    const auto finish = [&](const char* status, const char* reason, const std::string& detail,
+                            int code) {
+        out.o["status"] = status;
+        out.o["reason"] = reason;
+        out.o["detail"] = json::parse(inventory::bytes_json(detail));
+        out.o["errno"] = code;
+        return out;
+    };
+    JsonValue names;
+    std::string error;
+    if (!valid_config_revision(revision) || array_json.size() > PARTITIONS_INPUT_BYTES ||
+        !inventory::valid_utf8(array_json) || !json::Parser(array_json, true).parse(names, error) ||
+        !names.is_array() || names.a.size() > PARTITIONS_MAX_NAMES)
+        return finish("rejected", "invalid_input", error, EINVAL);
+    auto patch = JsonValue::object();
+    patch.o["partitions"] = names;
+    if (!validate_config_patch(patch, error))
+        return finish("rejected", "invalid_partitions", error, EINVAL);
+    std::set<std::string> requested;
+    for (const auto& name : names.a)
+        if (!requested.insert(name.s).second)
+            return finish("rejected", "duplicate_partition", name.s, EINVAL);
+    ConfigFileLock lock;
+    if (!lock.acquire(error, true))
+        return finish("failed", "config_lock_unavailable", error, errno ? errno : EIO);
+    const auto original = checked::read_document(runtime_config_file());
+    if (original.status != "valid")
+        return finish("rejected", "config_unavailable", original.status, original.error);
+    const auto previous = state::revision_for_bytes(original.bytes);
+    out.o["previous_revision"] = previous.empty() ? JsonValue{} : JsonValue(previous);
+    if (previous.empty())
+        return finish("failed", "revision_unavailable", {}, EIO);
+    if (previous != revision)
+        return finish("conflict", "config_revision_changed", {}, ESTALE);
+    Config current;
+    ConfigDocument document;
+    if (!parse_partition_config(original.bytes, current, error) ||
+        !parse_config_document(original.bytes, document, error))
+        return finish("rejected", "config_not_writable", error, EINVAL);
+    const std::set<std::string> existing(current.partitions.begin(), current.partitions.end());
+    const bool additions = std::any_of(requested.begin(), requested.end(),
+                                       [&](const auto& name) { return !existing.count(name); });
+    if (additions) {
+        mount::PartitionDiscovery scan;
+        if (!mount::discover_extra_partitions(current.partitions, scan, error) || !scan.complete)
+            return finish("rejected", "discovery_incomplete", error, EIO);
+        std::set<std::string> eligible;
+        const auto* candidates = scan.output.find("candidates");
+        if (candidates && candidates->is_array())
+            for (const auto& candidate : candidates->a) {
+                const auto* name = candidate.find("name");
+                const auto* applicable = candidate.find("applicable");
+                if (name && name->is_string() && applicable && applicable->is_bool() &&
+                    applicable->b)
+                    eligible.insert(name->s);
+            }
+        for (const auto& name : requested)
+            if (!existing.count(name) && !eligible.count(name))
+                return finish("rejected", "partition_not_eligible", name, EINVAL);
+    }
+    // Recheck after potentially expensive discovery, including non-cooperating writers.
+    if (!(original == checked::read_document(runtime_config_file())))
+        return finish("conflict", "config_changed_during_preflight", {}, ESTALE);
+    const auto record_readback = [&](const checked::Document& readback) {
+        Config observed;
+        std::string read_error;
+        if (readback.status != "valid" ||
+            !parse_partition_config(readback.bytes, observed, read_error))
+            return false;
+        const auto hash = state::revision_for_bytes(readback.bytes);
+        if (hash.empty())
+            return false;
+        out.o["config_revision"] = hash;
+        auto parts = JsonValue::array();
+        for (const auto& name : observed.partitions)
+            parts.a.emplace_back(name);
+        out.o["saved_partitions"] = std::move(parts);
+        out.o["readback_confirmed"] = true;
+        return true;
+    };
+    std::vector<std::string> wanted;
+    for (const auto& name : names.a)
+        wanted.push_back(name.s);
+    if (current.partitions == wanted) {
+        if (!record_readback(original))
+            return finish("unknown", "unchanged_revision_unavailable", {}, EIO);
+        out.o["saved"] = true;
+        return finish("unchanged", "already_saved_no_write", {}, 0);
+    }
+    document.fields.o["partitions"] = names;
+    if (document.schema_version == 0) {
+        const auto backup = ksud::replace_file_durable(
+            runtime_config_file().string() + ".pre-schema-1.bak", original.bytes);
+        if (!backup.complete())
+            return finish("failed", "migration_backup_unconfirmed",
+                          "config unchanged; backup may exist", backup.error_number);
+    }
+    document.fields.o["schema_version"] = CONFIG_SCHEMA_VERSION;
+    const auto bytes = stringify_json(document.fields, 2) + "\n";
+    Config validated;
+    if (!parse_partition_config(bytes, validated, error))
+        return finish("rejected", "result_invalid", error, EINVAL);
+    if (!(original == checked::read_document(runtime_config_file())))
+        return finish("conflict", "config_changed_before_commit", {}, ESTALE);
+    const auto saved = ksud::replace_file_durable(runtime_config_file(), bytes);
+    out.o["durability_confirmed"] = saved.complete();
+    const auto readback = checked::read_document(runtime_config_file());
+    const bool observed = record_readback(readback);
+    if (!saved.replaced())
+        return finish("failed", "config_not_replaced",
+                      "do not automatically replay; inspect current configuration",
+                      saved.error_number);
+    if (!observed || readback.bytes != bytes)
+        return finish("unknown", "save_readback_not_matched",
+                      "query current configuration before another explicit save", EIO);
+    if (!saved.complete())
+        return finish("partial", "replaced_durability_unconfirmed",
+                      "new bytes observed; persistence across power loss unconfirmed",
+                      saved.error_number);
+    out.o["saved"] = true;
+    return finish("saved", "saved_only_reboot_required", {}, 0);
+}
+
 bool reset_kernel_build_config(std::string& error) {
     ConfigFileLock lock;
     if (!lock.acquire(error))
         return false;
+    errno = 0;
     const auto input = ksud::read_file(runtime_config_file().string());
     if (!input && errno != ENOENT) {
         error = "read config: " + std::string(std::strerror(errno));
         return false;
     }
-    JsonValue root;
-    if (!parse_json(input.value_or(default_config_json()), root, error) || !root.is_object()) {
-        if (error.empty())
-            error = "config root must be an object";
+    ConfigDocument document;
+    if (!parse_config_document(input.value_or(default_config_json()), document, error) ||
+        !config_document_is_writable(document, error)) {
         return false;
     }
-    // Keep unrelated settings and valid drafts, including unknown keys. Reset
-    // is also the recovery path for a manually edited invalid build setting.
+    auto& root = document.fields;
+    // Keep unrelated settings and valid drafts. Unknown fields/version block
+    // writes; reset only repairs known Kernel Build fields.
     const auto defaults = json::parse(default_config_json());
     for (const auto* key :
          {"kernel_build_release", "kernel_build_version", "kernel_build_apply_stage"}) {
@@ -499,7 +739,10 @@ bool reset_kernel_build_config(std::string& error) {
         }
     }
     root.o["enable_kernel_build_spoof"] = false;
-    return save_config(stringify_json(root, 2) + "\n", error);
+    Config validated;
+    if (!parse_config_json(stringify_json(root), validated, error))
+        return false;
+    return save_config_document(document, input, error);
 }
 
 }  // namespace sumhp

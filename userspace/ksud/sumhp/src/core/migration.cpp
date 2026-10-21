@@ -1,7 +1,9 @@
 #include "core/migration.hpp"
 
+#include "core/config_document.hpp"
 #include "core/json.hpp"
 #include "core/runtime.hpp"
+#include "core/user_hide_store.hpp"
 #include "utils.hpp"
 
 #include <cerrno>
@@ -32,6 +34,18 @@ bool migrate_work_path(JsonValue& value) {
 bool migrate_config_document(const std::string& name, JsonValue& root) {
     bool changed = false;
     if (name == "config.json") {
+        // Versioned documents already use the modern contract. In particular,
+        // never rewrite a future schema merely because it contains an old
+        // spelling: only its owning version can define migration semantics.
+        if (root.find("schema_version"))
+            return false;
+        // An unknown legacy field may carry values this parser cannot round
+        // trip. Preserve the original document for an explicit conversion.
+        ConfigDocument document;
+        document.fields = root;
+        std::string error;
+        if (!config_document_is_writable(document, error))
+            return false;
         if (auto it = root.o.find("mount_backend"); it != root.o.end())
             changed |= migrate_backend_value(it->second);
         for (const auto* key : {"work_dir", "mirror_dir"}) {
@@ -114,8 +128,10 @@ bool import_json_record(const std::filesystem::path& legacy_dir,
         return false;
     }
     JsonValue root;
+    hide::Document hide_document;
     if (!parse_json(*input, root, error) ||
-        (name == "user_hide_rules.json" ? !root.is_array() : !root.is_object())) {
+        (name == "user_hide_rules.json" ? !hide::parse_document(*input, hide_document, error)
+                                        : !root.is_object())) {
         if (target_exists) {
             // Leave damaged current settings to the existing read/repair paths.
             // Blocking startup here would also block `config init` recovery.
@@ -129,13 +145,11 @@ bool import_json_record(const std::filesystem::path& legacy_dir,
     const bool changed = migrate_config_document(name, root);
     if (!changed && target_exists)
         return true;
-    if (!ksud::write_file_atomic(target, changed ? stringify_json(root, 2) + "\n" : *input)) {
-        error = "write migration file " + target.string() + ": " + std::strerror(errno);
+    if (!ksud::write_file_durable(target, changed ? stringify_json(root, 2) + "\n" : *input,
+                                  error)) {
+        error = "write migration file: " + error;
         return false;
     }
-    // Persist the atomic writer's rename before removing the previous copy.
-    if (!sync_private_directory(data_dir, error))
-        return false;
     if (!target_exists) {
         std::error_code ec;
         std::filesystem::remove(source, ec);

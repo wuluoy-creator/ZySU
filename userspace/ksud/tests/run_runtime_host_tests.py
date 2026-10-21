@@ -33,6 +33,7 @@ def main():
     for name in ["bool copy_file_contents_impl(", "bool copy_file_data(",
                  "bool ensure_dir_exists(", "bool ensure_binary(",
                  "bool write_bytes_impl(", "bool write_file_bytes(", "bool write_file_atomic(",
+                 "DurableWriteResult replace_file_durable(", "bool write_file_durable(",
                  "ExecResult exec_command_magiskboot("]:
         begin = source.index(name)
         end = source.index("\n}", begin) + len("\n}")
@@ -48,6 +49,22 @@ def main():
             ], check=True)
             if not args.compile_only:
                 subprocess.run([str(portable)], check=True, timeout=30)
+        durable_functions = []
+        for name in ["bool write_file_atomic(", "DurableWriteResult replace_file_durable(",
+                     "bool write_file_durable("]:
+            begin = source.index(name)
+            end = source.index("\n}", begin) + len("\n}")
+            durable_functions.append(source[begin:end])
+        (build / "durable_file_under_test.inc").write_text("\n\n".join(durable_functions))
+        durable = build / ("durable_file_test.exe" if os.name == "nt" and not args.target
+                           else "durable_file_test")
+        subprocess.run([
+            *compiler, "-std=c++17", "-Wall", "-Wextra", "-Werror",
+            "-I" + str(ksud / "src"), "-I" + str(build),
+            str(ksud / "tests/durable_file_test.cpp"), "-o", str(durable),
+        ], check=True)
+        if not args.compile_only:
+            subprocess.run([str(durable)], check=True, timeout=30)
         if args.portable_only:
             return
         (build / "runtime_io_under_test.inc").write_text("\n\n".join(functions))

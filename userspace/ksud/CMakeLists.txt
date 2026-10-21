@@ -58,6 +58,7 @@ if(DEFINED KSUD_ENABLE_CLANG_TIDY AND
         CACHE BOOL "Run clang-tidy on ZySU first-party userspace sources")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/ClangTidy.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/NativeToolchainMetadata.cmake")
 
 # ============================================================================
 # Super Aggressive Size Optimization
@@ -76,7 +77,6 @@ set(_COMMON_COMPILE_FLAGS
     -fno-asynchronous-unwind-tables  # Remove async unwind tables (C++ exceptions still work)
     -fmerge-all-constants        # Merge identical constants across translation units
     -fno-ident                   # Don't embed compiler version string into .comment section
-    -fno-stack-protector         # Remove stack canary checks (unnecessary for root daemon)
     -faddrsig                    # Emit address-significance table for more precise ICF
     -fno-semantic-interposition  # Disable semantic interposition, allow more aggressive inlining
     -fno-math-errno              # Math functions don't set errno
@@ -99,12 +99,9 @@ if(KSUD_DISABLE_LTO)
     string(CONCAT _LINKER_FLAGS
         " -fuse-ld=lld"
         " -Wl,--gc-sections"
-        " -Wl,--strip-all"
         " -Wl,--exclude-libs,ALL"
         " -Wl,-O2"
         " -Wl,--hash-style=gnu"
-        " -Wl,--build-id=none"
-        " -Wl,-z,norelro"
     )
 else()
     string(CONCAT _LINKER_FLAGS
@@ -113,16 +110,14 @@ else()
         " -fwhole-program-vtables"    # Matches the per-target compile flag; enables LTO-time devirtualization
         " -Wl,--gc-sections"          # Garbage-collect unused sections
         " -Wl,--icf=all"              # Identical Code Folding: merge functions with identical bodies
-        " -Wl,--strip-all"            # Strip all symbols
         " -Wl,--exclude-libs,ALL"     # Don't export symbols from static libraries
         " -Wl,-O2"                    # Linker optimization level 2 (string table optimization etc.)
         " -Wl,--lto-O3"              # LTO at O3 level (compile with Oz, but LTO pass uses O3 for aggressive inlining/elimination)
         " -Wl,--hash-style=gnu"       # GNU hash is more compact than sysv
-        " -Wl,--build-id=none"        # Remove build-id note section
-        " -Wl,-z,norelro"             # Remove RELRO segment (root tool doesn't need this security feature)
     )
 endif()
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}${_LINKER_FLAGS}")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/NativeHardening.cmake")
 
 # --- Shrink miniz: disable unused features ---
 add_compile_definitions(
@@ -131,46 +126,33 @@ add_compile_definitions(
     MINIZ_NO_ARCHIVE_WRITING_APIS # Decompression only, disable write APIs
 )
 
-# Fetch third-party dependencies
-include(FetchContent)
+# Declare immutable dependencies before any embedded subproject can supply its
+# own fallback. Local offline overrides remain supported and are recorded as
+# overrides, not as archives verified by URL_HASH.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/NativeDependencies.cmake")
 
 # mbedTLS - SHA1/SHA256 + X.509/RSA/ECDSA (for MagiskbootAlone AVB and flash_partition SHA256)
 set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
 set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(DISABLE_PACKAGE_CONFIG_AND_INSTALL ON CACHE BOOL "" FORCE)
 set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)  # avoid -Werror vs -fno-semantic-interposition on Apple Clang
-FetchContent_Declare(
-    mbedtls
-    # The official release archive includes the framework submodule and generated files.
-    # GitHub's automatic source archives and a plain shallow clone do not.
-    URL https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.2/mbedtls-3.6.2.tar.bz2
-    URL_HASH SHA256=8b54fb9bcf4d5a7078028e0520acddefb7900b3e66fec7f7175bb5b7d85ccdca
-)
+# The locked official release archive includes the framework submodule and
+# generated files; automatic GitHub archives/plain clones do not.
 FetchContent_MakeAvailable(mbedtls)
 
 # miniz - Lightweight ZIP library
-FetchContent_Declare(
-    miniz
-    GIT_REPOSITORY https://github.com/richgel999/miniz.git
-    GIT_TAG 3.0.2
-    GIT_SHALLOW TRUE
-)
 FetchContent_MakeAvailable(miniz)
 
 # LZ4 - prefer Magisk vendored inside MagiskbootAlone submodule (same ABI as Magisk magiskboot)
 set(LZ4_IN_MAGISKBOOT_ALONE ${CMAKE_SOURCE_DIR}/third_party/MagiskbootAlone/external/lz4)
 if(EXISTS ${LZ4_IN_MAGISKBOOT_ALONE}/lz4.c)
     set(LZ4_LIB_DIR ${LZ4_IN_MAGISKBOOT_ALONE})
+    set(ZYSU_LZ4_RESOLUTION vendored)
     message(STATUS "Using vendored LZ4 (MagiskbootAlone/external/lz4) for magiskboot: ${LZ4_LIB_DIR}")
 else()
-    FetchContent_Declare(
-        lz4
-        GIT_REPOSITORY https://github.com/lz4/lz4.git
-        GIT_TAG v1.10.0
-        GIT_SHALLOW TRUE
-    )
     FetchContent_MakeAvailable(lz4)
     set(LZ4_LIB_DIR ${lz4_SOURCE_DIR}/lib)
+    set(ZYSU_LZ4_RESOLUTION fetchcontent)
 endif()
 
 # Generated sources / embedded assets
@@ -492,35 +474,14 @@ target_link_libraries(ksud PRIVATE z miniz mbedx509 mbedcrypto dl m)
 # Post-build Size Compression
 # ============================================================================
 
-# llvm-strip: more precise than --strip-all, removes .comment / .note misc sections
-find_program(LLVM_STRIP llvm-strip)
-if(LLVM_STRIP)
-    add_custom_command(TARGET ksud POST_BUILD
-        COMMAND ${LLVM_STRIP}
-            --strip-all                  # Remove all symbols
-            --remove-section=.comment    # Remove compiler version info
-            --remove-section=.note       # Remove note section
-            --remove-section=.note.android.ident
-            --remove-section=.note.gnu.build-id
-            $<TARGET_FILE:ksud>
-        COMMENT "llvm-strip: removing all debug info & note sections..."
-    )
-endif()
+# Preserve build identity and diagnostic symbols before stripping the executable.
+zysu_finalize_native(ksud dynamic)
 
-# Optional: UPX binary compression (runtime self-extracting, typically 50-70% further reduction)
-# Pass -DKSUD_UPX=ON to enable; off by default as some environments don't support UPX
+# Keep the old cache option to diagnose unsupported packed builds explicitly.
+# Packing changes the inspected load layout and breaks the symbol/address match.
 option(KSUD_UPX "Use UPX to compress ksud binary" OFF)
 if(KSUD_UPX)
-    find_program(UPX_PROGRAM upx)
-    if(UPX_PROGRAM)
-        add_custom_command(TARGET ksud POST_BUILD
-            COMMAND ${UPX_PROGRAM} --best --lzma $<TARGET_FILE:ksud>
-            COMMENT "UPX: compressing ksud with LZMA (--best)..."
-        )
-        message(STATUS "UPX compression ENABLED (--best --lzma)")
-    else()
-        message(WARNING "KSUD_UPX=ON but upx not found in PATH; skipping UPX compression")
-    endif()
+    message(FATAL_ERROR "KSUD_UPX is incompatible with the verified ELF/symbol artifacts; configure with KSUD_UPX=OFF")
 endif()
 
 # Report the final artifact. `ls` is not guaranteed to exist for a native
@@ -540,3 +501,8 @@ endif()
 
 # Install
 install(TARGETS ksud DESTINATION bin)
+
+# Written only after all relevant subprojects resolve their inputs. Provenance
+# tooling hashes these actual source trees before and after the native build.
+zysu_record_native_dependencies("${ZYSU_LZ4_RESOLUTION}" "${LZ4_LIB_DIR}")
+zysu_record_native_toolchain(ksud)

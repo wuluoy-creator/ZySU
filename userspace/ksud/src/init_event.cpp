@@ -227,6 +227,11 @@ int on_post_fs_data() {
         LOGW("refresh vnode-backed su after final mounts failed");
     }
 
+    // Arm per-app unmounting only after the mount stage and post-mount scripts
+    // have settled. A failed mount stage can still leave mounts to detach, so
+    // this notification must not depend on the mount controller's exit status.
+    report_module_mounted();
+
     // Finish property changes before init continues to framework startup.
     // Run after module props and scripts so they cannot undo this initial pass.
     hide_bootloader_status();

@@ -75,6 +75,9 @@ extern int sumh_mount_hide_mountinfo_registered;
 extern int sumh_proc_proxy_registered;
 extern int sumh_feature_enabled_mask;
 extern int sumh_mount_hide_mode;
+/* Lifecycle write lock at init; mutation mutex at shutdown. GET never init. */
+void sumh_runtime_state_init(void);
+void sumh_runtime_state_shutdown(void);
 extern int sumh_fscap_kretprobe_registered;
 extern int sumh_fscaps_enabled;
 extern int sumh_device_sources_enabled;
@@ -128,11 +131,15 @@ extern void *sumh_mnt_drop_write_addr;
  * leading idmap/user_namespace argument varies by version exactly like
  * notify_change; vfs_link takes the idmap as its SECOND argument.  Any may be
  * NULL (resolved quietly) — the vnode op returns -EOPNOTSUPP then.
- * lookup_one_len manufactures the source-side child dentry (caller holds the
- * source dir i_rwsem); its signature is stable across all supported KMIs.
+ * sumh_lookup_one_len manufactures the source-side child dentry (caller holds
+ * the source dir i_rwsem). Its internal signature is stable; on 6.16+ a typed
+ * lookup_one adapter preserves the legacy identity-idmap permission checks.
+ * Missing exact helper dependencies leave this capability NULL.
  */
 extern struct dentry *(*sumh_lookup_one_len)(const char *, struct dentry *,
 					     int);
+/* Startup only, before views become callable; not a live refresh API. */
+void sumh_resolve_lookup_helpers(void);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
 extern int (*sumh_vfs_create)(struct mnt_idmap *, struct inode *,
 			      struct dentry *, umode_t, bool);

@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as Controller
+import com.zying.zysu.ui.sumh.util.SUMHControlState
 import com.zying.zysu.ui.util.rememberSnackbarController
 import com.zying.zysu.ui.util.LocalSnackbarHost
 import kotlinx.coroutines.CancellationException
@@ -74,10 +75,9 @@ fun SUMHWorkspace(
     var rulesIncomplete by remember { mutableStateOf(false) }
     var system by remember { mutableStateOf(Controller.SystemInfo("", "", emptyList(), emptyList(), false, null)) }
     var features by remember { mutableStateOf<Controller.FeaturesResult?>(null) }
+    var controlState by remember { mutableStateOf(SUMHControlState()) }
     var rulesRefreshing by remember { mutableStateOf(false) }
     var showKernelLog by rememberSaveable { mutableStateOf(false) }
-    var logContent by remember { mutableStateOf("") }
-    var logLoading by remember { mutableStateOf(false) }
     var logClearing by remember { mutableStateOf(false) }
     var logRefresh by remember { mutableIntStateOf(0) }
     var resumeRefresh by remember { mutableIntStateOf(0) }
@@ -102,6 +102,7 @@ fun SUMHWorkspace(
         rules = loaded.rules
         rulesIncomplete = loaded.rulesIncomplete
         features = loaded.features
+        controlState = loaded.controlState.retaining(controlState)
         dataReady = true
         loadError = null
     }
@@ -114,6 +115,7 @@ fun SUMHWorkspace(
         resources.getString(R.string.sumh_toast_load_error, error.message ?: "unknown").also {
             // Keep the previous snapshot visible, but prevent edits based on stale data.
             loadError = it
+            controlState = controlState.stale(it)
         }
     }
 
@@ -227,6 +229,7 @@ fun SUMHWorkspace(
                         successMessage
                     } else failureMessage
                 } finally {
+                    reload()
                     configSaving = false
                 }
             }
@@ -235,18 +238,8 @@ fun SUMHWorkspace(
     }
 
     LaunchedEffect(refreshKey, section, resumeRefresh, userRulesRefresh) { loadData() }
-    LaunchedEffect(section, showKernelLog, logRefresh) {
-        if (section != SUMHSection.Logs) return@LaunchedEffect
-        logLoading = true
-        logContent = ""
-        try {
-            logContent = if (showKernelLog) Controller.readKernelLog() else Controller.readLog()
-        } catch (error: Exception) {
-            if (error is CancellationException) throw error
-            snackbar.showSnackbar(error.message ?: resources.getString(R.string.operation_failed))
-        } finally {
-            logLoading = false
-        }
+    val logs = rememberSUMHLogRead(section == SUMHSection.Logs, showKernelLog, logRefresh) { kernel ->
+        if (kernel) Controller.readKernelLog() else Controller.readLog()
     }
 
     Box(if (inlineContent) Modifier.fillMaxWidth() else Modifier.fillMaxSize()) {
@@ -268,7 +261,7 @@ fun SUMHWorkspace(
                     }
                 }
             }
-            if (isLoading || saving || rulesRefreshing || logLoading || logClearing) {
+            if (isLoading || saving || rulesRefreshing || (section == SUMHSection.Logs && logs.loading) || logClearing) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             Box(if (inlineContent) Modifier.fillMaxWidth() else Modifier.weight(1f).fillMaxWidth()) {
@@ -289,15 +282,29 @@ fun SUMHWorkspace(
                             refreshEnabled = !isLoading && !saving,
                             loading = isLoading,
                             loadError = loadError,
+                            controlState = controlState,
+                            config = config,
                         )
                         SUMHSection.Mount, SUMHSection.Isolation, SUMHSection.Debug -> SettingsTab(
                             config = config,
                             sumhStatus = status,
                             features = features,
                             controlsEnabled = dataReady && loadError == null && !saving && !isLoading,
-                            runtimeApplyPending = runtimeApplyPending,
+                            runtimeApplyPending = controlState.applyAdvice() == SUMHApplyAdvice.Drift ||
+                                controlState.applyAdvice() == SUMHApplyAdvice.Legacy && runtimeApplyPending,
                             onRetryApply = ::retryApply,
                             onConfigChanged = ::saveConfig,
+                            controlState = controlState,
+                            legacyApplyPending = runtimeApplyPending,
+                            onRefreshState = ::loadData,
+                            onPartitionsSaving = { configSaving = it },
+                            onPartitionsSaved = { names ->
+                                config = config.copy(partitions = names,
+                                    original = org.json.JSONObject(config.original.toString()).put("partitions", org.json.JSONArray(names)))
+                                // Save receipt confirms only persistent configuration. A later
+                                // explicit refresh establishes the remaining controller state.
+                                controlState = controlState.stale(resources.getString(R.string.sumh_partitions_saved))
+                            },
                             onClearMapRules = {
                                 mutateMapRules(R.string.sumh_maps_cleared, R.string.sumh_maps_clear_failed, clearing = true) {
                                     Controller.clearMapsRules()
@@ -331,7 +338,9 @@ fun SUMHWorkspace(
                         SUMHSection.Logs -> LogsTab(
                             showKernelLog = showKernelLog,
                             onToggleLogType = { showKernelLog = !showKernelLog },
-                            logContent = logContent,
+                            logContent = logs.content,
+                            loading = logs.loading,
+                            readError = logs.error,
                             onRefreshLog = { logRefresh++ },
                             onClearLog = {
                                 if (!logClearing && !showKernelLog) {

@@ -1,9 +1,16 @@
 // Exercise complete production path resolution without requiring a real
-// Android mount namespace. A failed batch must never reach the replace call.
+// Android mount namespace. Invalid batches never replace; lost acknowledgements
+// after a committed replacement must propagate an unknown outcome.
 #include "core/json.hpp"
+#include "mount/feature_result.hpp"
+#include "mount/maps_history.hpp"
+#include "mount/maps_snapshot.hpp"
+#include "mount/runtime_apply.hpp"
 #include "sumhp/config.hpp"
 #include "sumhp/sumh_client.hpp"
 #include "uapi/sumh.h"
+#define SUMH_NAMESPACE_MODELED_CHILD
+#include "sumh_namespace_test_support.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -33,8 +40,12 @@ struct stat {
 };
 namespace {
 std::map<std::string, struct stat> files;
-bool namespace_ok = true;
 bool replace_ok = true;
+bool receipt_ok = true;
+bool switch_ok = true;
+bool automatic_allowed = true;
+sumhp::RestoreTrigger recorded_trigger = sumhp::RestoreTrigger::Automatic;
+int switch_calls = 0;
 int replace_calls = 0;
 int stat_calls = 0;
 sumhp::sumh::FeatureCapabilities caps{true, 0, SUMH_FEATURE_MANAGED_MAPS};
@@ -67,6 +78,14 @@ namespace sumhp {
 #include "sumh_maps_validate_under_test.inc"
 }  // namespace sumhp
 namespace sumhp::sumh {
+bool runtime_state(RuntimeState&) {
+    assert(false && "legacy fixture must not use runtime getter");
+    return false;
+}
+bool set_runtime_feature(const RuntimeState&, RuntimeFeature, bool, std::uint32_t) {
+    assert(false && "legacy fixture must not use conditional setter");
+    return false;
+}
 FeatureCapabilities feature_capabilities() {
     return caps;
 }
@@ -79,14 +98,59 @@ bool replace_managed_maps_rules(const std::vector<MapsRule>& rules) {
     installed = rules;
     return true;
 }
+bool set_maps_spoof(bool) {
+    ++switch_calls;
+    if (!switch_ok)
+        errno = EIO;
+    return switch_ok;
+}
 }  // namespace sumhp::sumh
 namespace sumhp::mount::sumh {
-namespace fsutil {
-template <typename Callback>
-bool run_in_init_mount_ns(Callback callback, std::string&) {
-    return namespace_ok && callback();
+namespace fsutil = namespace_fixture;
+MapsSubmissionTracker::MapsSubmissionTracker() {
+    shared_ = new unsigned(0);
 }
-}  // namespace fsutil
+MapsSubmissionTracker::~MapsSubmissionTracker() {
+    delete const_cast<unsigned*>(shared_);
+}
+bool MapsSubmissionTracker::valid() const {
+    return true;
+}
+void MapsSubmissionTracker::mark(ManagedMapsRestoreState value) {
+    *shared_ = static_cast<unsigned>(value);
+}
+ManagedMapsRestoreState MapsSubmissionTracker::state() const {
+    return static_cast<ManagedMapsRestoreState>(*shared_);
+}
+bool replace_managed_maps_recorded(const std::vector<MapsPathRule>& paths,
+                                   const std::vector<::sumhp::sumh::MapsRule>& identities,
+                                   MapsSubmissionTracker& tracker, std::string& error,
+                                   RestoreTrigger trigger) {
+    recorded_trigger = trigger;
+    assert(paths.size() == identities.size());
+    if (!::sumhp::sumh::replace_managed_maps_rules(identities))
+        return false;
+    tracker.mark(ManagedMapsRestoreState::Replaced);
+    if (!receipt_ok) {
+        error = "partial: injected Maps receipt failure";
+        errno = EIO;
+        return false;
+    }
+    return true;
+}
+bool maps_automatic_restore_allowed(std::string& error) {
+    if (!automatic_allowed) {
+        error = "pending submission";
+        errno = EBUSY;
+    }
+    return automatic_allowed;
+}
+bool restore_managed_maps_rules(const Config&, std::string&, ManagedMapsRestoreState* = nullptr,
+                                RestoreTrigger = RestoreTrigger::Automatic);
+bool apply_maps_config(const Config&, std::string&, bool, FeatureApplyOutcome*,
+                       RestoreTrigger = RestoreTrigger::Automatic);
+#include "sumh_maps_apply_under_test.inc"
+#include "sumh_maps_identity_under_test.inc"
 #include "sumh_maps_restore_under_test.inc"
 }  // namespace sumhp::mount::sumh
 
@@ -117,11 +181,11 @@ int main() {
     assert(!restore_managed_maps_rules(config, error));
     assert(errno == EEXIST && replace_calls == 0);
     files["/late"] = {1, 789, host_dev(8, 1)};
-    namespace_ok = false;
+    namespace_fixture::switch_ok = false;
     error.clear();
     assert(!restore_managed_maps_rules(config, error));
     assert(!error.empty() && replace_calls == 0);
-    namespace_ok = true;
+    namespace_fixture::switch_ok = true;
     replace_ok = false;
     assert(!restore_managed_maps_rules(config, error));
     assert(errno == EIO && replace_calls == 1 && installed[0].target_ino == 99);
@@ -140,5 +204,76 @@ int main() {
     config.maps_rules.clear();
     assert(restore_managed_maps_rules(config, error));
     assert(replace_calls == 4 && installed.empty());
+
+    // A completed callback that fails AFTER replacement is partial, not unchanged.
+    receipt_ok = false;
+    sumhp::mount::sumh::ManagedMapsRestoreState submitted;
+    assert(!restore_managed_maps_rules(config, error, &submitted));
+    assert(submitted == sumhp::mount::sumh::ManagedMapsRestoreState::Replaced);
+    receipt_ok = true;
+
+    // Cross the real production restore + namespace reply + Maps orchestrator.
+    // The replace callback succeeds before reply/write/read/completion is lost.
+    using namespace sumhp::mount::sumh;
+    caps = {true, 0, SUMH_FEATURE_MANAGED_MAPS | SUMH_FEATURE_MAPS_SPOOF};
+    config.enable_maps_spoof = true;
+    config.maps_rules = {{"/target", "/replacement"}};
+    files["/target"] = {1, 123, host_dev(8, 1)};
+    FeatureApplyOutcome outcome;
+    // A same-boot pending receipt blocks automatic switch and clear, too.
+    automatic_allowed = false;
+    for (bool enabled : {true, false}) {
+        config.enable_maps_spoof = enabled;
+        const int replacements_before = replace_calls, switches_before = switch_calls;
+        assert(!apply_maps_config(config, error, true, &outcome));
+        assert(outcome.state == FeatureApplyState::Failed && errno == EBUSY);
+        assert(replace_calls == replacements_before && switch_calls == switches_before);
+    }
+    config.enable_maps_spoof = true;
+    assert(apply_maps_config(config, error, true, &outcome, sumhp::RestoreTrigger::UserRequested));
+    assert(recorded_trigger == sumhp::RestoreTrigger::UserRequested);
+    automatic_allowed = true;
+    for (bool* fault :
+         {&namespace_fixture::drop_reply, &namespace_fixture::truncate_reply,
+          &namespace_fixture::failed_read, &namespace_fixture::lost_child_completion}) {
+        installed = {{99, 1, 88, 2, "/keep"}};
+        const int replacements = replace_calls;
+        const int switches = switch_calls;
+        *fault = true;
+        assert(!apply_maps_config(config, error, true, &outcome));
+        assert(installed.size() == 1 && installed[0].target_ino == 123);
+        assert(replace_calls == replacements + 1 && switch_calls == switches);
+        assert(outcome.state == FeatureApplyState::Unknown);
+        assert(error.find("may have committed") != std::string::npos);
+        *fault = false;
+    }
+    // A complete negative reply remains a confirmed pre-commit rejection.
+    const int replacements = replace_calls;
+    const int switches = switch_calls;
+    files.erase("/target");
+    assert(!apply_maps_config(config, error, true, &outcome));
+    assert(outcome.state == FeatureApplyState::Failed && errno == ENOENT);
+    assert(replace_calls == replacements && switch_calls == switches);
+    files["/target"] = {1, 123, host_dev(8, 1)};
+    replace_ok = false;
+    assert(!apply_maps_config(config, error, true, &outcome));
+    assert(outcome.state == FeatureApplyState::Failed && errno == EIO);
+    assert(replace_calls == replacements + 1 && switch_calls == switches);
+    replace_ok = true;
+    namespace_fixture::pipe_ok = false;
+    assert(!apply_maps_config(config, error, true, &outcome));
+    assert(outcome.state == FeatureApplyState::Failed && errno == EMFILE);
+    assert(replace_calls == replacements + 1 && switch_calls == switches);
+    namespace_fixture::pipe_ok = true;
+
+    // On legacy kernels an empty saved list is accepted without replacement.
+    // A switch error must not claim that any managed collection was committed.
+    caps.bitmask = SUMH_FEATURE_MAPS_SPOOF;
+    config.maps_rules.clear();
+    switch_ok = false;
+    assert(!apply_maps_config(config, error, true, &outcome));
+    assert(outcome.state == FeatureApplyState::Unknown);
+    assert(error.find("managed rules replaced") == std::string::npos);
+    assert(replace_calls == replacements + 1 && switch_calls == switches + 1);
     std::cout << "sumh_maps_restore_test: all checks passed\n";
 }

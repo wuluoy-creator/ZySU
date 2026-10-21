@@ -1,6 +1,7 @@
 #include "sumh_fake_mountinfo.h"
 #include "sumh_entrypoints.h"
 #include "sumh_path_policy.h"
+#include "sumh_proc_memory.h"
 #include "sumh_runtime.h"
 #ifdef SUMH_EMBEDDED
 #include "infra/mount_policy.h"
@@ -8,6 +9,7 @@
 
 #include <linux/mnt_namespace.h>
 #include <linux/nsproxy.h>
+#include <linux/overflow.h>
 #include <linux/pid.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
@@ -75,13 +77,37 @@ static SUMH_NOCFI int sumh_mi_show_mounts(struct seq_file *seq,
 #define SUMH_MI_MAX_SIZE (1024 * 1024)
 
 static DEFINE_MUTEX(sumh_mi_snapshot_lock);
+
+static char *sumh_mi_alloc_buffer(size_t capacity)
+{
+	char *buffer;
+
+	if (!sumh_proc_memory_reserve(SUMH_PROC_MEMORY_SNAPSHOT, capacity))
+		return NULL;
+	buffer = kvmalloc(capacity, GFP_KERNEL);
+	if (!buffer) {
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_SNAPSHOT);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_SNAPSHOT, capacity);
+	}
+	return buffer;
+}
+
+static void sumh_mi_free_buffer(char *buffer, size_t capacity)
+{
+	if (!buffer)
+		return;
+	kvfree(buffer);
+	sumh_proc_memory_release(SUMH_PROC_MEMORY_SNAPSHOT, capacity);
+}
+
 void sumh_fake_mi_put_snapshot(struct sumh_mi_snapshot *snapshot)
 {
 	if (!snapshot || !refcount_dec_and_test(&snapshot->refs))
 		return;
-	kvfree(snapshot->data);
-	kvfree(snapshot->mounts);
+	sumh_mi_free_buffer(snapshot->data, snapshot->data_capacity);
+	sumh_mi_free_buffer(snapshot->mounts, snapshot->mounts_capacity);
 	kfree(snapshot);
+	sumh_proc_memory_release(SUMH_PROC_MEMORY_SNAPSHOT, sizeof(*snapshot));
 }
 
 static SUMH_NOCFI int sumh_mi_read_snapshot(struct file *file,
@@ -102,12 +128,12 @@ static SUMH_NOCFI int sumh_mi_read_snapshot(struct file *file,
 		if ((*length) == *capacity && *capacity < SUMH_MI_MAX_SIZE) {
 			size_t size =
 			    min_t(size_t, *capacity * 2, SUMH_MI_MAX_SIZE);
-			char *data = kvmalloc(size, GFP_KERNEL);
+			char *data = sumh_mi_alloc_buffer(size);
 
 			if (!data)
 				return -ENOMEM;
 			memcpy(data, (*buffer), (*length));
-			kvfree((*buffer));
+			sumh_mi_free_buffer(*buffer, *capacity);
 			(*buffer) = data;
 			*capacity = size;
 		}
@@ -228,14 +254,32 @@ int sumh_mi_normalize_groups(char *data, size_t *len)
 	struct sumh_mi_prop_ref *refs = NULL;
 	u32 *ids = NULL;
 	size_t count = 0, unique = 0, i, input = 0, output = 0;
+	size_t refs_bytes, ids_bytes;
 	int ret;
 
 	ret = sumh_mi_collect_props(data, *len, NULL, &count);
 	if (ret || !count)
 		return ret;
+	if (check_mul_overflow(count, sizeof(*refs), &refs_bytes) ||
+	    check_mul_overflow(count, sizeof(*ids), &ids_bytes))
+		return -EOVERFLOW;
+	if (!sumh_proc_memory_reserve(SUMH_PROC_MEMORY_WORKSPACE, refs_bytes))
+		return -ENOMEM;
 	refs = kvmalloc_array(count, sizeof(*refs), GFP_KERNEL);
+	if (!refs) {
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_WORKSPACE);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_WORKSPACE,
+					 refs_bytes);
+		return -ENOMEM;
+	}
+	if (!sumh_proc_memory_reserve(SUMH_PROC_MEMORY_WORKSPACE, ids_bytes)) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	ids = kvmalloc_array(count, sizeof(*ids), GFP_KERNEL);
-	if (!refs || !ids) {
+	if (!ids) {
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_WORKSPACE);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_WORKSPACE, ids_bytes);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -280,8 +324,12 @@ int sumh_mi_normalize_groups(char *data, size_t *len)
 	memmove(data + output, data + input, *len - input);
 	*len = output + *len - input;
 out:
-	kvfree(ids);
+	if (ids) {
+		kvfree(ids);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_WORKSPACE, ids_bytes);
+	}
 	kvfree(refs);
+	sumh_proc_memory_release(SUMH_PROC_MEMORY_WORKSPACE, refs_bytes);
 	return ret;
 }
 
@@ -494,6 +542,7 @@ static int sumh_mi_filter_native(struct sumh_mi_snapshot *snapshot)
 {
 	struct sumh_mi_row *rows, *row;
 	size_t count = 0, mi = 0, mo = 0, mi_out = 0, mo_out = 0, i;
+	size_t rows_bytes;
 	int ret = -EINVAL;
 
 	if (!sumh_mi_pair_matches(snapshot))
@@ -503,9 +552,17 @@ static int sumh_mi_filter_native(struct sumh_mi_snapshot *snapshot)
 		    sumh_mi_line_size(snapshot->data + mi, snapshot->len - mi);
 		count++;
 	}
-	rows = kvcalloc(count, sizeof(*rows), GFP_KERNEL);
-	if (!rows)
+	if (check_mul_overflow(count, sizeof(*rows), &rows_bytes))
+		return -EOVERFLOW;
+	if (!sumh_proc_memory_reserve(SUMH_PROC_MEMORY_WORKSPACE, rows_bytes))
 		return -ENOMEM;
+	rows = kvcalloc(count, sizeof(*rows), GFP_KERNEL);
+	if (!rows) {
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_WORKSPACE);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_WORKSPACE,
+					 rows_bytes);
+		return -ENOMEM;
+	}
 	for (i = 0, mi = 0; i < count; i++) {
 		const char *line = snapshot->data + mi;
 		size_t size = sumh_mi_line_size(line, snapshot->len - mi);
@@ -572,6 +629,7 @@ static int sumh_mi_filter_native(struct sumh_mi_snapshot *snapshot)
 	}
 out:
 	kvfree(rows);
+	sumh_proc_memory_release(SUMH_PROC_MEMORY_WORKSPACE, rows_bytes);
 	return ret;
 }
 
@@ -599,8 +657,6 @@ int SUMH_NOCFI sumh_fake_mi_get_snapshot(struct file *file,
 	struct seq_file *seq = file->private_data;
 	struct sumh_proc_mounts_prefix *pm = NULL;
 	sumh_mi_show_fn original_show = NULL;
-	size_t mi_capacity = SUMH_MI_INITIAL_SIZE;
-	size_t mo_capacity = SUMH_MI_INITIAL_SIZE;
 	int attempt, ret = 0;
 
 	*out = NULL;
@@ -615,18 +671,32 @@ int SUMH_NOCFI sumh_fake_mi_get_snapshot(struct file *file,
 		goto unlock;
 	}
 	original_show = READ_ONCE(pm->show);
+	if (!sumh_proc_memory_reserve(SUMH_PROC_MEMORY_SNAPSHOT,
+				      sizeof(*snapshot))) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
 	snapshot = kzalloc(sizeof(*snapshot), GFP_KERNEL);
 	if (!snapshot) {
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_SNAPSHOT);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_SNAPSHOT,
+					 sizeof(*snapshot));
 		ret = -ENOMEM;
 		goto unlock;
 	}
 	refcount_set(&snapshot->refs, 1);
-	snapshot->data = kvmalloc(mi_capacity, GFP_KERNEL);
-	snapshot->mounts = kvmalloc(mo_capacity, GFP_KERNEL);
-	if (!snapshot->data || !snapshot->mounts) {
+	snapshot->data = sumh_mi_alloc_buffer(SUMH_MI_INITIAL_SIZE);
+	if (!snapshot->data) {
 		ret = -ENOMEM;
 		goto unlock;
 	}
+	snapshot->data_capacity = SUMH_MI_INITIAL_SIZE;
+	snapshot->mounts = sumh_mi_alloc_buffer(SUMH_MI_INITIAL_SIZE);
+	if (!snapshot->mounts) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+	snapshot->mounts_capacity = SUMH_MI_INITIAL_SIZE;
 	for (attempt = 0; attempt < 3; attempt++) {
 		unsigned long event;
 #ifdef SUMH_EMBEDDED
@@ -641,12 +711,12 @@ int SUMH_NOCFI sumh_fake_mi_get_snapshot(struct file *file,
 		event = READ_ONCE(seq->poll_event);
 		ret = sumh_mi_render(file, ops, sumh_mi_show_mountinfo,
 				     &snapshot->data, &snapshot->len,
-				     &mi_capacity);
+				     &snapshot->data_capacity);
 		if (ret)
 			goto unlock;
 		ret = sumh_mi_render(file, ops, sumh_mi_show_mounts,
 				     &snapshot->mounts, &snapshot->mounts_len,
-				     &mo_capacity);
+				     &snapshot->mounts_capacity);
 		if (ret)
 			goto unlock;
 		if (ops->poll)

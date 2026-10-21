@@ -27,7 +27,7 @@ jobs:
     env:
       BUILD_TARGET: ${{ inputs.target }}
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up native build cache
       uses: ./.github/actions/setup-native-build
@@ -50,6 +50,7 @@ jobs:
 
     - name: Build ksuinit
       run: |
+        set -euo pipefail
         cd userspace/ksuinit
         mkdir -p build && cd build
         
@@ -71,12 +72,32 @@ jobs:
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DCMAKE_BUILD_TYPE=Release \
           -DZYSU_ENABLE_CLANG_TIDY=OFF
+
+        python3 "$GITHUB_WORKSPACE/scripts/ci/native_provenance.py" snapshot \
+          --repo "$GITHUB_WORKSPACE" --target ksuinit --build-dir "$PWD" \
+          --out "$GITHUB_WORKSPACE/out/native-provenance/ksuinit" \
+          --artifact "ksuinit=$PWD/ksuinit" \
+          --artifact "ksuinit.unstripped=$PWD/symbols/ksuinit.unstripped"
         
         cmake --build . --target ksuinit --parallel "$(nproc)"
         
         # Show binary info
         ls -lh ksuinit
         file ksuinit
+
+    - name: Verify native hardening rejection cases
+      run: |
+        python3 scripts/ci/test_native_hardening.py \
+          --build-dir userspace/ksuinit/build --target ksuinit --linkage static \
+          --readelf "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+
+    - name: Finalize and verify native provenance
+      run: |
+        set -euo pipefail
+        python3 scripts/ci/native_provenance.py finalize \
+          --snapshot out/native-provenance/ksuinit/source-snapshot.json
+        python3 scripts/ci/native_provenance.py verify \
+          --manifest out/native-provenance/ksuinit/build-manifest.json
 
     - name: Sign ksuinit when a GPG key is configured
       if: ${{ github.event_name != 'pull_request' }}
@@ -103,10 +124,24 @@ jobs:
       run: ccache --show-stats
 
     - name: Upload ksuinit artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: ksuinit-${{ inputs.target }}
         path: |
           userspace/ksuinit/build/ksuinit
           userspace/ksuinit/build/ksuinit.sig
+        if-no-files-found: error
+
+    - name: Upload matching ksuinit diagnostic symbols
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      with:
+        name: ksuinit-symbols-${{ inputs.target }}
+        path: userspace/ksuinit/build/symbols/ksuinit.unstripped
+        if-no-files-found: error
+
+    - name: Upload ksuinit provenance and native license evidence
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      with:
+        name: ksuinit-provenance-${{ inputs.target }}
+        path: out/native-provenance/ksuinit/
         if-no-files-found: error

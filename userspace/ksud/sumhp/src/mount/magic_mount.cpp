@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <climits>
@@ -730,75 +731,516 @@ bool is_active(const Config& config) {
     return !active_mounts(config).empty();
 }
 
-bool normalize_module(const std::string& module_path) {
-    struct stat st{};
-    if (lstat(module_path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode))
-        return false;
-    struct Change {
-        std::string top, sys;
-        bool move;
-    };
-    std::vector<Change> changes;
-    std::error_code ec;
-    const auto inspect = [](const std::string& path, struct stat& value) {
-        if (lstat(path.c_str(), &value) == 0)
-            return 1;
-        return errno == ENOENT ? 0 : -1;
-    };
-    const std::string system = module_path + "/system";
-    const int system_exists = inspect(system, st);
-    if (system_exists < 0 || (system_exists && !S_ISDIR(st.st_mode)))
-        return false;
-    for (const auto* part : {"vendor", "system_ext", "product", "odm", "oem"}) {
-        if (!(fs::is_directory(std::string("/") + part, ec) &&
-              fs::is_symlink(std::string("/system/") + part, ec)))
-            continue;
-        const std::string top = module_path + "/" + part;
-        const std::string sys = system + "/" + part;
-        struct stat top_stat{};
-        struct stat sys_stat{};
-        const int has_top = inspect(top, top_stat);
-        const int has_sys = inspect(sys, sys_stat);
-        if (has_top < 0 || has_sys < 0)
-            return false;
-        if (has_top && S_ISLNK(top_stat.st_mode)) {
-            const auto resolved_top = fs::weakly_canonical(top, ec);
-            if (ec)
-                return false;
-            const auto resolved_sys = fs::weakly_canonical(sys, ec);
-            if (ec || resolved_top != resolved_sys)
-                return false;
-            continue;
-        }
-        if ((has_top && !S_ISDIR(top_stat.st_mode)) || (has_sys && !S_ISDIR(sys_stat.st_mode)) ||
-            (has_top && has_sys)) {
-            mlog(std::string("normalize: conflicting partition entries: ")
-                     .append(top)
-                     .append(" and ")
-                     .append(sys),
-                 logging::Level::Error);
-            return false;
-        }
-        if (has_top || has_sys)
-            changes.push_back({top, sys, has_top != 0});
+namespace {
+const std::vector<std::string>& normalization_partitions() {
+    static const std::vector<std::string> names{"vendor", "system_ext", "product", "odm", "oem"};
+    return names;
+}
+
+bool normalization_error(std::string& error, const std::string& phase, const std::string& path,
+                         int code = 0) {
+    const int failure = code ? code : (errno ? errno : EIO);
+    errno = failure;
+    error = phase + " " + path + ": " + std::strerror(failure);
+    return false;
+}
+
+NormalizationObservation normalization_metadata(const std::string& path, const struct stat& st) {
+    NormalizationObservation value;
+    value.path = path;
+    value.kind = S_ISDIR(st.st_mode)   ? "directory"
+                 : S_ISREG(st.st_mode) ? "regular"
+                 : S_ISLNK(st.st_mode) ? "symlink"
+                                       : "other";
+    value.device = st.st_dev;
+    value.inode = st.st_ino;
+    value.mode = st.st_mode;
+    value.size = st.st_size;
+    value.mtime_seconds = st.st_mtim.tv_sec;
+    value.mtime_nanoseconds = st.st_mtim.tv_nsec;
+    value.ctime_seconds = st.st_ctim.tv_sec;
+    value.ctime_nanoseconds = st.st_ctim.tv_nsec;
+    return value;
+}
+
+bool normalization_probe(const std::string& path, NormalizationObservation& result,
+                         std::string& error) {
+    struct stat metadata{};
+    if (lstat(path.c_str(), &metadata) != 0) {
+        if (errno != ENOENT)
+            return normalization_error(error, "inspect", path);
+        result = {};
+        result.path = path;
+        result.kind = "missing";
+        return true;
     }
-    for (const auto& change : changes) {
-        if (change.move) {
-            fs::create_directories(system, ec);
-            if (ec)
-                return false;
-            fs::rename(change.top, change.sys, ec);
-            if (ec)
-                return false;
-        }
-        const auto link = "./system/" + fs::path(change.sys).filename().string();
-        if (symlink(link.c_str(), change.top.c_str()) != 0) {
-            mlog("normalize: symlink " + change.top + ": " + std::strerror(errno),
-                 logging::Level::Error);
-            return false;
-        }
+    result = normalization_metadata(path, metadata);
+    if (result.kind == "symlink") {
+        char bytes[PATH_MAX];
+        const auto size = ::readlink(path.c_str(), bytes, sizeof(bytes));
+        if (size < 0)
+            return normalization_error(error, "readlink", path);
+        if (static_cast<std::size_t>(size) == sizeof(bytes))
+            return normalization_error(error, "link target exceeds budget", path, EOVERFLOW);
+        result.link_target.assign(bytes, static_cast<std::size_t>(size));
     }
     return true;
+}
+
+bool normalization_same(const NormalizationObservation& a, const NormalizationObservation& b) {
+    return a.path == b.path && a.kind == b.kind && a.device == b.device && a.inode == b.inode &&
+           a.mode == b.mode && a.size == b.size && a.mtime_seconds == b.mtime_seconds &&
+           a.mtime_nanoseconds == b.mtime_nanoseconds && a.ctime_seconds == b.ctime_seconds &&
+           a.ctime_nanoseconds == b.ctime_nanoseconds && a.link_target == b.link_target;
+}
+
+bool normalization_same_identity(const NormalizationObservation& a,
+                                 const NormalizationObservation& b) {
+    return a.kind == b.kind && a.device == b.device && a.inode == b.inode && a.mode == b.mode;
+}
+
+bool normalization_same_plan(const NormalizationPlan& a, const NormalizationPlan& b) {
+    if (!a.complete || !b.complete || a.requested_root != b.requested_root ||
+        a.resolved_root != b.resolved_root || a.observations.size() != b.observations.size() ||
+        a.actions.size() != b.actions.size() || a.bytes != b.bytes)
+        return false;
+    for (std::size_t i = 0; i < a.observations.size(); ++i)
+        if (!normalization_same(a.observations[i], b.observations[i]))
+            return false;
+    for (std::size_t i = 0; i < a.actions.size(); ++i) {
+        const auto& x = a.actions[i];
+        const auto& y = b.actions[i];
+        if (x.kind != y.kind || x.source != y.source || x.target != y.target ||
+            x.link_target != y.link_target || x.reason != y.reason)
+            return false;
+    }
+    return true;
+}
+
+bool normalization_room(NormalizationPlan& plan, std::size_t bytes, std::string& error) {
+    if (bytes > NormalizationPlan::max_bytes - plan.bytes)
+        return normalization_error(error, "normalization capacity exceeded", plan.resolved_root,
+                                   EOVERFLOW);
+    plan.bytes += bytes;
+    return true;
+}
+
+bool normalization_observe(NormalizationPlan& plan, const std::string& path,
+                           NormalizationObservation& value, std::string& error) {
+    if (plan.observations.size() >= NormalizationPlan::max_observations)
+        return normalization_error(error, "normalization observation capacity exceeded", path,
+                                   EOVERFLOW);
+    if (!normalization_probe(path, value, error) ||
+        !normalization_room(
+            plan, sizeof(value) + value.path.size() + value.kind.size() + value.link_target.size(),
+            error))
+        return false;
+    plan.observations.push_back(value);
+    return true;
+}
+
+bool normalization_action(NormalizationPlan& plan, NormalizationAction action, std::string& error) {
+    if (plan.actions.size() >= NormalizationPlan::max_actions ||
+        !normalization_room(plan,
+                            sizeof(action) + action.kind.size() + action.source.size() +
+                                action.target.size() + action.link_target.size() +
+                                action.reason.size(),
+                            error))
+        return normalization_error(error, "normalization action capacity exceeded", action.target,
+                                   EOVERFLOW);
+    plan.actions.push_back(std::move(action));
+    return true;
+}
+
+bool normalization_directory(const std::string& path, std::string& canonical, std::string& error) {
+    std::error_code ec;
+    const bool directory = fs::is_directory(path, ec);
+    if (ec)
+        return normalization_error(error, "inspect directory", path, ec.value());
+    if (!directory)
+        return normalization_error(error, "not a directory", path, ENOTDIR);
+    const auto resolved = fs::canonical(path, ec);
+    if (ec)
+        return normalization_error(error, "resolve directory", path, ec.value());
+    canonical = resolved.generic_string();
+    return true;
+}
+
+bool normalization_safe_root(const std::string& path, std::string& resolved, std::string& error) {
+    static const std::set<std::string> unsafe{"/",
+                                              "/data",
+                                              "/data/adb",
+                                              "/data/adb/modules",
+                                              "/data/adb/modules_update",
+                                              "/data/adb/ksu",
+                                              "/system",
+                                              "/vendor",
+                                              "/product",
+                                              "/odm",
+                                              "/oem",
+                                              "/system_ext",
+                                              "/tmp",
+                                              "/dev",
+                                              "/proc",
+                                              "/sys"};
+    if (!valid_module_rule_path(path) || unsafe.count(path))
+        return normalization_error(error, "unsafe module root", path, EINVAL);
+    if (!normalization_directory(path, resolved, error))
+        return false;
+    // Equality also excludes symlink ancestors, dot segments and alias roots.
+    if (resolved != path)
+        return normalization_error(error, "module root must be canonical without symlinks", path,
+                                   ELOOP);
+    return true;
+}
+
+class NormalizationFd {
+    int value = -1;
+
+public:
+    NormalizationFd() = default;
+    explicit NormalizationFd(int descriptor) : value(descriptor) {}
+    NormalizationFd(const NormalizationFd&) = delete;
+    NormalizationFd& operator=(const NormalizationFd&) = delete;
+    NormalizationFd(NormalizationFd&&) = delete;
+    NormalizationFd& operator=(NormalizationFd&&) = delete;
+    [[nodiscard]] int get() const { return value; }
+    void reset(int descriptor) {
+        if (value >= 0)
+            ::close(value);
+        value = descriptor;
+    }
+    ~NormalizationFd() {
+        if (value >= 0)
+            ::close(value);
+    }
+};
+
+bool normalization_fd_matches(int fd, const NormalizationObservation& expected,
+                              std::string& error) {
+    struct stat metadata{};
+    if (::fstat(fd, &metadata) != 0)
+        return normalization_error(error, "inspect directory descriptor", expected.path);
+    if (!normalization_same_identity(normalization_metadata(expected.path, metadata), expected))
+        return normalization_error(error, "directory descriptor changed", expected.path, ESTALE);
+    return true;
+}
+}  // namespace
+
+bool inspect_module_root(const std::string& module_path, std::string& resolved,
+                         std::string& error) {
+    error.clear();
+    std::string canonical;
+    if (!normalization_safe_root(module_path, canonical, error))
+        return false;
+    NormalizationObservation root;
+    NormalizationObservation property;
+    if (!normalization_probe(canonical, root, error) ||
+        !normalization_probe(canonical + "/module.prop", property, error))
+        return false;
+    if (root.kind != "directory" || property.kind != "regular")
+        return normalization_error(error, "expected real module root and module.prop", canonical,
+                                   EINVAL);
+    resolved = std::move(canonical);
+    return true;
+}
+
+bool prepare_normalization(const std::string& module_path, NormalizationPlan& plan,
+                           std::string& error) {
+    error.clear();
+    NormalizationPlan candidate;
+    candidate.requested_root = module_path;
+    if (!normalization_safe_root(module_path, candidate.resolved_root, error))
+        return false;
+    if (!normalization_room(candidate, module_path.size() + candidate.resolved_root.size(), error))
+        return false;
+    NormalizationObservation root;
+    NormalizationObservation property;
+    NormalizationObservation system;
+    const auto system_path = module_path + "/system";
+    if (!normalization_observe(candidate, module_path, root, error) ||
+        !normalization_observe(candidate, module_path + "/module.prop", property, error) ||
+        !normalization_observe(candidate, system_path, system, error))
+        return false;
+    if (root.kind != "directory" || property.kind != "regular" ||
+        (system.kind != "missing" && system.kind != "directory"))
+        return normalization_error(error,
+                                   "expected real module root, module.prop and system directory",
+                                   module_path, EINVAL);
+    bool create_system = system.kind == "missing";
+    for (const auto& part : normalization_partitions()) {
+        const auto target_path = "/" + part;
+        const auto alias_path = "/system/" + part;
+        auto top = module_path;
+        top += "/";
+        top += part;
+        auto nested = system_path;
+        nested += "/";
+        nested += part;
+        NormalizationObservation target;
+        NormalizationObservation alias;
+        if (!normalization_observe(candidate, target_path, target, error) ||
+            !normalization_observe(candidate, alias_path, alias, error))
+            return false;
+        if (target.kind == "missing" || alias.kind != "symlink") {
+            if (!normalization_action(candidate,
+                                      {"skip", top, nested, "",
+                                       target.kind == "missing" ? "platform_partition_missing"
+                                                                : "platform_alias_absent"},
+                                      error))
+                return false;
+            continue;
+        }
+        std::string target_real;
+        std::string alias_real;
+        if (!normalization_directory(target_path, target_real, error) ||
+            !normalization_directory(alias_path, alias_real, error))
+            return false;
+        if (target_real != alias_real)
+            return normalization_error(error, "platform alias does not target partition",
+                                       alias_path, EINVAL);
+        if (target_real != target_path) {
+            NormalizationObservation real;
+            if (!normalization_observe(candidate, target_real, real, error))
+                return false;
+        }
+        NormalizationObservation top_entry;
+        NormalizationObservation nested_entry;
+        if (!normalization_observe(candidate, top, top_entry, error) ||
+            !normalization_observe(candidate, nested, nested_entry, error))
+            return false;
+        if (top_entry.kind == "symlink") {
+            // Accept equivalent in-root aliases, never dangling or escaping links.
+            const auto link = fs::path(top_entry.link_target);
+            const auto destination = (link.is_absolute() ? link : fs::path(module_path) / link)
+                                         .lexically_normal()
+                                         .generic_string();
+            if (destination != nested || nested_entry.kind != "directory")
+                return normalization_error(error, "conflicting or escaping partition alias", top,
+                                           EINVAL);
+            if (!normalization_action(
+                    candidate,
+                    {"unchanged", top, nested, top_entry.link_target, "matching_partition_alias"},
+                    error))
+                return false;
+            continue;
+        }
+        if ((top_entry.kind != "missing" && top_entry.kind != "directory") ||
+            (nested_entry.kind != "missing" && nested_entry.kind != "directory") ||
+            (top_entry.kind != "missing" && nested_entry.kind != "missing")) {
+            auto conflict = top;
+            conflict += " and ";
+            conflict += nested;
+            return normalization_error(error, "conflicting partition entries", conflict, EEXIST);
+        }
+        if (top_entry.kind == "missing" && nested_entry.kind == "missing") {
+            if (!normalization_action(candidate,
+                                      {"skip", top, nested, "", "module_partition_missing"}, error))
+                return false;
+            continue;
+        }
+        if (create_system) {
+            if (!normalization_action(
+                    candidate, {"mkdir", "", system_path, "", "partition_parent_required"}, error))
+                return false;
+            create_system = false;
+        }
+        if (top_entry.kind == "directory" &&
+            !normalization_action(candidate,
+                                  {"move", top, nested, "", "fold_partition_into_system"}, error))
+            return false;
+        if (!normalization_action(
+                candidate,
+                {"symlink", "", top, "./system/" + part, "retain_top_level_partition_alias"},
+                error))
+            return false;
+    }
+    candidate.complete = true;
+    plan = std::move(candidate);
+    error.clear();
+    return true;
+}
+
+bool execute_normalization(const NormalizationPlan& plan, NormalizationResult& result,
+                           std::string& error) {
+    result = {};
+    result.status = "rejected";
+    result.recovery_hint = "Inspect a fresh normalization preview before another explicit attempt; "
+                           "do not overwrite or remove surviving directories.";
+    NormalizationPlan fresh;
+    if (!prepare_normalization(plan.requested_root, fresh, error) ||
+        !normalization_same_plan(plan, fresh)) {
+        if (error.empty())
+            normalization_error(error, "normalization plan changed", plan.requested_root, ESTALE);
+        return false;
+    }
+    for (std::size_t i = 0; i < plan.actions.size(); ++i)
+        result.actions.push_back({i, "not_run", 0, ""});
+    auto expected = plan.observations;
+    const auto find = [&](const std::string& path) -> NormalizationObservation* {
+        const auto found = std::find_if(expected.begin(), expected.end(),
+                                        [&](const auto& item) { return item.path == path; });
+        return found == expected.end() ? nullptr : &*found;
+    };
+    const NormalizationFd root_fd{
+        ::open(plan.resolved_root.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)};
+    if (root_fd.get() < 0)
+        return normalization_error(error, "open module root", plan.resolved_root);
+    NormalizationFd system_fd;
+    const auto system_path = plan.resolved_root + "/system";
+    const auto check_all = [&]() {
+        std::string resolved;
+        if (!normalization_safe_root(plan.resolved_root, resolved, error))
+            return false;
+        for (const auto& before : expected) {
+            NormalizationObservation now;
+            if (!normalization_probe(before.path, now, error))
+                return false;
+            if (!normalization_same(before, now))
+                return normalization_error(error, "normalization input changed", before.path,
+                                           ESTALE);
+        }
+        if (!normalization_fd_matches(root_fd.get(), *find(plan.resolved_root), error))
+            return false;
+        return system_fd.get() < 0 ||
+               normalization_fd_matches(system_fd.get(), *find(system_path), error);
+    };
+    const auto refresh_parent = [&](const std::string& path) {
+        auto* before = find(path);
+        NormalizationObservation after;
+        if (!before || !normalization_probe(path, after, error))
+            return false;
+        if (!normalization_same_identity(*before, after))
+            return normalization_error(error, "parent changed after normalization action", path,
+                                       ESTALE);
+        *before = std::move(after);
+        return true;
+    };
+    const auto sync_parent = [&](int fd, const std::string& path) {
+        if (::fsync(fd) != 0)
+            return normalization_error(error, "sync normalization parent", path);
+        return true;
+    };
+    for (std::size_t index = 0; index < plan.actions.size(); ++index) {
+        const auto& action = plan.actions[index];
+        auto& report = result.actions[index];
+        const auto fail = [&]() {
+            report.status = "failed";
+            report.error_number = errno ? errno : EIO;
+            report.detail = error;
+            result.status = result.changed ? "partial" : "failed";
+            return false;
+        };
+        if (!check_all())
+            return fail();
+        if (action.kind == "skip" || action.kind == "unchanged") {
+            report.status = action.kind == "skip" ? "skipped" : "unchanged";
+            continue;
+        }
+        if (action.kind == "mkdir") {
+            if (::mkdirat(root_fd.get(), "system", 0755) != 0) {
+                normalization_error(error, "create normalization parent", system_path);
+                return fail();
+            }
+            result.changed = true;
+            report.effect_observed = true;
+            NormalizationObservation created;
+            if (!normalization_probe(system_path, created, error) || created.kind != "directory") {
+                if (error.empty())
+                    normalization_error(error, "created parent changed", system_path, ESTALE);
+                return fail();
+            }
+            *find(system_path) = std::move(created);
+            if (!refresh_parent(plan.resolved_root) ||
+                !sync_parent(root_fd.get(), plan.resolved_root))
+                return fail();
+        } else {
+            if (system_fd.get() < 0) {
+                system_fd.reset(::openat(root_fd.get(), "system",
+                                         O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+                if (system_fd.get() < 0 ||
+                    !normalization_fd_matches(system_fd.get(), *find(system_path), error)) {
+                    if (error.empty())
+                        normalization_error(error, "open normalization parent", system_path);
+                    return fail();
+                }
+            }
+            const auto part =
+                fs::path(action.kind == "move" ? action.source : action.target).filename().string();
+            if (action.kind == "move") {
+                const auto before = *find(action.source);
+                // RENAME_NOREPLACE is required: a prior check cannot authorize
+                // replacing a concurrently created destination, even if empty.
+                if (::syscall(SYS_renameat2, root_fd.get(), part.c_str(), system_fd.get(),
+                              part.c_str(), 1U) != 0) {
+                    normalization_error(error, "move partition without replacement", action.target);
+                    return fail();
+                }
+                result.changed = true;
+                report.effect_observed = true;
+                NormalizationObservation source;
+                NormalizationObservation target;
+                if (!normalization_probe(action.source, source, error) ||
+                    !normalization_probe(action.target, target, error) ||
+                    source.kind != "missing" || !normalization_same_identity(before, target)) {
+                    if (error.empty())
+                        normalization_error(error, "moved partition changed", action.target,
+                                            ESTALE);
+                    return fail();
+                }
+                *find(action.source) = std::move(source);
+                *find(action.target) = std::move(target);
+                if (!refresh_parent(plan.resolved_root) || !refresh_parent(system_path) ||
+                    !sync_parent(root_fd.get(), plan.resolved_root) ||
+                    !sync_parent(system_fd.get(), system_path))
+                    return fail();
+            } else if (action.kind == "symlink") {
+                if (::symlinkat(action.link_target.c_str(), root_fd.get(), part.c_str()) != 0) {
+                    normalization_error(error, "create partition alias", action.target);
+                    return fail();
+                }
+                result.changed = true;
+                report.effect_observed = true;
+                NormalizationObservation link;
+                if (!normalization_probe(action.target, link, error) || link.kind != "symlink" ||
+                    link.link_target != action.link_target) {
+                    if (error.empty())
+                        normalization_error(error, "partition alias changed", action.target,
+                                            ESTALE);
+                    return fail();
+                }
+                *find(action.target) = std::move(link);
+                if (!refresh_parent(plan.resolved_root) ||
+                    !sync_parent(root_fd.get(), plan.resolved_root))
+                    return fail();
+            }
+        }
+        report.status = "completed";
+        report.durability_confirmed = true;
+    }
+    if (!check_all()) {
+        result.status = result.changed ? "partial" : "failed";
+        return false;
+    }
+    result.complete = true;
+    result.status = "completed";
+    result.recovery_hint =
+        "Normalization completed; no mounts or saved configuration were applied.";
+    error.clear();
+    return true;
+}
+
+bool normalize_module(const std::string& module_path) {
+    NormalizationPlan plan;
+    NormalizationResult result;
+    std::string error;
+    if (prepare_normalization(module_path, plan, error) &&
+        execute_normalization(plan, result, error))
+        return true;
+    mlog("normalize: " + error +
+             (result.changed ? "; partial layout remains; inspect before retry" : ""),
+         logging::Level::Error);
+    return false;
 }
 
 }  // namespace sumhp::mount::magic

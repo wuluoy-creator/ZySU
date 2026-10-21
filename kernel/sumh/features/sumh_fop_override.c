@@ -28,6 +28,10 @@ struct sumh_fop_template {
 
 struct sumh_fop_meta {
 	struct inode *inode;
+	/* A cached inode reference must not outlive its superblock. This active
+	 * reference is independent of dirhijack clients and retained until the
+	 * inode binding is retired; it does not pin a mount. */
+	struct super_block *sb;
 	struct sumh_fop_template *template;
 	sumh_fop_iterate_client_fn iterate_client;
 	void *iterate_client_data;
@@ -68,8 +72,13 @@ static void sumh_fop_meta_free(struct sumh_fop_meta *m)
 {
 	if (!m)
 		return;
+	/* iput may invoke filesystem callbacks or evict the inode. Keep the
+	 * exact superblock alive until it finishes, including failed installs.
+	 * Both releases run outside the FOP spinlock and s_umount. */
 	if (m->inode)
 		iput(m->inode);
+	if (m->sb)
+		deactivate_super(m->sb);
 	kfree(m);
 }
 
@@ -136,6 +145,7 @@ SUMH_NOCFI static int sumh_shadow_iterate_shared(struct file *file,
 	const struct file_operations *orig;
 	sumh_fop_iterate_client_fn client = NULL;
 	void *client_data = NULL;
+	loff_t entry_pos = ctx ? ctx->pos : 0;
 	int srcu_idx;
 	int ret;
 
@@ -172,6 +182,14 @@ SUMH_NOCFI static int sumh_shadow_iterate_shared(struct file *file,
 		ctx->pos = 0;
 	}
 	wrapper = sumh_iterate_prepare_wrapper(file, ctx);
+	if (IS_ERR(wrapper)) {
+		ret = PTR_ERR(wrapper);
+		/* A retired client cookie may have been reset above. Failed
+		 * preparation must leave the caller's original cursor intact.
+		 */
+		ctx->pos = entry_pos;
+		goto out;
+	}
 	if (!wrapper) {
 		sumh_iterate_rewind_injected(ctx);
 		ret = client && client_data
@@ -211,6 +229,7 @@ SUMH_NOCFI int sumh_fop_install(struct inode *inode)
 {
 	struct sumh_fop_template *template, *spare;
 	struct sumh_fop_meta *m, *existing;
+	struct super_block *sb;
 	const struct file_operations *orig;
 	bool installed = false;
 	int ret = 0;
@@ -237,9 +256,23 @@ SUMH_NOCFI int sumh_fop_install(struct inode *inode)
 		return -ENOMEM;
 	}
 
-	m->inode = inode;
 	INIT_LIST_HEAD(&m->retire_node);
+	/* Callers retain a live path (or equivalent protection) throughout
+	 * install. Acquire our own active reference before taking the cached
+	 * inode reference, without reviving a superblock already shutting down.
+	 * Never sleep on s_umount while holding sumh_fop_lock. */
+	sb = inode->i_sb;
+	down_read(&sb->s_umount);
+	if (!(READ_ONCE(sb->s_flags) & SB_BORN) ||
+	    !atomic_inc_not_zero(&sb->s_active)) {
+		up_read(&sb->s_umount);
+		ret = -ESHUTDOWN;
+		goto out_free;
+	}
+	m->sb = sb;
+	up_read(&sb->s_umount);
 	ihold(inode);
+	m->inode = inode;
 
 	spin_lock(&sumh_fop_lock);
 	if (!READ_ONCE(sumh_fop_override_ready)) {
@@ -275,6 +308,7 @@ SUMH_NOCFI int sumh_fop_install(struct inode *inode)
 	m = NULL;
 out_unlock:
 	spin_unlock(&sumh_fop_lock);
+out_free:
 	sumh_fop_meta_free(m);
 	sumh_fop_template_free(spare);
 
@@ -387,6 +421,12 @@ static void sumh_fop_retire_list(struct list_head *retiring)
 		WRITE_ONCE(m->iterate_client_data, NULL);
 		sumh_fop_meta_free(m);
 	}
+}
+
+bool sumh_fop_override_available(void)
+{
+	return READ_ONCE(sumh_fop_override_ready) &&
+	       !READ_ONCE(sumh_fop_override_stopped);
 }
 
 int sumh_fop_override_init(void)

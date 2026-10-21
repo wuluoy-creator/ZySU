@@ -2,6 +2,9 @@
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
 #include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
+#include <linux/mnt_idmapping.h>
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0) &&                           \
     !defined(arch_ftrace_get_regs)
 #define arch_ftrace_get_regs(fregs) (NULL)
@@ -37,9 +40,11 @@
 
 #include "sumh_runtime.h"
 #include "sumh_store.h"
+#include "sumh_dirhijack.h"
 #include "sumh_path_policy.h"
 #include "sumh_fop_override.h"
 #include "sumh_vfs_view.h"
+#include "sumh_vnode.h"
 
 bool sumh_enabled;
 atomic_t sumh_rule_count = ATOMIC_INIT(0);
@@ -334,8 +339,6 @@ DEFINE_HASHTABLE(sumh_spoof_kstat_ino, SUMH_HASH_BITS);
 atomic_t sumh_spoof_kstat_count = ATOMIC_INIT(0);
 
 DEFINE_MUTEX(sumh_config_mutex);
-LIST_HEAD(sumh_maps_rules);
-DEFINE_MUTEX(sumh_maps_mutex);
 
 bool sumh_debug_enabled;
 bool sumh_stealth_enabled;
@@ -382,7 +385,75 @@ void *sumh_vfs_setxattr_addr;
 void *sumh_vfs_removexattr_addr;
 void *sumh_mnt_want_write_addr;
 void *sumh_mnt_drop_write_addr;
+
+/* SUMH_LOOKUP_COMPAT_BEGIN */
 struct dentry *(*sumh_lookup_one_len)(const char *, struct dentry *, int);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
+typedef struct dentry *(*sumh_lookup_one_qstr_fn)(struct mnt_idmap *,
+						  struct qstr *,
+						  struct dentry *);
+
+_Static_assert(__builtin_types_compatible_p(typeof(&lookup_one),
+					    sumh_lookup_one_qstr_fn),
+	       "SUMH requires the lookup_one(idmap, qstr, parent) prototype");
+_Static_assert(__builtin_types_compatible_p(typeof(nop_mnt_idmap),
+					    struct mnt_idmap),
+	       "SUMH requires nop_mnt_idmap to be an mnt_idmap object");
+
+static typeof(lookup_one) *sumh_lookup_one_qstr;
+static typeof(&nop_mnt_idmap) sumh_lookup_identity_idmap;
+
+/* Preserve lookup_one_len's identity idmap and caller-owned parent lock. */
+static struct dentry *sumh_lookup_one_len_compat(const char *name,
+						 struct dentry *parent, int len)
+{
+	struct qstr component = {};
+
+	if (len < 0)
+		return ERR_PTR(-EINVAL);
+	if (!sumh_lookup_one_qstr || !sumh_lookup_identity_idmap)
+		return ERR_PTR(-EOPNOTSUPP);
+	component.name = (const unsigned char *)name;
+	component.len = len;
+	return sumh_lookup_one_qstr(sumh_lookup_identity_idmap, &component,
+				    parent);
+}
+#else
+_Static_assert(__builtin_types_compatible_p(typeof(&lookup_one_len),
+					    typeof(sumh_lookup_one_len)),
+	       "SUMH requires the lookup_one_len(name, parent, int) prototype");
+#endif
+
+/* Startup only, before view publication; never refresh live dependencies. */
+void sumh_resolve_lookup_helpers(void)
+{
+	sumh_lookup_one_len = NULL;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
+	sumh_lookup_one_qstr = NULL;
+	sumh_lookup_identity_idmap = NULL;
+	sumh_lookup_one_qstr =
+	    (typeof(&lookup_one))find_kernel_symbol_exact("lookup_one");
+	sumh_lookup_identity_idmap =
+	    (typeof(&nop_mnt_idmap))find_kernel_symbol_exact("nop_mnt_idmap");
+	if (!sumh_lookup_one_qstr || !sumh_lookup_identity_idmap) {
+		pr_warn("sumh: directory lookup unavailable (lookup_one=%s, "
+			"nop_mnt_idmap=%s)\n",
+			sumh_lookup_one_qstr ? "present" : "missing",
+			sumh_lookup_identity_idmap ? "present" : "missing");
+		return;
+	}
+	sumh_lookup_one_len = sumh_lookup_one_len_compat;
+#else
+	sumh_lookup_one_len =
+	    (typeof(&lookup_one_len))find_kernel_symbol_exact("lookup_one_len");
+	if (!sumh_lookup_one_len)
+		pr_warn("sumh: directory lookup unavailable (lookup_one_len "
+			"missing)\n");
+#endif
+}
+/* SUMH_LOOKUP_COMPAT_END */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
 int (*sumh_vfs_create)(struct mnt_idmap *, struct inode *, struct dentry *,
 		       umode_t, bool);
@@ -433,8 +504,13 @@ bool sumh_valid_kernel_addr(unsigned long addr)
 #endif
 }
 
-int SUMH_NOCFI sumh_entry_capture_source(struct sumh_entry *entry,
-					 const char *source_path)
+/* Borrowed source objects: callers resolve first, then retain their own
+ * references until this helper has acquired the entry's references. No source
+ * pathname lookup is permitted here. The visible-path metadata probe is an
+ * independent template observation, not part of source identity. */
+static int SUMH_NOCFI sumh_entry_capture_paths(
+    struct sumh_entry *entry, const struct path *source,
+    const struct path *nofollow_source, const char *source_path)
 {
 	struct path nofollow_path;
 	struct inode *nofollow_inode;
@@ -443,21 +519,18 @@ int SUMH_NOCFI sumh_entry_capture_source(struct sumh_entry *entry,
 	struct inode *visible_inode;
 	struct inode *inode;
 	struct path path;
-	int ret;
 
-	if (!entry || !source_path || !*source_path)
+	if (!entry || !source || !source->dentry || !source->mnt)
 		return -EINVAL;
 	if (entry->source_path_valid)
 		return -EALREADY;
 
-	ret = kern_path(source_path, LOOKUP_FOLLOW, &path);
-	if (ret)
-		return ret;
+	path = *source;
 	inode = d_inode(path.dentry);
-	if (!inode) {
-		path_put(&path);
+	if (!inode)
 		return -ENOENT;
-	}
+	if (S_ISLNK(inode->i_mode))
+		return -ELOOP;
 
 	/* char/blk/fifo sources are served by a SUMH_VNODE_F_SPECIAL wrapper:
 	 * the vnode is minted S_IFREG (so it passes may_open_dev on the visible
@@ -480,7 +553,6 @@ int SUMH_NOCFI sumh_entry_capture_source(struct sumh_entry *entry,
 			S_ISSOCK(inode->i_mode)
 			    ? "a socket has no openable vnode form"
 			    : "char/blk/fifo source support is disabled");
-		path_put(&path);
 		return -EOPNOTSUPP;
 	}
 
@@ -582,7 +654,8 @@ int SUMH_NOCFI sumh_entry_capture_source(struct sumh_entry *entry,
 	}
 	entry->visible_stat.ino = entry->visible_ino;
 	entry->visible_stat.dev = entry->visible_dev;
-	if (kern_path(source_path, 0, &nofollow_path) == 0) {
+	if (nofollow_source) {
+		nofollow_path = *nofollow_source;
 		nofollow_inode = d_inode(nofollow_path.dentry);
 		if (nofollow_inode && S_ISLNK(nofollow_inode->i_mode)) {
 			entry->source_nofollow_path = nofollow_path;
@@ -634,13 +707,84 @@ int SUMH_NOCFI sumh_entry_capture_source(struct sumh_entry *entry,
 			    entry->nofollow_visible_dev;
 			entry->source_nofollow_path_valid = true;
 		}
-		path_put(&nofollow_path);
 	}
 	entry->source_path_valid = true;
 	atomic64_inc(&sumh_vnode_allocated_count);
 	atomic_inc(&sumh_vnode_live_count);
-	path_put(&path);
 	return 0;
+}
+
+int SUMH_NOCFI sumh_entry_capture_resolved(struct sumh_entry *entry,
+					   const struct path *source)
+{
+	return sumh_entry_capture_paths(
+	    entry, source, NULL,
+	    entry && entry->target ? entry->target : "<held source>");
+}
+
+int SUMH_NOCFI sumh_entry_capture_source_checked(
+    struct sumh_entry *entry, const char *source_path,
+    const struct path *expected_leaf)
+{
+	struct path leaf, followed, rechecked_leaf;
+	struct inode *inode;
+	int ret;
+
+	if (!entry || !source_path || !*source_path ||
+	    (expected_leaf && (!expected_leaf->dentry || !expected_leaf->mnt)))
+		return -EINVAL;
+	if (entry->source_path_valid)
+		return -EALREADY;
+
+	/* Resolve a non-link exactly once. In particular, replacement of the
+	 * pathname after this lookup cannot pair a new inode with old metadata.
+	 */
+	ret = kern_path(source_path, 0, &leaf);
+	if (ret)
+		return ret;
+	if (expected_leaf && !path_equal(&leaf, expected_leaf)) {
+		ret = -ESTALE;
+		goto out_leaf;
+	}
+	inode = d_inode(leaf.dentry);
+	if (!inode) {
+		ret = -ENOENT;
+		goto out_leaf;
+	}
+	if (!S_ISLNK(inode->i_mode)) {
+		ret = sumh_entry_capture_resolved(entry, &leaf);
+		goto out_leaf;
+	}
+
+	/* Keep the native pathwalk for links: root, .., mount, magic-link and
+	 * security semantics must not become a lookup rooted at the held
+	 * parent. Recheck before capture to reject a changed leaf still
+	 * observable after following. These lookups do not form an atomic or
+	 * ABA-safe pair; they do not freeze dynamic links, their target chain
+	 * or later changes. */
+	ret = kern_path(source_path, LOOKUP_FOLLOW, &followed);
+	if (ret)
+		goto out_leaf;
+	ret = kern_path(source_path, 0, &rechecked_leaf);
+	if (ret)
+		goto out_followed;
+	if (!path_equal(&leaf, &rechecked_leaf))
+		ret = -ESTALE;
+	path_put(&rechecked_leaf);
+	if (!ret)
+		ret = sumh_entry_capture_paths(entry, &followed, &leaf,
+					       source_path);
+out_followed:
+	path_put(&followed);
+out_leaf:
+	path_put(&leaf);
+	return ret;
+}
+
+int SUMH_NOCFI sumh_entry_capture_source(struct sumh_entry *entry,
+					 const char *source_path)
+{
+	return sumh_entry_capture_source_checked(entry, source_path, NULL);
 }
 
 void SUMH_NOCFI sumh_entry_release_source(struct sumh_entry *entry)
@@ -662,12 +806,428 @@ void SUMH_NOCFI sumh_entry_release_source(struct sumh_entry *entry)
 }
 
 static LLIST_HEAD(sumh_retired_entries);
+static LLIST_HEAD(sumh_retired_hides);
 static LLIST_HEAD(sumh_retired_merges);
+static LLIST_HEAD(sumh_retired_inject_inodes);
 static void sumh_store_free_workfn(struct work_struct *work);
 static DECLARE_WORK(sumh_store_free_work, sumh_store_free_workfn);
 
+/* SUMH_INJECT_CLAIMS_BEGIN */
+/* Only config-serialized writers dereference these aggregates. Unlike the
+ * RCU string index, their final release needs process context, not a grace
+ * period. Each aggregate owns references independent of the FOP cache. */
+struct sumh_inject_inode {
+	struct inode *inode;
+	struct super_block *sb;
+	unsigned int users;
+	struct hlist_node node;
+	struct llist_node free_node;
+};
+
+struct sumh_inject_claim {
+	struct sumh_inject_entry *key;
+	struct sumh_inject_inode *binding;
+	struct sumh_inject_entry *spare_key;
+	struct sumh_inject_inode *spare_binding;
+	bool attached;
+};
+
+static DEFINE_HASHTABLE(sumh_inject_inodes, SUMH_HASH_BITS);
+
+static void sumh_inject_inode_free(struct sumh_inject_inode *binding)
+{
+	if (!binding)
+		return;
+	/* The inode's filesystem must stay active throughout its final put. */
+	iput(binding->inode);
+	deactivate_super(binding->sb);
+	kfree(binding);
+}
+
+void sumh_inject_finish_prepare(struct sumh_inject_claim *claim)
+{
+	if (!claim)
+		return;
+	if (claim->spare_key) {
+		kfree(claim->spare_key->dir);
+		kfree(claim->spare_key);
+		claim->spare_key = NULL;
+	}
+	sumh_inject_inode_free(claim->spare_binding);
+	claim->spare_binding = NULL;
+}
+
+void sumh_inject_destroy(struct sumh_inject_claim *claim)
+{
+	if (!claim || WARN_ON_ONCE(claim->attached))
+		return;
+	/* Logical withdrawal belongs to the mutation, never the RCU worker. */
+	sumh_inject_finish_prepare(claim);
+	kfree(claim);
+}
+
+static int SUMH_NOCFI sumh_inject_prepare_held(const char *key,
+					       const struct path *path,
+					       struct sumh_inject_claim **out)
+{
+	struct sumh_inject_claim *claim;
+	struct sumh_inject_inode *binding;
+	struct inode *inode;
+	struct super_block *sb;
+	int ret = -ENOMEM;
+
+	claim = kzalloc(sizeof(*claim), GFP_KERNEL);
+	if (!claim)
+		return -ENOMEM;
+	claim->spare_key = kzalloc(sizeof(*claim->spare_key), GFP_KERNEL);
+	if (!claim->spare_key)
+		goto fail;
+	claim->spare_key->dir = kstrdup(key, GFP_KERNEL);
+	if (!claim->spare_key->dir)
+		goto fail;
+	if (!path)
+		goto ready;
+	if (!path->mnt || !path->dentry) {
+		ret = -EINVAL;
+		goto fail;
+	}
+	inode = d_inode(path->dentry);
+	if (!inode || !S_ISDIR(inode->i_mode)) {
+		ret = -ENOTDIR;
+		goto fail;
+	}
+	if (sumh_vnode_is_ours(inode)) {
+		ret = -EOPNOTSUPP;
+		goto fail;
+	}
+	if (!inode->i_mapping || !inode->i_sb) {
+		ret = -EINVAL;
+		goto fail;
+	}
+	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
+	if (!binding)
+		goto fail;
+	sb = inode->i_sb;
+	/* Native caller path protects this acquisition. Never revive a dead or
+	 * not-yet-born filesystem; retain no mount reference in the claim. */
+	down_read(&sb->s_umount);
+	if (!(sb->s_flags & SB_BORN) || !atomic_inc_not_zero(&sb->s_active)) {
+		up_read(&sb->s_umount);
+		kfree(binding);
+		ret = -ESHUTDOWN;
+		goto fail;
+	}
+	up_read(&sb->s_umount);
+	ihold(inode);
+	binding->inode = inode;
+	binding->sb = sb;
+	claim->spare_binding = binding;
+	/* FOP may take s_umount itself. Its independent cache can safely
+	 * outlive a later preparation failure or the last logical injection
+	 * owner. */
+	ret = sumh_fop_install(inode);
+	if (ret)
+		goto fail;
+ready:
+	*out = claim;
+	return 0;
+fail:
+	sumh_inject_destroy(claim);
+	return ret;
+}
+
+int sumh_inject_prepare_observed(const char *key, const struct path *parent,
+				 enum sumh_inject_missing missing,
+				 struct sumh_inject_claim **out)
+{
+	if (!out)
+		return -EINVAL;
+	*out = NULL;
+	if (!key || key[0] != '/' ||
+	    (missing != SUMH_INJECT_MISSING_NONE &&
+	     missing != SUMH_INJECT_MISSING_UNBOUND))
+		return -EINVAL;
+	if (!parent && missing != SUMH_INJECT_MISSING_UNBOUND)
+		return 0; /* Direct missing-parent compatibility: no injection
+			     key. */
+	return sumh_inject_prepare_held(key, parent, out);
+}
+
+int SUMH_NOCFI sumh_inject_prepare_directory(const char *key,
+					     enum sumh_inject_missing missing,
+					     struct sumh_inject_claim **out)
+{
+	struct path path;
+	int ret;
+
+	if (!out)
+		return -EINVAL;
+	*out = NULL;
+	if (!key || key[0] != '/' ||
+	    (missing != SUMH_INJECT_MISSING_NONE &&
+	     missing != SUMH_INJECT_MISSING_UNBOUND))
+		return -EINVAL;
+	ret = kern_path(key, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
+	if (ret == -ENOENT) {
+		if (missing == SUMH_INJECT_MISSING_NONE)
+			return 0;
+		return sumh_inject_prepare_held(key, NULL, out);
+	}
+	if (ret)
+		return ret;
+	ret = sumh_inject_prepare_held(key, &path, out);
+	path_put(&path);
+	return ret;
+}
+
+int SUMH_NOCFI sumh_inject_prepare_merge(const char *key, char **resolved_src,
+					 struct sumh_inject_claim *claims[2])
+{
+	struct path path;
+	char *buffer, *text;
+	int ret;
+
+	if (!resolved_src || !claims)
+		return -EINVAL;
+	*resolved_src = NULL;
+	claims[0] = NULL;
+	claims[1] = NULL;
+	if (!key || key[0] != '/')
+		return -EINVAL;
+	ret = kern_path(key, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
+	if (ret == -ENOENT)
+		return sumh_inject_prepare_held(key, NULL, &claims[0]);
+	if (ret)
+		return ret;
+	buffer = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!buffer) {
+		ret = -ENOMEM;
+		goto out_path;
+	}
+	text = d_path(&path, buffer, PATH_MAX);
+	if (IS_ERR(text)) {
+		ret = PTR_ERR(text);
+		goto out;
+	}
+	if (text[0] != '/') {
+		ret = -EINVAL;
+		goto out;
+	}
+	if (strcmp(key, text)) {
+		*resolved_src = kstrdup(text, GFP_KERNEL);
+		if (!*resolved_src) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+	ret = sumh_inject_prepare_held(key, &path, &claims[0]);
+	if (!ret && *resolved_src)
+		ret =
+		    sumh_inject_prepare_held(*resolved_src, &path, &claims[1]);
+out:
+	kfree(buffer);
+out_path:
+	path_put(&path);
+	if (ret) {
+		sumh_inject_destroy(claims[0]);
+		sumh_inject_destroy(claims[1]);
+		claims[0] = NULL;
+		claims[1] = NULL;
+		kfree(*resolved_src);
+		*resolved_src = NULL;
+	}
+	return ret;
+}
+
+static struct sumh_inject_entry *sumh_inject_key_lookup_locked(const char *key)
+{
+	struct sumh_inject_entry *entry;
+	u32 hash = full_name_hash(NULL, key, strlen(key));
+
+	hlist_for_each_entry(entry,
+			     &sumh_inject_dirs[hash_min(hash, SUMH_HASH_BITS)],
+			     node) if (!strcmp(entry->dir, key)) return entry;
+	return NULL;
+}
+
+bool sumh_inject_key_present_locked(const char *key)
+{
+	return key && sumh_inject_key_lookup_locked(key);
+}
+
+static struct sumh_inject_inode *
+sumh_inject_inode_lookup_locked(struct inode *inode)
+{
+	struct sumh_inject_inode *binding;
+
+	hash_for_each_possible(sumh_inject_inodes, binding, node,
+			       (unsigned long)inode) if (binding->inode ==
+							 inode) return binding;
+	return NULL;
+}
+
+int sumh_inject_preflight_locked(struct sumh_inject_claim *claims[],
+				 unsigned int count, unsigned int extra_rows,
+				 struct sumh_inject_attach_plan *plan)
+{
+	struct sumh_inject_entry *keys[2] = {};
+	struct sumh_inject_inode *bindings[2] = {};
+	unsigned int i, j, additions, new_keys = 0;
+	int rows = atomic_read(&sumh_rule_count);
+
+	if (WARN_ON_ONCE(count > 2 || (count && !claims) || extra_rows > 1))
+		return -EINVAL;
+	/* Resolve the complete group before any mutation. Repeated keys/inodes
+	 * share one candidate, including two distinct aliases of one inode. */
+	for (i = 0; i < count; i++) {
+		struct sumh_inject_claim *claim = claims[i];
+
+		if (!claim)
+			continue;
+		if (WARN_ON_ONCE(claim->attached || claim->key ||
+				 claim->binding || !claim->spare_key ||
+				 !claim->spare_key->dir ||
+				 claim->spare_key->dir[0] != '/' ||
+				 claim->spare_key->users ||
+				 (claim->spare_binding &&
+				  (!claim->spare_binding->inode ||
+				   !claim->spare_binding->sb ||
+				   claim->spare_binding->users))))
+			return -EINVAL;
+		for (j = 0; j < i; j++)
+			if (WARN_ON_ONCE(claims[j] == claim))
+				return -EINVAL;
+		keys[i] = sumh_inject_key_lookup_locked(claim->spare_key->dir);
+		for (j = 0; !keys[i] && j < i; j++)
+			if (keys[j] &&
+			    !strcmp(keys[j]->dir, claim->spare_key->dir))
+				keys[i] = keys[j];
+		if (!keys[i]) {
+			keys[i] = claim->spare_key;
+			new_keys++;
+		}
+		if (!claim->spare_binding)
+			continue;
+		bindings[i] = sumh_inject_inode_lookup_locked(
+		    claim->spare_binding->inode);
+		for (j = 0; !bindings[i] && j < i; j++)
+			if (bindings[j] &&
+			    bindings[j]->inode == claim->spare_binding->inode)
+				bindings[i] = bindings[j];
+		if (!bindings[i])
+			bindings[i] = claim->spare_binding;
+	}
+	for (i = 0; i < count; i++) {
+		if (keys[i]) {
+			additions = 0;
+			for (j = 0; j < count; j++)
+				additions += keys[j] == keys[i];
+			if (keys[i]->users > UINT_MAX - additions)
+				return -EOVERFLOW;
+		}
+		if (bindings[i]) {
+			additions = 0;
+			for (j = 0; j < count; j++)
+				additions += bindings[j] == bindings[i];
+			if (bindings[i]->users > UINT_MAX - additions)
+				return -EOVERFLOW;
+		}
+	}
+	if (WARN_ON_ONCE(rows < 0) ||
+	    (unsigned int)rows > INT_MAX - new_keys - extra_rows)
+		return -EOVERFLOW;
+	plan->count = count;
+	for (i = 0; i < count; i++) {
+		plan->claims[i] = claims[i];
+		plan->keys[i] = keys[i];
+		plan->bindings[i] = bindings[i];
+	}
+	return 0;
+}
+
+void sumh_inject_commit_locked(struct sumh_inject_attach_plan *plan)
+{
+	struct sumh_inject_claim **claims = plan->claims;
+	struct sumh_inject_entry **keys = plan->keys;
+	struct sumh_inject_inode **bindings = plan->bindings;
+	unsigned int count = plan->count, i;
+	/* Preflight made the remaining publication allocation-free. */
+	for (i = 0; i < count; i++) {
+		struct sumh_inject_claim *claim = claims[i];
+		u32 hash;
+
+		if (!claim)
+			continue;
+		if (!keys[i]->users) {
+			hash = full_name_hash(NULL, keys[i]->dir,
+					      strlen(keys[i]->dir));
+			hlist_add_head_rcu(
+			    &keys[i]->node,
+			    &sumh_inject_dirs[hash_min(hash, SUMH_HASH_BITS)]);
+			claim->spare_key = NULL;
+			atomic_inc(&sumh_rule_count);
+		}
+		keys[i]->users++;
+		if (bindings[i]) {
+			if (!bindings[i]->users) {
+				hash_add(sumh_inject_inodes, &bindings[i]->node,
+					 (unsigned long)bindings[i]->inode);
+				set_bit(AS_FLAGS_SUMH_DIR_HAS_INJECT,
+					&bindings[i]->inode->i_mapping->flags);
+				claim->spare_binding = NULL;
+			}
+			bindings[i]->users++;
+		}
+		claim->key = keys[i];
+		claim->binding = bindings[i];
+		claim->attached = true;
+	}
+}
+
+int sumh_inject_attach_locked(struct sumh_inject_claim *claims[],
+			      unsigned int count)
+{
+	struct sumh_inject_attach_plan plan;
+	int ret = sumh_inject_preflight_locked(claims, count, 0, &plan);
+
+	if (!ret)
+		sumh_inject_commit_locked(&plan);
+	return ret;
+}
+
+void sumh_inject_detach_locked(struct sumh_inject_claim *claim)
+{
+	struct sumh_inject_entry *key;
+	struct sumh_inject_inode *binding;
+
+	if (!claim || !claim->attached)
+		return;
+	key = claim->key;
+	binding = claim->binding;
+	if (WARN_ON_ONCE(!key || !key->users || (binding && !binding->users)))
+		return;
+	if (!--key->users) {
+		hlist_del_rcu(&key->node);
+		atomic_dec(&sumh_rule_count);
+		call_rcu(&key->rcu, sumh_inject_entry_free_rcu);
+	}
+	if (binding && !--binding->users) {
+		clear_bit(AS_FLAGS_SUMH_DIR_HAS_INJECT,
+			  &binding->inode->i_mapping->flags);
+		hash_del(&binding->node);
+		llist_add(&binding->free_node, &sumh_retired_inject_inodes);
+		schedule_work(&sumh_store_free_work);
+	}
+	claim->key = NULL;
+	claim->binding = NULL;
+	claim->attached = false;
+}
+/* SUMH_INJECT_CLAIMS_END */
+
 static void sumh_entry_free(struct sumh_entry *e)
 {
+	sumh_dh_claim_put(e->dh_claim);
+	sumh_inject_destroy(e->inject_claim);
 	sumh_entry_release_source(e);
 	kfree(e->src);
 	kfree(e->target);
@@ -691,8 +1251,8 @@ void sumh_hide_entry_free_rcu(struct rcu_head *head)
 	struct sumh_hide_entry *e =
 	    container_of(head, struct sumh_hide_entry, rcu);
 
-	kfree(e->path);
-	kfree(e);
+	llist_add(&e->free_node, &sumh_retired_hides);
+	schedule_work(&sumh_store_free_work);
 }
 
 void sumh_inject_entry_free_rcu(struct rcu_head *head)
@@ -714,8 +1274,10 @@ void sumh_xattr_sb_entry_free_rcu(struct rcu_head *head)
 
 static void sumh_merge_entry_free(struct sumh_merge_entry *e)
 {
-	if (e->target_dentry)
-		dput(e->target_dentry);
+	sumh_inject_destroy(e->inject_claims[0]);
+	sumh_inject_destroy(e->inject_claims[1]);
+	if (e->target_path.dentry)
+		path_put(&e->target_path);
 	kfree(e->src);
 	kfree(e->target);
 	kfree(e->resolved_src);
@@ -734,28 +1296,61 @@ void sumh_merge_entry_free_rcu(struct rcu_head *head)
 static void sumh_store_free_workfn(struct work_struct *work)
 {
 	struct llist_node *head, *node, *next;
+	bool progress;
 
 	(void)work;
-	while ((head = llist_del_all(&sumh_retired_entries)) != NULL) {
-		llist_for_each_safe(node, next, head)
-		{
-			struct sumh_entry *e =
-			    container_of(node, struct sumh_entry, free_node);
+	do {
+		progress = false;
+		while ((head = llist_del_all(&sumh_retired_entries)) != NULL) {
+			progress = true;
+			llist_for_each_safe(node, next, head)
+			{
+				struct sumh_entry *e = container_of(
+				    node, struct sumh_entry, free_node);
 
-			sumh_entry_free(e);
-			cond_resched();
+				sumh_entry_free(e);
+				cond_resched();
+			}
 		}
-	}
-	while ((head = llist_del_all(&sumh_retired_merges)) != NULL) {
-		llist_for_each_safe(node, next, head)
-		{
-			struct sumh_merge_entry *e = container_of(
-			    node, struct sumh_merge_entry, free_node);
+		while ((head = llist_del_all(&sumh_retired_hides)) != NULL) {
+			progress = true;
+			llist_for_each_safe(node, next, head)
+			{
+				struct sumh_hide_entry *e = container_of(
+				    node, struct sumh_hide_entry, free_node);
+				sumh_dh_claim_put(e->dh_claim);
+				kfree(e->path);
+				kfree(e);
+			}
+		}
+		while ((head = llist_del_all(&sumh_retired_merges)) != NULL) {
+			progress = true;
+			llist_for_each_safe(node, next, head)
+			{
+				struct sumh_merge_entry *e = container_of(
+				    node, struct sumh_merge_entry, free_node);
 
-			sumh_merge_entry_free(e);
-			cond_resched();
+				sumh_merge_entry_free(e);
+				cond_resched();
+			}
 		}
-	}
+		while ((head = llist_del_all(&sumh_retired_inject_inodes)) !=
+		       NULL) {
+			progress = true;
+			llist_for_each_safe(node, next, head)
+			{
+				struct sumh_inject_inode *binding =
+				    container_of(node, struct sumh_inject_inode,
+						 free_node);
+
+				sumh_inject_inode_free(binding);
+				cond_resched();
+			}
+		}
+		/* Callbacks may have filled an earlier queue during a release.
+		 * Enqueue always schedules work, also covering the final race.
+		 */
+	} while (progress);
 }
 
 void sumh_store_drain(void)
@@ -825,23 +1420,6 @@ void sumh_mark_inode_hidden(struct inode *inode)
 		set_bit(AS_FLAGS_SUMH_HIDE, &inode->i_mapping->flags);
 }
 
-SUMH_NOCFI void sumh_mark_dir_has_inject(const char *path_str)
-{
-	struct path p;
-
-	if (!path_str)
-		return;
-	if (kern_path(path_str, LOOKUP_FOLLOW, &p) != 0)
-		return;
-	if (p.dentry && d_inode(p.dentry) && d_inode(p.dentry)->i_mapping) {
-		struct inode *inode = d_inode(p.dentry);
-
-		set_bit(AS_FLAGS_SUMH_DIR_HAS_INJECT, &inode->i_mapping->flags);
-		(void)sumh_fop_install(inode);
-	}
-	path_put(&p);
-}
-
 SUMH_NOCFI void sumh_clear_inode_flags_for_path(const char *path_str,
 						unsigned int bit)
 {
@@ -856,13 +1434,20 @@ SUMH_NOCFI void sumh_clear_inode_flags_for_path(const char *path_str,
 	path_put(&p);
 }
 
-bool sumh_store_upsert(struct sumh_entry *replacement)
+int sumh_store_upsert(struct sumh_entry *replacement, bool *changed_out)
 {
-	struct sumh_entry *entry;
+	struct sumh_entry *entry, *previous = NULL;
 	u32 hash = replacement->src_hash;
-	bool changed = true, found = false;
+	bool changed = true;
 	unsigned long h1, h2;
+	int ret;
+	struct sumh_inject_attach_plan injection;
+	struct sumh_dh_change change;
+	struct sumh_dh_retire retired;
 
+	if (!replacement->dh_claim)
+		return -EINVAL;
+	sumh_dh_retire_init(&retired, false);
 	mutex_lock(&sumh_config_mutex);
 	hlist_for_each_entry(entry, &sumh_paths[hash_min(hash, SUMH_HASH_BITS)],
 			     node)
@@ -870,20 +1455,41 @@ bool sumh_store_upsert(struct sumh_entry *replacement)
 		if (entry->src_hash != hash ||
 		    strcmp(entry->src, replacement->src))
 			continue;
-		changed = strcmp(entry->target, replacement->target) != 0;
-		hlist_add_head_rcu(&replacement->node,
-				   &sumh_paths[hash_min(hash, SUMH_HASH_BITS)]);
-		hlist_del_rcu(&entry->node);
+		previous = entry;
+		changed = strcmp(entry->target, replacement->target) != 0 ||
+			  !path_equal(&entry->source_path,
+				      &replacement->source_path) ||
+			  entry->source_nofollow_path_valid !=
+			      replacement->source_nofollow_path_valid ||
+			  (entry->source_nofollow_path_valid &&
+			   !path_equal(&entry->source_nofollow_path,
+				       &replacement->source_nofollow_path));
+		break;
+	}
+	/* Count the new mapping and all new unique keys together. Even an
+	 * identical reissue acquires its own claim before the old one leaves.
+	 */
+	ret = sumh_inject_preflight_locked(&replacement->inject_claim, 1,
+					   previous ? 0 : 1, &injection);
+	if (ret)
+		goto out;
+	ret =
+	    sumh_dh_change_begin(replacement->dh_claim,
+				 previous ? previous->dh_claim : NULL, &change);
+	if (ret)
+		goto out;
+	sumh_inject_commit_locked(&injection);
+	sumh_dh_change_commit(&change, &retired);
+	hlist_add_head_rcu(&replacement->node,
+			   &sumh_paths[hash_min(hash, SUMH_HASH_BITS)]);
+	if (previous) {
+		hlist_del_rcu(&previous->node);
+		sumh_inject_detach_locked(previous->inject_claim);
 		/* Keep the shared flag: an explicit kstat rule or another
 		 * redirect may still own this source. getattr checks live
 		 * rules. */
-		call_rcu(&entry->rcu, sumh_entry_free_rcu);
-		found = true;
-		break;
-	}
-	if (!found) {
-		hlist_add_head_rcu(&replacement->node,
-				   &sumh_paths[hash_min(hash, SUMH_HASH_BITS)]);
+		call_rcu(&previous->rcu, sumh_entry_free_rcu);
+	} else {
 		h1 = jhash(replacement->src, strlen(replacement->src), 0) &
 		     (SUMH_BLOOM_SIZE - 1);
 		h2 = jhash(replacement->src, strlen(replacement->src), 1) &
@@ -892,15 +1498,19 @@ bool sumh_store_upsert(struct sumh_entry *replacement)
 		set_bit(h2, sumh_path_bloom);
 		atomic_inc(&sumh_rule_count);
 	}
+	sumh_dh_change_end();
+	if (changed_out)
+		*changed_out = changed;
+out:
 	mutex_unlock(&sumh_config_mutex);
-	return changed;
+	sumh_dh_retire_finish(&retired);
+	return ret;
 }
 
-void sumh_cleanup_locked(void)
+void sumh_cleanup_locked(struct sumh_dh_retire *retired)
 {
 	struct sumh_entry *entry;
 	struct sumh_hide_entry *hide_entry;
-	struct sumh_inject_entry *inject_entry;
 	struct sumh_xattr_sb_entry *sb_entry;
 	struct sumh_merge_entry *merge_entry;
 	struct hlist_node *tmp;
@@ -919,6 +1529,8 @@ void sumh_cleanup_locked(void)
 		sumh_clear_inode_flags_for_path(entry->target,
 						AS_FLAGS_SUMH_SPOOF_KSTAT);
 		hlist_del_rcu(&entry->node);
+		sumh_dh_detach(entry->dh_claim, retired);
+		sumh_inject_detach_locked(entry->inject_claim);
 		call_rcu(&entry->rcu, sumh_entry_free_rcu);
 	}
 	hash_for_each_safe(sumh_hide_paths, bkt, tmp, hide_entry, node)
@@ -926,14 +1538,8 @@ void sumh_cleanup_locked(void)
 		sumh_clear_inode_flags_for_path(hide_entry->path,
 						AS_FLAGS_SUMH_HIDE);
 		hlist_del_rcu(&hide_entry->node);
+		sumh_dh_detach(hide_entry->dh_claim, retired);
 		call_rcu(&hide_entry->rcu, sumh_hide_entry_free_rcu);
-	}
-	hash_for_each_safe(sumh_inject_dirs, bkt, tmp, inject_entry, node)
-	{
-		sumh_clear_inode_flags_for_path(inject_entry->dir,
-						AS_FLAGS_SUMH_DIR_HAS_INJECT);
-		hlist_del_rcu(&inject_entry->node);
-		call_rcu(&inject_entry->rcu, sumh_inject_entry_free_rcu);
 	}
 	hash_for_each_safe(sumh_xattr_sbs, bkt, tmp, sb_entry, node)
 	{
@@ -943,8 +1549,14 @@ void sumh_cleanup_locked(void)
 	hash_for_each_safe(sumh_merge_dirs, bkt, tmp, merge_entry, node)
 	{
 		hlist_del_rcu(&merge_entry->node);
+		sumh_inject_detach_locked(merge_entry->inject_claims[0]);
+		sumh_inject_detach_locked(merge_entry->inject_claims[1]);
 		call_rcu(&merge_entry->rcu, sumh_merge_entry_free_rcu);
 	}
+	/* A surviving owner is an internal defect; never free its indexed
+	 * objects behind it or attempt pathname-based marker repair. */
+	WARN_ON_ONCE(!hash_empty(sumh_inject_dirs));
+	WARN_ON_ONCE(!hash_empty(sumh_inject_inodes));
 	{
 		struct sumh_spoof_kstat_entry *sk_entry;
 

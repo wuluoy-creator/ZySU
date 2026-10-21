@@ -38,6 +38,14 @@ ksud sumhp sumh statfs-spoof on
 
 `statfs-spoof` 要求同时开启挂载隐藏，仅在内核能够找到对应可见上层挂载并成功生成视图时替换完整 `kstatfs` 结果（类型、fsid、容量、inode 计数和标志）。它不是对所有路径或所有文件系统的通用伪装。`mount-hide` 和 `statfs-spoof` 都需要包含 SUMH 内核改动的模块；仅替换 ksud 不会安装这些 hook。
 
+### 挂载视图整理与 mount ID 缺口
+
+`ksud` 在挂载流程、卸载配置恢复及 `post-mount` 脚本完成后发送 `EVENT_MODULE_MOUNTED`，允许内核在后续应用启动时执行模块卸载。挂载流程部分失败时也必须发送，因为可能已有挂载需要清理；安全模式、UAPI 不匹配和 Magisk 接管启动的跳过路径不发送。遗漏通知会使内核一直认为模块未挂载，即使开启“挂载视图整理”也会提前返回。
+
+复验时需开启“内核卸载”和“挂载视图整理”，并在目标应用策略中启用模块卸载；默认保留模块的应用不会重建命名空间。更新包含修复的 `ksud` 后重启设备，再强行停止并重新打开检测应用，同时检查内核日志有无 `on_module_mounted!`、`handle umount for uid` 或 `unshare_mnt: ... failed`。
+
+命名空间重建发生在卸载之后、应用返回用户态之前。它保留真实挂载身份，不能保证全局分配的 mount ID 连续。单独的 ID 缺口并不证明挂载损坏；应结合启动与运行时挂载表，以及 `statx`/`fdinfo` 的 ID 一致性复验。
+
 ## 设备复验步骤
 
 在目标固件上记录 KMI、提交号、实际挂载布局和配置，然后：
@@ -58,6 +66,7 @@ python3 userspace/ksud/tests/run_magic_mount_host_tests.py --cxx g++
 python3 userspace/ksud/tests/run_mount_alias_host_tests.py --cxx g++
 python3 userspace/ksud/tests/run_overlay_mount_host_tests.py --cxx g++
 python3 scripts/ci/test_sumh_mount_views.py --cc clang
+python3 userspace/ksud/tests/run_boot_mount_notify_host_tests.py --cxx g++
 python3 scripts/ci/test_sumh_vfs_helpers.py --cc clang
 python3 scripts/ci/test_sumh_native_namespace.py --cc clang
 ```

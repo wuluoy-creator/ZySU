@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SUMH 观察者</string>
+    <string name="introduction">由本应用和隔离服务分别观测合成测试目录。采集成功仅表示获得证据，不代表可见性测试通过。请导出后进行离线比较。</string>
+    <string name="request_heading">1. 选择一份请求</string>
+    <string name="request_none">创建私有测试目录，或导入有大小限制的版本 1 请求。</string>
+    <string name="create">创建新的私有测试目录</string>
+    <string name="import_request">导入请求 JSON</string>
+    <string name="export_request">导出请求原始字节</string>
+    <string name="request_details">运行 ID：%1$s\n测试目录：%2$s\n请求 SHA-256：%3$s</string>
+    <string name="ordinary_heading">2. 普通应用观察者</string>
+    <string name="isolated_heading">3. 隔离服务观察者</string>
+    <string name="collect_ordinary">采集普通应用样本</string>
+    <string name="collect_isolated">采集隔离服务样本</string>
+    <string name="export_ordinary">导出普通应用样本</string>
+    <string name="export_isolated">导出隔离服务样本</string>
+    <string name="sample_none">此请求尚无成功传回的样本。</string>
+    <string name="sample_saved">已保留样本：%1$d 字节。JSON 保留各探针错误和不完整状态。再次采集会替换此观察者的保留样本；请先导出基线。</string>
+    <string name="latest_attempt">最近一次尝试：%1$s</string>
+    <string name="scope_note">隔离服务自行尝试路径访问，并单独接收经过校验的只读映射文件描述符。访问被拒绝不证明隐藏生效。root 观测需另行手动运行辅助程序。本应用不申请 root，也不安装 SUMH 规则。</string>
+    <string name="cleanup_note">测试目录和证据保留在此测试应用的私有数据中。清除应用存储或卸载前，请先导出需要保留的内容。本应用不会自动清理规则。</string>
+    <string name="status_ready">已就绪。不会自动执行操作。</string>
+    <string name="status_working">操作进行中，请等待结果。</string>
+    <string name="status_request">请求已保存，请选择观察者进行采集。</string>
+    <string name="status_collected">样本已采集并保存。请使用离线检查器判断各项观测。</string>
+    <string name="status_exported">证据原始字节已导出。</string>
+    <string name="status_error">操作失败，先前证据仍保留。请检查详细信息后手动重试。</string>
+    <string name="status_unknown">10 秒内未取得确定结果，未重试操作，后续迟到响应将被忽略。</string>
+    <string name="native_still_running">本地调用仍在返回，暂时不能开始新操作。</string>
+    <string name="status_interrupted">先前操作没有确定的完成结果。已保留保存的证据，没有重新执行操作。</string>
+    <string name="status_restored">已恢复保存的请求和证据，其中保留原始进程身份。</string>
+    <string name="export_expired">导出选择已失效或属于其他请求，请重新选择导出。</string>
+    <string name="service_died">隔离服务在取得确定结果前已断开。</string>
+    <string name="service_rejected">无法绑定隔离服务。</string>
+</resources>

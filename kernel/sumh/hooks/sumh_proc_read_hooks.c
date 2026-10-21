@@ -27,23 +27,25 @@
 #include <uapi/linux/magic.h>
 #include "sumh_runtime.h"
 #include "sumh_store.h"
+#include "sumh_maps_store.h"
 #include "sumh_entrypoints.h"
 #include "sumh_path_policy.h"
 #include "sumh_proc_read_hooks.h"
+#include "sumh_proc_memory.h"
 #include "sumh_fake_mountinfo.h"
 #include "sumh_vnode.h"
 #include "feature/kernel_umount.h"
 #include "policy/allowlist.h"
 
 #define SUMH_PROC_FILTER_BUF 65536
-#define SUMH_PROC_STREAM_MEMORY_BUDGET (16 * 1024 * 1024)
 #define SUMH_PROC_STREAM_ALLOCATION (SUMH_PROC_FILTER_BUF + 1)
 #define SUMH_PROC_STREAM_MAX (1024 * 1024)
 
 static int sumh_filter_maps_lines(const char *src, size_t len, char *dst,
 				  size_t dst_size, size_t *written,
 				  bool *changed, bool *valid,
-				  enum sumh_policy_scope scope);
+				  enum sumh_policy_scope scope,
+				  const struct sumh_maps_snapshot *snapshot);
 
 enum sumh_proc_proxy_kind {
 	SUMH_PROC_PROXY_NONE = 0,
@@ -94,6 +96,8 @@ struct sumh_mount_file_proxy {
 	u64 stream_generation;
 	bool stream_eof;
 	bool stream_failed;
+	bool maps_snapshot_acquired;
+	struct sumh_maps_snapshot *maps_snapshot;
 	bool mountinfo_checked;
 	int mountinfo_error;
 	struct sumh_mi_snapshot *mountinfo_snapshot;
@@ -104,7 +108,6 @@ static DEFINE_SPINLOCK(sumh_proxy_list_lock);
 DEFINE_STATIC_SRCU(sumh_proxy_srcu);
 static atomic_t sumh_proxy_shutdown = ATOMIC_INIT(0);
 static atomic_t sumh_proxy_live = ATOMIC_INIT(0);
-static atomic_long_t sumh_stream_memory_used = ATOMIC_LONG_INIT(0);
 
 static struct kprobe sumh_kp_fd_install;
 static bool sumh_fd_install_registered;
@@ -244,32 +247,35 @@ sumh_mount_proxy_orig_read_iter(struct sumh_mount_file_proxy *proxy,
 
 static bool sumh_mount_proxy_stream_reserve(size_t bytes)
 {
-	long used;
-
-	used = atomic_long_add_return(bytes, &sumh_stream_memory_used);
-	if (used <= SUMH_PROC_STREAM_MEMORY_BUDGET)
-		return true;
-	atomic_long_sub(bytes, &sumh_stream_memory_used);
-	return false;
+	return sumh_proc_memory_reserve(SUMH_PROC_MEMORY_STREAM, bytes);
 }
 
 static void sumh_mount_proxy_stream_free(struct sumh_mount_file_proxy *proxy)
 {
-	if (!proxy->stream_raw)
-		goto free_filtered;
-	kvfree(proxy->stream_raw);
-	atomic_long_sub(proxy->stream_raw_capacity, &sumh_stream_memory_used);
-	proxy->stream_raw = NULL;
-	proxy->stream_raw_capacity = 0;
+	/* Pins are released in sleepable read/close/drain paths. An acquired
+	 * empty set is also final for this stream; never re-sample after
+	 * terminal failure. */
+	sumh_maps_snapshot_put(proxy->maps_snapshot);
+	proxy->maps_snapshot = NULL;
 
-free_filtered:
-	if (!proxy->stream_filtered)
-		return;
-	kvfree(proxy->stream_filtered);
-	atomic_long_sub(proxy->stream_filtered_capacity,
-			&sumh_stream_memory_used);
-	proxy->stream_filtered = NULL;
-	proxy->stream_filtered_capacity = 0;
+	if (proxy->stream_raw) {
+		kvfree(proxy->stream_raw);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM,
+					 proxy->stream_raw_capacity);
+		proxy->stream_raw = NULL;
+		proxy->stream_raw_capacity = 0;
+	}
+	if (proxy->stream_filtered) {
+		kvfree(proxy->stream_filtered);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM,
+					 proxy->stream_filtered_capacity);
+		proxy->stream_filtered = NULL;
+		proxy->stream_filtered_capacity = 0;
+	}
+	proxy->stream_raw_len = 0;
+	proxy->stream_tail_off = 0;
+	proxy->stream_out_len = 0;
+	proxy->stream_out_off = 0;
 }
 
 static int sumh_mount_proxy_stream_alloc(struct sumh_mount_file_proxy *proxy)
@@ -288,7 +294,9 @@ static int sumh_mount_proxy_stream_alloc(struct sumh_mount_file_proxy *proxy)
 	return 0;
 
 out_unreserve:
-	atomic_long_sub(SUMH_PROC_STREAM_ALLOCATION, &sumh_stream_memory_used);
+	sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_STREAM);
+	sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM,
+				 SUMH_PROC_STREAM_ALLOCATION);
 	return -ENOMEM;
 }
 
@@ -297,21 +305,22 @@ static int sumh_mount_proxy_stream_grow_raw(struct sumh_mount_file_proxy *proxy)
 	char *raw;
 	size_t old_capacity = proxy->stream_raw_capacity;
 	size_t new_capacity;
-	size_t delta;
 
 	if (old_capacity >= SUMH_PROC_STREAM_MAX)
 		return -EFBIG;
 	new_capacity = min_t(size_t, old_capacity * 2, SUMH_PROC_STREAM_MAX);
-	delta = new_capacity - old_capacity;
-	if (!sumh_mount_proxy_stream_reserve(delta))
+	/* The old buffer stays live until the replacement has been copied. */
+	if (!sumh_mount_proxy_stream_reserve(new_capacity))
 		return -ENOMEM;
 	raw = kvmalloc(new_capacity, GFP_KERNEL);
 	if (!raw) {
-		atomic_long_sub(delta, &sumh_stream_memory_used);
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_STREAM);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM, new_capacity);
 		return -ENOMEM;
 	}
 	memcpy(raw, proxy->stream_raw, proxy->stream_raw_len);
 	kvfree(proxy->stream_raw);
+	sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM, old_capacity);
 	proxy->stream_raw = raw;
 	proxy->stream_raw_capacity = new_capacity;
 	return 0;
@@ -328,8 +337,9 @@ sumh_mount_proxy_stream_alloc_filtered(struct sumh_mount_file_proxy *proxy)
 		return -ENOMEM;
 	filtered = kvmalloc(SUMH_PROC_STREAM_ALLOCATION, GFP_KERNEL);
 	if (!filtered) {
-		atomic_long_sub(SUMH_PROC_STREAM_ALLOCATION,
-				&sumh_stream_memory_used);
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_STREAM);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM,
+					 SUMH_PROC_STREAM_ALLOCATION);
 		return -ENOMEM;
 	}
 	proxy->stream_filtered = filtered;
@@ -343,20 +353,21 @@ sumh_mount_proxy_stream_grow_filtered(struct sumh_mount_file_proxy *proxy)
 	char *filtered;
 	size_t old_capacity = proxy->stream_filtered_capacity;
 	size_t new_capacity;
-	size_t delta;
 
 	if (old_capacity >= SUMH_PROC_STREAM_MAX)
 		return -ENOSPC;
 	new_capacity = min_t(size_t, old_capacity * 2, SUMH_PROC_STREAM_MAX);
-	delta = new_capacity - old_capacity;
-	if (!sumh_mount_proxy_stream_reserve(delta))
+	/* Charge both buffers until the old allocation has been freed. */
+	if (!sumh_mount_proxy_stream_reserve(new_capacity))
 		return -ENOMEM;
 	filtered = kvmalloc(new_capacity, GFP_KERNEL);
 	if (!filtered) {
-		atomic_long_sub(delta, &sumh_stream_memory_used);
+		sumh_proc_memory_alloc_failed(SUMH_PROC_MEMORY_STREAM);
+		sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM, new_capacity);
 		return -ENOMEM;
 	}
 	kvfree(proxy->stream_filtered);
+	sumh_proc_memory_release(SUMH_PROC_MEMORY_STREAM, old_capacity);
 	proxy->stream_filtered = filtered;
 	proxy->stream_filtered_capacity = new_capacity;
 	return 0;
@@ -412,7 +423,8 @@ static ssize_t sumh_mount_proxy_stream_fill(struct sumh_mount_file_proxy *proxy,
 					    proxy->stream_filtered,
 					    proxy->stream_filtered_capacity,
 					    &new_len, &maps_changed,
-					    &maps_valid, proxy->scope);
+					    &maps_valid, proxy->scope,
+					    proxy->maps_snapshot);
 					if (ret != -ENOSPC)
 						break;
 					ret =
@@ -558,6 +570,8 @@ sumh_mount_proxy_prepare_groups(struct sumh_mount_file_proxy *proxy,
 	proxy->stream_raw[proxy->stream_raw_len] = '\0';
 out:
 	file->f_pos = saved_pos;
+	if (ret)
+		sumh_mount_proxy_stream_free(proxy);
 	proxy->mountinfo_error = ret;
 	return ret;
 }
@@ -634,11 +648,17 @@ sumh_mount_proxy_filtered_read(struct sumh_mount_file_proxy *proxy,
 		ret = -EIO;
 		goto out_unlock;
 	}
-	ret = sumh_mount_proxy_stream_alloc(proxy);
-	if (ret) {
-		proxy->stream_failed = true;
-		goto out_unlock;
+	/* One immutable rule set for the entire nonseekable Maps traversal,
+	 * including empty sets, native-read chunks and output growth retries.
+	 */
+	if (proxy->kind == SUMH_PROC_PROXY_MAPS &&
+	    !proxy->maps_snapshot_acquired) {
+		proxy->maps_snapshot = sumh_maps_snapshot_get();
+		proxy->maps_snapshot_acquired = true;
 	}
+	ret = sumh_mount_proxy_stream_alloc(proxy);
+	if (ret)
+		goto out_fail;
 
 	while (proxy->stream_out_off == proxy->stream_out_len) {
 		ret = sumh_mount_proxy_stream_fill(proxy, file);
@@ -671,8 +691,10 @@ sumh_mount_proxy_filtered_read(struct sumh_mount_file_proxy *proxy,
 	goto out_unlock;
 
 out_fail:
-	if (ret < 0)
+	if (ret < 0) {
 		proxy->stream_failed = true;
+		sumh_mount_proxy_stream_free(proxy);
+	}
 
 out_unlock:
 	mutex_unlock(&proxy->stream_lock);
@@ -1112,27 +1134,6 @@ static int sumh_parse_maps_line(const char *line, size_t line_len,
 	return 0;
 }
 
-/* Caller holds sumh_maps_mutex until the selected values have been copied.
- * Prefer exact devices over wildcards, and explicit legacy rules over the
- * controller-owned set when both define the same key.
- */
-static struct sumh_maps_rule_entry *sumh_maps_find_rule(unsigned long ino,
-							unsigned long dev)
-{
-	struct sumh_maps_rule_entry *entry, *best = NULL;
-
-	list_for_each_entry (entry, &sumh_maps_rules, list) {
-		if (entry->target_ino != ino ||
-		    (entry->target_dev && entry->target_dev != dev))
-			continue;
-		if (!best || (!best->target_dev && entry->target_dev) ||
-		    (best->target_dev == entry->target_dev && best->managed &&
-		     !entry->managed))
-			best = entry;
-	}
-	return best;
-}
-
 static bool sumh_maps_line_looks_like_header(const char *line, size_t line_len)
 {
 	size_t i = 0;
@@ -1145,10 +1146,11 @@ static bool sumh_maps_line_looks_like_header(const char *line, size_t line_len)
 static int sumh_filter_maps_lines(const char *src, size_t len, char *dst,
 				  size_t dst_size, size_t *written,
 				  bool *changed, bool *valid,
-				  enum sumh_policy_scope scope)
+				  enum sumh_policy_scope scope,
+				  const struct sumh_maps_snapshot *snapshot)
 {
 	size_t in = 0, out = 0;
-	struct sumh_maps_rule_entry *r;
+	const struct sumh_maps_rule_entry *r;
 	const char *pathname;
 	char replacement_path[SUMH_MAX_LEN_PATHNAME];
 	char header[128];
@@ -1218,18 +1220,16 @@ static int sumh_filter_maps_lines(const char *src, size_t len, char *dst,
 		replacement_path[0] = '\0';
 
 		if (spoof) {
-			mutex_lock(&sumh_maps_mutex);
-			r = sumh_maps_find_rule(ino, dev);
+			r = sumh_maps_snapshot_lookup(snapshot, ino, dev);
 			if (r) {
 				spoof_ino = r->spoofed_ino;
 				spoof_dev = r->spoofed_dev;
-				/* Do not retain a rule-owned pointer after
-				 * unlocking. */
+				/* The stream retains the immutable collection.
+				 */
 				strscpy(replacement_path, r->spoofed_pathname,
 					sizeof(replacement_path));
 				have_replacement_path = true;
 			}
-			mutex_unlock(&sumh_maps_mutex);
 		}
 
 		if (have_replacement_path) {
@@ -1350,6 +1350,14 @@ static struct kretprobe sumh_krp_get_vfs_caps = {
     .maxactive = 64,
 };
 
+/* Hook readiness is a capability, not proof that a particular reader's
+ * policy, file or allocation permitted filtering. */
+bool sumh_proc_proxy_available(void)
+{
+	return READ_ONCE(sumh_proc_proxy_registered) &&
+	       !atomic_read(&sumh_proxy_shutdown);
+}
+
 int sumh_proc_proxy_get(void)
 {
 	unsigned long fd_install_addr;
@@ -1376,7 +1384,7 @@ int sumh_proc_proxy_get(void)
 		pr_warn("sumh: no fd-install ingress found\n");
 
 	if (use_proxy_filter) {
-		sumh_proc_proxy_registered = 1;
+		WRITE_ONCE(sumh_proc_proxy_registered, 1);
 		pr_info("sumh: proc views filtered by fd_install fop proxy\n");
 	}
 	if (!use_proxy_filter) {
@@ -1398,11 +1406,11 @@ void sumh_proc_proxy_put(void)
 	if (--sumh_proxy_hook_users)
 		goto unlock;
 	atomic_set(&sumh_proxy_shutdown, 1);
+	WRITE_ONCE(sumh_proc_proxy_registered, 0);
 	if (sumh_fd_install_registered) {
 		unregister_kprobe(&sumh_kp_fd_install);
 		sumh_fd_install_registered = false;
 	}
-	sumh_proc_proxy_registered = 0;
 	sumh_mount_proxy_drain();
 	WARN_ON_ONCE(atomic_read(&sumh_proxy_live));
 unlock:
@@ -1447,15 +1455,7 @@ void sumh_proc_read_hooks_stop_new(void)
 void sumh_proc_read_hooks_exit(void)
 {
 	sumh_proc_read_hooks_stop_new();
-
-	{
-		struct sumh_maps_rule_entry *e, *tmp;
-
-		mutex_lock(&sumh_maps_mutex);
-		list_for_each_entry_safe (e, tmp, &sumh_maps_rules, list) {
-			list_del(&e->list);
-			kfree(e);
-		}
-		mutex_unlock(&sumh_maps_mutex);
-	}
+	/* Exclusive lifecycle shutdown excludes ioctl writers; existing proxy
+	 * references (if any during unwind) retain their own collection. */
+	sumh_maps_store_clear();
 }

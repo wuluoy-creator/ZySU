@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-19T02:29:55.9886509Z",
+  "actions": [
+    {
+      "action": "actions/checkout",
+      "version": "v7",
+      "commit": "3d3c42e5aac5ba805825da76410c181273ba90b1"
+    },
+    {
+      "action": "actions/setup-java",
+      "version": "v6",
+      "commit": "b843ebf9b913146b38da2eaa7aeddf76074ae1ad"
+    },
+    {
+      "action": "gradle/actions/setup-gradle",
+      "version": "v6",
+      "commit": "3f5f9adaf7d9fecd50b5935e54106014257a94e6"
+    },
+    {
+      "action": "android-actions/setup-android",
+      "version": "v4",
+      "commit": "be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "version": "v7",
+      "commit": "cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+    },
+    {
+      "action": "actions/download-artifact",
+      "version": "v8",
+      "commit": "9000827ccba6bdab643e8b6fd33ac0654aef8333"
+    },
+    {
+      "action": "actions/setup-python",
+      "version": "v7",
+      "commit": "5fda3b95a4ea91299a34e894583c3862153e4b97"
+    },
+    {
+      "action": "peter-evans/create-pull-request",
+      "version": "v8",
+      "commit": "5f6978faf089d4d20b00c7766989d076bb2fc7f1"
+    },
+    {
+      "action": "peter-evans/close-issue",
+      "version": "v3",
+      "commit": "05dff7ca07116e5707cfb3a3cd4af7bb5e43524c"
+    },
+    {
+      "action": "ludeeus/action-shellcheck",
+      "version": "2.0.0",
+      "commit": "00cae500b08a931fb5698e11e79bfbd38e612a38"
+    },
+    {
+      "action": "actions/cache",
+      "version": "v5",
+      "commit": "caa296126883cff596d87d8935842f9db880ef25"
+    }
+  ],
+  "unresolved_actions": [
+    {
+      "action": "Kernel-SU/actions-comment-on-issue",
+      "version": "master",
+      "reason": "Remote ref lookup unavailable; not an immutable pin. Limited to existing add-device issue comments."
+    }
+  ],
+  "ddk_images": [
+    {
+      "kmi": "android14-6.1",
+      "release": "20260828",
+      "repository": "ghcr.io/ylarod/ddk-min",
+      "digest": "sha256:1dd6ac340b627a90a4031d6d0df6b129d8cc949b139fb56032c898f023d3d5d3",
+      "platform": "linux/amd64"
+    },
+    {
+      "kmi": "android15-6.6",
+      "release": "20260828",
+      "repository": "ghcr.io/ylarod/ddk-min",
+      "digest": "sha256:51159bc935c75a282fc65bc87e02f16bd098d1cdf55dc558c4fdd0fcf7a132e2",
+      "platform": "linux/amd64"
+    },
+    {
+      "kmi": "android16-6.12",
+      "release": "20260828",
+      "repository": "ghcr.io/ylarod/ddk-min",
+      "digest": "sha256:fd3ec5cc71d7f2716212e9df8d5674a9afe68fb769282fcac87b83f207f949ee",
+      "platform": "linux/amd64"
+    },
+    {
+      "kmi": "android17-6.18",
+      "release": "20260828",
+      "repository": "ghcr.io/ylarod/ddk-min",
+      "digest": "sha256:fb8b66200bf402cf65a751060fc1aa29524b9fa8840feef16c7b196a4f3f0e6e",
+      "platform": "linux/amd64"
+    }
+  ]
+}

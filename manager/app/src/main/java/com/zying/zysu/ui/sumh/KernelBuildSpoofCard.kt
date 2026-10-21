@@ -43,7 +43,7 @@ import kotlinx.coroutines.CancellationException
 import ui.screen.moreSettings.component.MoreSettingsItemPosition
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as Controller
 
-private sealed interface KernelBuildRead {
+internal sealed interface KernelBuildRead {
     data object Unavailable : KernelBuildRead
     data object Loading : KernelBuildRead
     data object Failed : KernelBuildRead
@@ -72,7 +72,7 @@ internal fun KernelBuildSpoofCard(
     val editable = controlsEnabled && kernelEnabled && supported
     val canDisable = controlsEnabled && expanded
     LaunchedEffect(config.enableKernelBuildSpoof) {
-        if (config.enableKernelBuildSpoof) pendingEnable = false
+        if (config.enableKernelBuildSpoof && pendingEnable) { pendingEnable = false; editing = true }
     }
     LaunchedEffect(supported, config.kernelAvailable, revision, refresh, expanded,
         config.enableKernelBuildSpoof, config.kernelBuildRelease, config.kernelBuildVersion,
@@ -180,47 +180,60 @@ private fun KernelBuildRuntime(
                 Text(stringResource(R.string.sumh_kernel_build_original), style = MaterialTheme.typography.labelLarge)
                 Text(runtime.originalRelease, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                 Text(runtime.originalVersion, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                Text(stringResource(R.string.sumh_kernel_build_original_kmi,
+                    runtime.originalKmiLabel ?: stringResource(R.string.sumh_kernel_build_kmi_unknown)),
+                    style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.sumh_kernel_build_kmi_desc),
+                    style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = onRetry, enabled = retryEnabled, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.sumh_kernel_build_refresh))
             }
         }
     }
 }
 
 @Composable
-private fun KernelBuildSpoofEditor(
+internal fun KernelBuildSpoofEditor(
     config: Controller.SUMHPConfig,
     editable: Boolean,
     read: KernelBuildRead,
     onRetry: () -> Unit,
     onSave: (String, String, String) -> Unit,
 ) {
-    // Refresh successful saves without dropping drafts during unrelated setting changes.
-    var release by rememberSaveable(config.kernelBuildRelease) { mutableStateOf(config.kernelBuildRelease) }
-    var version by rememberSaveable(config.kernelBuildVersion) { mutableStateOf(config.kernelBuildVersion) }
-    var stage by rememberSaveable(config.kernelBuildApplyStage) { mutableStateOf(config.kernelBuildApplyStage) }
+    val releaseDraft = rememberSUMHRefreshAwareDraft(config.kernelBuildRelease)
+    val versionDraft = rememberSUMHRefreshAwareDraft(config.kernelBuildVersion)
+    val stageDraft = rememberSUMHRefreshAwareDraft(config.kernelBuildApplyStage)
+    val release = releaseDraft.text
+    val version = versionDraft.text
+    val stage = stageDraft.text
+    val conflict = releaseDraft.conflict(config.kernelBuildRelease) || versionDraft.conflict(config.kernelBuildVersion) ||
+        stageDraft.conflict(config.kernelBuildApplyStage)
+    var draftLimit by remember { mutableStateOf(false) }
     val runtime = (read as? KernelBuildRead.Ready)?.value
+    val dateSuggestion = runtime?.systemDateSuggestion
     val releaseValid = validKernelBuildField(release, release = true)
     val versionValid = validKernelBuildField(version)
     val missingOverride = release.isEmpty() && version.isEmpty()
     val changed = !config.enableKernelBuildSpoof || release != config.kernelBuildRelease ||
         version != config.kernelBuildVersion || stage != config.kernelBuildApplyStage
-    val canSave = editable && changed && validKernelBuildOverride(true, release, version) &&
+    val canSave = editable && !conflict && changed && validKernelBuildOverride(true, release, version) &&
         stage in listOf(KERNEL_BUILD_EARLY_STAGE, KERNEL_BUILD_LATE_STAGE)
     val stages = listOf(
         KERNEL_BUILD_EARLY_STAGE to stringResource(R.string.sumh_kernel_build_stage_early),
         KERNEL_BUILD_LATE_STAGE to stringResource(R.string.sumh_kernel_build_stage_late),
     )
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (draftLimit) SUMHSmallDraftLimit()
         OutlinedTextField(
             value = release,
-            onValueChange = { release = it },
+            onValueChange = { draftLimit = !sumhSmallDraftFits(it); if (!draftLimit) releaseDraft.edit(it) },
             modifier = Modifier.fillMaxWidth(),
             enabled = editable,
             singleLine = true,
             label = { Text(stringResource(R.string.sumh_kernel_build_release)) },
             placeholder = {
-                Text(runtime?.originalRelease ?: if (read == KernelBuildRead.Failed)
-                    "6.1.75-android14-11-g16c5f6cd5e9b-ab12268515"
-                else stringResource(R.string.sumh_kernel_build_use_original))
+                Text(runtime?.originalRelease ?: stringResource(R.string.sumh_kernel_build_use_original))
             },
             isError = !releaseValid,
             supportingText = {
@@ -229,17 +242,24 @@ private fun KernelBuildSpoofEditor(
             },
             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next),
         )
+        SUMHDraftConflict(releaseDraft, config.kernelBuildRelease, stringResource(R.string.sumh_kernel_build_release))
+        TextButton(
+            onClick = { runtime?.let { releaseDraft.edit(it.originalRelease); draftLimit = false } },
+            enabled = editable && runtime != null && runtime.originalRelease.isNotEmpty() &&
+                validKernelBuildField(runtime.originalRelease, release = true) && release != runtime.originalRelease,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            Text(stringResource(R.string.sumh_kernel_build_fill_original_release))
+        }
         OutlinedTextField(
             value = version,
-            onValueChange = { version = it },
+            onValueChange = { draftLimit = !sumhSmallDraftFits(it); if (!draftLimit) versionDraft.edit(it) },
             modifier = Modifier.fillMaxWidth(),
             enabled = editable,
             singleLine = true,
             label = { Text(stringResource(R.string.sumh_kernel_build_version)) },
             placeholder = {
-                Text(runtime?.originalVersion ?: if (read == KernelBuildRead.Failed)
-                    "#1 SMP PREEMPT Fri Aug 23 03:08:10 UTC 2024"
-                else stringResource(R.string.sumh_kernel_build_use_original))
+                Text(runtime?.originalVersion ?: stringResource(R.string.sumh_kernel_build_use_original))
             },
             isError = !versionValid,
             supportingText = {
@@ -248,6 +268,27 @@ private fun KernelBuildSpoofEditor(
             },
             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
         )
+        SUMHDraftConflict(versionDraft, config.kernelBuildVersion, stringResource(R.string.sumh_kernel_build_version))
+        TextButton(
+            onClick = { runtime?.let { versionDraft.edit(it.originalVersion); draftLimit = false } },
+            enabled = editable && runtime != null && runtime.originalVersion.isNotEmpty() &&
+                validKernelBuildField(runtime.originalVersion) && version != runtime.originalVersion,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            Text(stringResource(R.string.sumh_kernel_build_fill_original_version))
+        }
+        TextButton(
+            onClick = { dateSuggestion?.let { versionDraft.edit(it); draftLimit = false } },
+            enabled = editable && dateSuggestion != null && version != dateSuggestion,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            Text(stringResource(R.string.sumh_kernel_build_fill_system_date))
+        }
+        Text(stringResource(if (dateSuggestion != null) R.string.sumh_kernel_build_system_date_source
+            else R.string.sumh_kernel_build_system_date_unavailable),
+            style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.sumh_kernel_build_helpers_draft_only),
+            style = MaterialTheme.typography.bodySmall)
         if (missingOverride) {
             Text(stringResource(R.string.sumh_kernel_build_override_required),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -257,12 +298,25 @@ private fun KernelBuildSpoofEditor(
             valueLabel = stages.firstOrNull { it.first == stage }?.second ?: stage,
             choices = stages,
             enabled = editable,
-            selected = { stage = it },
+            selected = { stageDraft.edit(it) },
         )
+        SUMHDraftConflict(stageDraft, config.kernelBuildApplyStage, stringResource(R.string.sumh_kernel_build_apply_stage))
         Text(stringResource(R.string.sumh_kernel_build_stage_desc),
             style = MaterialTheme.typography.bodySmall)
+        if (releaseValid && versionValid && !missingOverride) {
+            Text(stringResource(R.string.sumh_kernel_build_draft_preview),
+                style = MaterialTheme.typography.labelLarge)
+            KernelBuildDraftField(stringResource(R.string.sumh_kernel_build_release),
+                release.ifEmpty { runtime?.originalRelease.orEmpty() }, runtime?.release)
+            KernelBuildDraftField(stringResource(R.string.sumh_kernel_build_version),
+                version.ifEmpty { runtime?.originalVersion.orEmpty() }, runtime?.version)
+        }
         Button(
-            onClick = { onSave(release, version, stage) },
+            onClick = {
+                if (!canSave) return@Button
+                releaseDraft.submitted(); versionDraft.submitted(); stageDraft.submitted()
+                onSave(release, version, stage)
+            },
             enabled = canSave,
             modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp),
         ) {
@@ -272,4 +326,16 @@ private fun KernelBuildSpoofEditor(
             style = MaterialTheme.typography.bodySmall)
         KernelBuildRuntime(read, showOriginal = true, retryEnabled = editable, onRetry = onRetry)
     }
+}
+
+@Composable
+private fun KernelBuildDraftField(label: String, value: String, current: String?) {
+    Text(label, style = MaterialTheme.typography.labelMedium)
+    Text(value.ifEmpty { stringResource(R.string.sumh_kernel_build_original_pending) },
+        style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+    Text(stringResource(when {
+        current == null -> R.string.sumh_kernel_build_comparison_unavailable
+        value == current -> R.string.sumh_kernel_build_matches_current
+        else -> R.string.sumh_kernel_build_differs_current
+    }), style = MaterialTheme.typography.bodySmall)
 }

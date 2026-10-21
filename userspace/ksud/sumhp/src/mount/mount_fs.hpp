@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "core/log.hpp"
+#include "mount/namespace_result.hpp"
 
 struct stat;
 
@@ -63,7 +64,9 @@ bool prepare_empty_mountpoint(const std::string& path);
 bool run_in_init_mount_ns(const std::function<bool()>& fn);
 // Return the child's errno and a bounded diagnostic to the parent on failure.
 // The callback writes its diagnostic to error before returning false.
-bool run_in_init_mount_ns(const std::function<bool()>& fn, std::string& error);
+// A missing reply or unconfirmed child completion leaves the outcome unknown.
+bool run_in_init_mount_ns(const std::function<bool()>& fn, std::string& error,
+                          NamespaceOperationState* state = nullptr);
 
 // Append a line to the unified SUMHP diagnostic log.
 void mlog(const std::string& msg, logging::Level level = logging::Level::Info);

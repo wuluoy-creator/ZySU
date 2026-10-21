@@ -1,0 +1,183 @@
+{
+  "generator": "actual temporary_maps::dispatch with actual client/inventory/delete command; only ksu_sumh_ioctl is mocked",
+  "envelope_generator": "actual preview_transport.cpp envelope() extracted by run_sumh_host_tests.py",
+  "errno_abi": "Synthetic Android/Linux errno macros force-included only for fixture executable on Windows; normal Windows tests unchanged. Sentinel static_asserts validate all errno values used by callback/client/serializer.",
+  "command": "python userspace/ksud/tests/run_sumh_host_tests.py --zig out/sumh-validation/tools/zig-x86_64-windows-0.14.1/zig.exe --temporary-maps-fixtures out/batch30-native-fixtures",
+  "inputs": {
+    "userspace/ksud/tests/temporary_maps_manager_test.cpp": "1b82b3ec6a68aabb3d3b28aed5eb098f29bea9e5e7ccd4ac2093caf54653691d",
+    "userspace/ksud/tests/temporary_maps_android_errno.hpp": "443b93078ca3530b8c0b62312fde4c23408e947c390976022096738c48444be1",
+    "userspace/ksud/tests/run_sumh_host_tests.py": "6e28462f4b366e191297c8370a3a4e00777e1c47c5999ee062d1803c3d6fc35e",
+    "userspace/common/temporary_maps_request.hpp": "b99f5ee53e8dcb5326dbd19459589ca7f5d956cb919dbb421fed94ba52c6f55d",
+    "userspace/common/maps_preview_transport.cpp": "dd348c38c193fbdbdf23fb314677e89473be448488e1195ac67f192fc26ffbb2",
+    "userspace/common/json.hpp": "0f1d4cee39523f9d1e0de1057f10a57ade09d6c7eae17ebc9762d89188658bf1",
+    "userspace/common/utf8.hpp": "29a457d7a67c5714841d3f7edbced0f4550d485ae2dda1802a5b2e4372c276bc",
+    "userspace/ksud/sumhp/src/mount/temporary_maps_manager.hpp": "ce8ab60ff1889663586402e6938642c4906f6be9a2f903b835b387b1c5a91e06",
+    "userspace/ksud/sumhp/src/mount/maps_temporary.hpp": "673aa911b6f25f5543ada86a266f93ce98c49c2135a53742fd775c5c51154ac0",
+    "userspace/ksud/sumhp/src/core/rule_inventory.hpp": "818f564d68df34c4b1b840def618f50ed34da1b501e5145b3d7b35754bcb053b",
+    "userspace/ksud/sumhp/src/mount/sumh_client.cpp": "4d2e9a51fe7a21581cc1fe075780fc85f5b0e0c83cff246d893afb0db5056d7e",
+    "userspace/ksud/sumhp/include/sumhp/sumh_client.hpp": "37906696156343e37bc22bd3c200e8cc08d107fdccd27ec7289474864119f1c9",
+    "uapi/sumh.h": "19770a620580bc2dc6dc2719a9089f0ad95e50ffb8f125e8069cdd37e74c1467"
+  },
+  "fixtures": {
+    "capabilities-delete-only-envelope.json": {
+      "sha256": "68efd2254f4412ac6dec6d0e02f84d24f17bc39ef5412bbc8dcb7d1cedc395de",
+      "bytes": 326
+    },
+    "capabilities-delete-only.json": {
+      "sha256": "5f0df4c5112c2de252e589d4b35303bd4620f2a9cef572113bd2c9a482ea4d8e",
+      "bytes": 233
+    },
+    "capabilities-error-13-envelope.json": {
+      "sha256": "a4b0a0e30e7c135daf6319b1afd23991528c01e2ed0e31faed6eedac93c45fb5",
+      "bytes": 319
+    },
+    "capabilities-error-13.json": {
+      "sha256": "a44f755dbf757e5ddc493e104ec735004d7549bb411d1f36478e1d395539cc25",
+      "bytes": 226
+    },
+    "capabilities-error-25-envelope.json": {
+      "sha256": "0713a579017b4b73f2a78e82c306640d534562425fc7f1755976c3483e5a10ae",
+      "bytes": 319
+    },
+    "capabilities-error-25.json": {
+      "sha256": "062d385c20c2998bd1b23adaf0447085cea29fd0ca8860bf427315559adb1c44",
+      "bytes": 226
+    },
+    "capabilities-error-4-envelope.json": {
+      "sha256": "60815da25b15b34e6ec25ec1fb013a3a3c7a0a71b817a0a898cea9839cec94ff",
+      "bytes": 318
+    },
+    "capabilities-error-4.json": {
+      "sha256": "51620f66e9d42cf4fcb968cf91ffb7c165e28b97f973bfbbf2253c9340609e9b",
+      "bytes": 225
+    },
+    "capabilities-error-5-envelope.json": {
+      "sha256": "33c209d8af52ef9d05060623a7201d932697c2d076d658678eb59a6649589c6c",
+      "bytes": 318
+    },
+    "capabilities-error-5.json": {
+      "sha256": "987b13afb1a38139f7262508a8d6859fb45dff727f6cc04c6d0ccf702ff9a674",
+      "bytes": 225
+    },
+    "capabilities-inventory-only-envelope.json": {
+      "sha256": "0d7a4504cc83e204977b212cc5338792056f1597c5fa009736d1f6e132ebf09c",
+      "bytes": 324
+    },
+    "capabilities-inventory-only.json": {
+      "sha256": "f7b61f275502121d1c754dacc3a82c9e31817c5b2dc35603b75c1aa8a7b32b56",
+      "bytes": 231
+    },
+    "capabilities-malformed-negative-envelope.json": {
+      "sha256": "33c209d8af52ef9d05060623a7201d932697c2d076d658678eb59a6649589c6c",
+      "bytes": 318
+    },
+    "capabilities-malformed-negative.json": {
+      "sha256": "987b13afb1a38139f7262508a8d6859fb45dff727f6cc04c6d0ccf702ff9a674",
+      "bytes": 225
+    },
+    "capabilities-supported-envelope.json": {
+      "sha256": "3a7e7da776de81027384a6f5c10399c0fbcc85e40a6d5b70fc0e5a450cf93957",
+      "bytes": 322
+    },
+    "capabilities-supported.json": {
+      "sha256": "5106c5991b72a22af28c90f46af2a5efb18f8359615e854945b56dddd40f2d3c",
+      "bytes": 229
+    },
+    "capabilities-unsupported-envelope.json": {
+      "sha256": "68efd2254f4412ac6dec6d0e02f84d24f17bc39ef5412bbc8dcb7d1cedc395de",
+      "bytes": 326
+    },
+    "capabilities-unsupported.json": {
+      "sha256": "5f0df4c5112c2de252e589d4b35303bd4620f2a9cef572113bd2c9a482ea4d8e",
+      "bytes": 233
+    },
+    "delete-acknowledged-envelope.json": {
+      "sha256": "a731aa9316319f77811a6edb1a97bb56baccc8e4f47f8d0e779fe4b57d3c1294",
+      "bytes": 625
+    },
+    "delete-acknowledged.json": {
+      "sha256": "37bb96c811bc0cf3a56f59de832856f8ed32a6f9e08243a4b5f078b3a84829ad",
+      "bytes": 498
+    },
+    "delete-missing-envelope.json": {
+      "sha256": "e96f9e4373dd9d88b5c524e270960445c2c3ecf52f7c52d43c1672c873172355",
+      "bytes": 646
+    },
+    "delete-missing.json": {
+      "sha256": "f5cf6284265c2c52073762632e6be88b5fbd6567d8e651378e4d038c67b0f980",
+      "bytes": 519
+    },
+    "delete-stale-envelope.json": {
+      "sha256": "5b7a7e8e0615526d7a741aff1a8586723482868fea1f05f94b2a1f84c79c0c86",
+      "bytes": 641
+    },
+    "delete-stale.json": {
+      "sha256": "5d9f2f12a0ca74e807611961bd199a55948f90dcfb482b958eb06ec7de153fef",
+      "bytes": 514
+    },
+    "delete-unknown-4-envelope.json": {
+      "sha256": "4d5ff4629b116cff812eb9281fcad1d8ecbbc4476fd5861934223c74b56c304e",
+      "bytes": 642
+    },
+    "delete-unknown-4.json": {
+      "sha256": "d54743453e43c4831fae8e96990570cd21324c769304bc4f5d0458d8cc0401ec",
+      "bytes": 515
+    },
+    "delete-unknown-5-envelope.json": {
+      "sha256": "0e579d43ffe9ff7254950b55f07961f4715711dd218753179972e5a2c59aa128",
+      "bytes": 642
+    },
+    "delete-unknown-5.json": {
+      "sha256": "dc653b6486b3f1fe5249465de7e5667eaa26f6e70c565e2bbcf8c0a3904434aa",
+      "bytes": 515
+    },
+    "delete-unsupported-envelope.json": {
+      "sha256": "b019cd6912743bfed419052f5a991ac8206b96c271b93db2d8543ea64a3e3bfe",
+      "bytes": 636
+    },
+    "delete-unsupported.json": {
+      "sha256": "d7c5401c5e360cfd16bbf60d33c29ab1a15e59c78294f056fceeef8fcef8a7ed",
+      "bytes": 509
+    },
+    "page-high-u64-envelope.json": {
+      "sha256": "e6993c951595e1f6f88da23f48f547df87d474506e5504e41ab43c6f2002b326",
+      "bytes": 1155
+    },
+    "page-high-u64.json": {
+      "sha256": "2daf8ea07f84fbb95ba83d1e76db05c388e8163298aa6a6859630f9a8dbc0745",
+      "bytes": 964
+    },
+    "page-invalid-utf8-envelope.json": {
+      "sha256": "336506711aac091c4b98e81c7dc641bda29f37ae06bf720549a2c5240eeef37b",
+      "bytes": 1141
+    },
+    "page-invalid-utf8.json": {
+      "sha256": "85146c54edffde7d08c99cb1854c95303ca2c530b0691b5d2fdde16c8c42d09c",
+      "bytes": 950
+    },
+    "page-partial-envelope.json": {
+      "sha256": "5b13f2b8c2653da3dab1aed3c78b28a19e348abfa467b87dfb4f477316563009",
+      "bytes": 1157
+    },
+    "page-partial.json": {
+      "sha256": "b62f9723a58ba9f2c54d97ec4fb2d241e6912457b42e90316099b6a0468cb50d",
+      "bytes": 966
+    },
+    "page-stale-envelope.json": {
+      "sha256": "2fcc1bb9bff5ded7b8db3a98246c7681042d9a78cac0ceb0470f5459890382cf",
+      "bytes": 531
+    },
+    "page-stale.json": {
+      "sha256": "d802c4dea676394fec58d080e974562d3a84358abda5711eb94a7b2abc3a71af",
+      "bytes": 416
+    },
+    "page-unsupported-envelope.json": {
+      "sha256": "a98fe0ae804315330b48f0aaa7a37ada1beb1201b969a5709f8eec0f260c64d4",
+      "bytes": 548
+    },
+    "page-unsupported.json": {
+      "sha256": "b843bd3c368e27f9e5f5caf6114d0781ab6c5f24c54d3de0371a698a3217c4ef",
+      "bytes": 433
+    }
+  }
+}

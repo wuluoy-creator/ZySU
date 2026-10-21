@@ -8,11 +8,12 @@ identity still requires readlink/stat/fstat checks on an Android test device.
 import argparse
 import os
 from pathlib import Path
+import re
 import shutil
 import sys
 
 sys.dont_write_bytecode = True
-from test_sumh_vfs_helpers import COMMON, function, run_test
+from test_sumh_vfs_helpers import COMMON, ROOT, function, run_test
 
 
 def namespace_source():
@@ -25,22 +26,12 @@ def namespace_source():
 #define SUMH_IOC_GET_FEATURES 2
 #define SUMH_MOUNT_HIDE_MODE_NORMAL 0
 #define SUMH_MOUNT_HIDE_MODE_AGGRESSIVE 1
-#define SUMH_FEATURE_MANAGED_HIDE (1 << 0)
-#define SUMH_FEATURE_KERNEL_BUILD_SPOOF (1 << 1)
-#define SUMH_FEATURE_KSTAT_SPOOF (1 << 2)
-#define SUMH_FEATURE_MERGE_DIR (1 << 3)
-#define SUMH_FEATURE_OVERLAY_XATTR_HIDE (1 << 4)
-#define SUMH_FEATURE_MOUNT_HIDE (1 << 5)
-#define SUMH_FEATURE_FAKE_MOUNTINFO (1 << 6)
-#define SUMH_FEATURE_MOUNT_HIDE_AGGRESSIVE (1 << 7)
-#define SUMH_FEATURE_MAPS_SPOOF (1 << 8)
-#define SUMH_FEATURE_STATFS_SPOOF (1 << 9)
-#define SUMH_FEATURE_MANAGED_MAPS (1 << 10)
 #define WRITE_ONCE(value, new_value) ((value) = (new_value))
+#define READ_ONCE(value) (value)
+#define atomic_read(value) (*(value))
 #define sumh_log(...) ((void)0)
 static int sumh_mount_hide_mode, invalidations, copy_fault, ready;
-static int sumh_proc_proxy_registered;
-static int sumh_mount_hide_vfsmnt_registered, sumh_mount_hide_mountinfo_registered;
+static int sumh_proc_proxy_registered, sumh_proxy_shutdown;
 static bool sumh_hide_rules_available(void) { return ready; }
 static bool sumh_kernel_build_available(void) { return ready; }
 static bool sumh_overlay_xattr_available(void) { return ready; }
@@ -62,7 +53,9 @@ static int copy_to_user(void *out, const void *in, size_t n) {
             "if (cmd == SUMH_IOC_GET_FEATURES)",
         )
     )
-    control = "static int control(int cmd, void *arg) {\n" + branches + "\nreturn -ENOTTY;\n}\n"
+    control = function("kernel/sumh/hooks/sumh_proc_read_hooks.c", "bool sumh_proc_proxy_available(")
+    control += function("kernel/sumh/control/sumh_ioctl.c", "static bool sumh_mount_hide_available(")
+    control += "static int control(int cmd, void *arg) {\n" + branches + "\nreturn -ENOTTY;\n}\n"
     body = r"""
 int main(void) {
     int mode = SUMH_MOUNT_HIDE_MODE_AGGRESSIVE, features;
@@ -91,7 +84,10 @@ int main(void) {
     return 0;
 }
 """
-    return COMMON + preamble + control + body
+    uapi = (ROOT / "uapi/sumh.h").read_text(encoding="utf-8")
+    feature_defines = "\n".join(re.findall(
+        r"^#define SUMH_FEATURE_\w+\b[^\n]*(?:\n[^\n]*)*?$(?<!\\)", uapi, re.M))
+    return COMMON + feature_defines + "\n" + preamble + control + body
 
 
 if __name__ == "__main__":

@@ -254,6 +254,37 @@ bool sumh_hide_rules_quiesce(void)
 	return true;
 }
 
+int sumh_hide_rule_inventory(u64 cursor,
+			     struct sumh_rule_inventory_entry *entry,
+			     bool *more)
+{
+	struct managed_hide_rule *rule;
+	u64 seen = 0;
+	int count = 0;
+	size_t length;
+
+	*more = false;
+	list_for_each_entry (rule, &hide_rules, list) {
+		if (seen++ < cursor)
+			continue;
+		if (count) {
+			*more = true;
+			break;
+		}
+		length = strnlen(rule->path, sizeof(entry->path1));
+		if (length == sizeof(entry->path1))
+			return -EOVERFLOW;
+		entry->id_kind = SUMH_INVENTORY_ID_MANAGED_DEFINITION;
+		entry->owner = SUMH_INVENTORY_OWNER_USER_HIDE;
+		entry->id = rule->id;
+		entry->definition_generation = rule->generation;
+		entry->path1_len = length;
+		memcpy(entry->path1, rule->path, length);
+		count = 1;
+	}
+	return cursor > seen ? -EINVAL : count;
+}
+
 static void hide_snapshot(struct sumh_user_hide_arg *arg,
 			  const struct managed_hide_rule *rule)
 {

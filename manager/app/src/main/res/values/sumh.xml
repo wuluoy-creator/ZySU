@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="sumh_draft_loading">Restoring local drafts…</string>
+    <string name="sumh_draft_saving">Saving drafts on this device…</string>
+    <string name="sumh_draft_read_failed">Drafts could not be read. Editing is paused to protect the stored input.</string>
+    <string name="sumh_draft_save_failed">Drafts have not been saved. Your input is still here; retry before leaving the app.</string>
+    <string name="sumh_draft_line_limit">This change was not accepted. Each path must be shorter than 4096 UTF-8 bytes. The previous draft is unchanged.</string>
+    <string name="sumh_draft_bulk_limit">This change was not accepted. Import a file in chunks, or use batches of up to 1024 lines and 256 KiB. The previous draft is unchanged.</string>
+    <string name="sumh_draft_import_file">Import UTF-8 file in chunks</string>
+    <string name="sumh_draft_next_chunk">Read next chunk</string>
+    <string name="sumh_draft_file_hint">Finish or clear this batch before reading the next one. The current batch is saved as a draft. After leaving this page or restarting the app, select the file again; existing rules are deduplicated.</string>
+    <string name="sumh_draft_file_failed">Could not read this chunk: %1$s. Your draft is unchanged. Check UTF-8 encoding and the 4095-byte limit per line, then select the file again.</string>
+    <string name="sumh_draft_total_limit">This change was not accepted. Drafts have a combined 1 MiB budget and at most 1024 edited rules. Finish or reset other edits first.</string>
     <string name="sumh_absolute_path">Enter an absolute path</string>
     <string name="sumh_apply_failed">Saved configuration has not been applied to the kernel</string>
     <string name="sumh_backend_enable_desc">Available to the mount planner</string>
@@ -37,6 +48,21 @@
     <string name="sumh_kernel_build_invalid">Use up to 64 UTF-8 bytes without ASCII control characters.</string>
     <string name="sumh_kernel_build_release_invalid">Use up to 64 UTF-8 bytes without ASCII spaces or control characters.</string>
     <string name="sumh_kernel_build_use_original">Leave blank to use the original value</string>
+    <string name="sumh_kernel_build_fill_original_release">Use original release</string>
+    <string name="sumh_kernel_build_fill_original_version">Use original build version</string>
+    <string name="sumh_kernel_build_fill_system_date">Use system build date</string>
+    <string name="sumh_kernel_build_system_date_source">Date source: ro.build.date (current ROM). This is not a verification of the kernel compilation date.</string>
+    <string name="sumh_kernel_build_system_date_unavailable">No valid system build date suggestion is available. Read the kernel values again or enter a build version manually.</string>
+    <string name="sumh_kernel_build_helpers_draft_only">These buttons only fill the selected field. Save to apply the draft.</string>
+    <string name="sumh_kernel_build_draft_preview">Reported values after saving</string>
+    <string name="sumh_kernel_build_original_pending">Original value (read pending)</string>
+    <string name="sumh_kernel_build_matches_current">Matches the current reported value</string>
+    <string name="sumh_kernel_build_differs_current">Differs from the current reported value</string>
+    <string name="sumh_kernel_build_comparison_unavailable">Current value is unavailable for comparison</string>
+    <string name="sumh_kernel_build_original_kmi">KMI label from original release: %1$s</string>
+    <string name="sumh_kernel_build_kmi_unknown">Unrecognized</string>
+    <string name="sumh_kernel_build_kmi_desc">This label comes from the original kernel release, not the draft. Editing these strings does not change the actual kernel ABI.</string>
+    <string name="sumh_kernel_build_refresh">Read kernel values again</string>
     <string name="sumh_kernel_build_override_required">Enter at least one custom value to enable spoofing.</string>
     <string name="sumh_kernel_build_restore">Turning this off restores the original kernel values and keeps your saved text.</string>
     <string name="sumh_kernel_build_apply_stage">Apply on future boots</string>

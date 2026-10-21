@@ -49,10 +49,14 @@ struct Config {
 std::vector<std::string> load_user_hide_rules();
 // Missing files represent an empty rule set; read/parse failures leave rules
 // unchanged so synchronization cannot mistake damaged persistence for deletion.
+// Legacy readers see enabled paths only. Reads never migrate the source file.
 bool load_user_hide_rules(std::vector<std::string>& rules, std::string& error);
+// Compatibility writers migrate legacy arrays under the definition lock.
+// Structured membership changes require the definition-aware transaction API
+// to preserve IDs, disabled entries, metadata and explicit removal intent.
 bool save_user_hide_rules(const std::vector<std::string>& rules);
+bool save_user_hide_rules(const std::vector<std::string>& rules, std::string& error);
 std::string default_config_json();
-void prune_config_fields(json::Value& config);
 bool validate_config_patch(const json::Value& patch, std::string& error);
 json::Value maps_path_rules_json(const std::vector<MapsPathRule>& rules);
 bool validate_maps_path_rules(const std::vector<MapsPathRule>& rules, std::string& error);

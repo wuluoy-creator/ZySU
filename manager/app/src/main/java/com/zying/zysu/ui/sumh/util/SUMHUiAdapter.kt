@@ -49,6 +49,7 @@ object SUMHUiAdapter {
         val version: String, val status: SUMHStatus, val config: SUMHPConfig,
         val modules: List<ModuleInfo>, val system: SystemInfo, val storage: StorageInfo,
         val rules: List<ActiveRule>, val features: FeaturesResult?, val rulesIncomplete: Boolean = false,
+        val controlState: SUMHControlState = SUMHControlState(),
     )
 
     internal fun config(raw: JSONObject, names: Set<String>, available: Boolean, externalOwner: String): SUMHPConfig {
@@ -237,6 +238,7 @@ object SUMHUiAdapter {
                 sys.optString("hooks"), sys.optBoolean("enabled")),
             storage, runtimeRules.rules,
             features, runtimeRules.incomplete,
+            snapshot.controlState,
         )
     }
 

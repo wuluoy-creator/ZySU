@@ -24,6 +24,20 @@ static_assert(sizeof(sumh_kernel_build_arg) == 148);
 static_assert(offsetof(sumh_kernel_build_arg, release) == 16);
 static_assert(sizeof(sumh_managed_maps_arg) == 24);
 static_assert(offsetof(sumh_managed_maps_arg, rules) == 8);
+static_assert(sizeof(sumh_maps_delete_arg) == 40);
+static_assert(offsetof(sumh_maps_delete_arg, target_ino) == 24);
+static_assert(SUMH_IOC_DELETE_TEMPORARY_MAPS == 0x40285335UL);
+static_assert(sizeof(sumh_runtime_feature_state) == 32);
+static_assert(sizeof(sumh_runtime_state_arg) == 240);
+static_assert(offsetof(sumh_runtime_state_arg, entries) == 48);
+static_assert(sizeof(sumh_runtime_set_arg) == 48);
+static_assert(sizeof(sumh_kernel_build_cas_arg) == 168);
+static_assert(offsetof(sumh_kernel_build_cas_arg, release) == 32);
+static_assert(offsetof(sumh_kernel_build_cas_arg, version_string) == 97);
+static_assert(sizeof(sumh_rule_inventory_entry) == 8272);
+static_assert(sizeof(sumh_rule_inventory_arg) == 8352);
+static_assert(offsetof(sumh_rule_inventory_arg, entry) == 80);
+static_assert(SUMH_IOC_GET_RULE_INVENTORY == 0xe0a05334UL);
 
 static_assert(static_cast<std::uint32_t>(MountHideMode::Normal) == SUMH_MOUNT_HIDE_MODE_NORMAL);
 static_assert(static_cast<std::uint32_t>(MountHideMode::Aggressive) ==
@@ -134,6 +148,159 @@ int features() {
     return feature_capabilities().bitmask;
 }
 
+bool runtime_state(RuntimeState& state) {
+    sumh_runtime_state_arg arg{};
+    arg.size = sizeof(arg);
+    arg.version = 1;
+    if (execute(SUMH_IOC_GET_RUNTIME_STATE, &arg) != 0)
+        return false;
+    const auto invalid = [] {
+        errno = EPROTO;
+        return false;
+    };
+    constexpr std::uint32_t snapshot_flags = 3;  // Serialized control state; sampled readiness.
+    if (arg.size != sizeof(arg) || arg.version != 1 || arg.count != SUMH_RUNTIME_STATE_COUNT ||
+        !arg.generation || !arg.instance_id || arg.flags != snapshot_flags ||
+        arg.mount_hide_mode > SUMH_MOUNT_HIDE_MODE_AGGRESSIVE ||
+        std::any_of(std::begin(arg.reserved), std::end(arg.reserved),
+                    [](auto value) { return value != 0; }))
+        return invalid();
+    RuntimeState parsed;
+    parsed.generation = arg.generation;
+    parsed.instance_id = arg.instance_id;
+    parsed.flags = arg.flags;
+    parsed.mount_hide_mode = arg.mount_hide_mode;
+    std::set<std::uint32_t> ids;
+    for (const auto& item : arg.entries) {
+        if (item.id < SUMH_RUNTIME_DEBUG || item.id > SUMH_RUNTIME_KERNEL_BUILD ||
+            !ids.insert(item.id).second || item.supported > 1 || item.configured > 1 ||
+            item.active > 1 || item.degraded > 1 || item.flags || item.reserved ||
+            item.last_error > 0 || item.last_error < -4095 ||
+            (item.active && (!item.supported || !item.configured)) ||
+            item.degraded != (item.configured && !item.active))
+            return invalid();
+        parsed.entries.push_back({static_cast<RuntimeFeature>(item.id), item.supported != 0,
+                                  item.configured != 0, item.active != 0, item.degraded != 0,
+                                  item.last_error});
+    }
+    state = std::move(parsed);
+    return true;
+}
+
+bool set_runtime_feature(const RuntimeState& expected, RuntimeFeature id, bool enable,
+                         std::uint32_t mount_hide_mode) {
+    if (!expected.generation || !expected.instance_id || id < RuntimeFeature::Debug ||
+        id > RuntimeFeature::StatfsSpoof || mount_hide_mode != SUMH_MOUNT_HIDE_MODE_NORMAL) {
+        errno = EINVAL;
+        return false;
+    }
+    sumh_runtime_set_arg arg{};
+    arg.size = sizeof(arg);
+    arg.version = 1;
+    arg.id = static_cast<std::uint32_t>(id);
+    arg.enable = enable;
+    arg.expected_generation = expected.generation;
+    arg.expected_instance_id = expected.instance_id;
+    arg.mount_hide_mode = mount_hide_mode;
+    return execute(SUMH_IOC_SET_RUNTIME_FEATURE, &arg) == 0;
+}
+
+bool rule_inventory(const InventoryRequest& request, InventoryPage& page) {
+    if (request.category > SUMH_INVENTORY_VNODE ||
+        (!!request.instance_id != !!request.generation) ||
+        (request.cursor && (!request.instance_id || !request.category))) {
+        errno = EINVAL;
+        return false;
+    }
+    sumh_rule_inventory_arg arg{};
+    arg.size = sizeof(arg);
+    arg.version = SUMH_RULE_INVENTORY_VERSION;
+    arg.category = request.category;
+    arg.expected_instance_id = request.instance_id;
+    arg.expected_generation = request.generation;
+    arg.cursor = request.cursor;
+    if (execute(SUMH_IOC_GET_RULE_INVENTORY, &arg) != 0)
+        return false;
+    const auto invalid = [] {
+        errno = EPROTO;
+        return false;
+    };
+    if (arg.size != sizeof(arg) || arg.version != SUMH_RULE_INVENTORY_VERSION ||
+        arg.category != request.category || arg.cursor != request.cursor ||
+        arg.expected_instance_id || arg.expected_generation || arg.reserved || !arg.instance_id ||
+        !arg.generation || arg.count > 1 || arg.complete > 1 ||
+        arg.flags != SUMH_INVENTORY_DEFINITIONS_COHERENT ||
+        (request.instance_id &&
+         (arg.instance_id != request.instance_id || arg.generation != request.generation)) ||
+        (arg.count && arg.cursor == UINT64_MAX) || arg.next_cursor != arg.cursor + arg.count ||
+        (!arg.count && !arg.complete) || (!arg.category && arg.count) ||
+        (arg.category && !(arg.supported_categories & (1U << (arg.category - 1)))))
+        return invalid();
+    InventoryPage parsed;
+    parsed.category = arg.category;
+    parsed.supported_categories = arg.supported_categories;
+    parsed.instance_id = arg.instance_id;
+    parsed.generation = arg.generation;
+    parsed.cursor = arg.cursor;
+    parsed.next_cursor = arg.next_cursor;
+    parsed.at_end = arg.complete;
+    const auto& item = arg.entry;
+    if (!arg.count) {
+        const sumh_rule_inventory_entry empty{};
+        if (std::memcmp(&item, &empty, sizeof(item)) != 0)
+            return invalid();
+    } else {
+        const bool maps = arg.category == SUMH_INVENTORY_MAPS_MANAGED ||
+                          arg.category == SUMH_INVENTORY_MAPS_TEMPORARY;
+        const bool managed_hide = arg.category == SUMH_INVENTORY_USER_HIDE;
+        const bool mapping = arg.category == SUMH_INVENTORY_MAPPING;
+        const bool merge = arg.category == SUMH_INVENTORY_MERGE;
+        auto owner = SUMH_INVENTORY_OWNER_UNATTRIBUTED;
+        if (managed_hide)
+            owner = SUMH_INVENTORY_OWNER_USER_HIDE;
+        else if (arg.category == SUMH_INVENTORY_MAPS_MANAGED)
+            owner = SUMH_INVENTORY_OWNER_MANAGED_MAPS;
+        const auto id_kind = managed_hide ? SUMH_INVENTORY_ID_MANAGED_DEFINITION
+                                          : SUMH_INVENTORY_ID_GENERATION_ORDINAL;
+        const auto valid_path = [](const char* path, std::uint32_t length) {
+            if (length >= SUMH_RULE_INVENTORY_PATH_MAX || std::memchr(path, 0, length))
+                return false;
+            return std::all_of(path + length, path + SUMH_RULE_INVENTORY_PATH_MAX,
+                               [](char byte) { return byte == 0; });
+        };
+        if (arg.category > SUMH_INVENTORY_USER_HIDE || item.category != arg.category ||
+            item.reserved || item.owner != static_cast<std::uint32_t>(owner) ||
+            item.id_kind != static_cast<std::uint32_t>(id_kind) || !item.id ||
+            (managed_hide ? !item.definition_generation
+                          : (item.id != arg.cursor + 1 || item.definition_generation != 0)) ||
+            (!mapping && item.type) ||
+            (item.flags &
+             ~(arg.category == SUMH_INVENTORY_LEGACY_HIDE ? SUMH_INVENTORY_LEGACY_STORAGE_MANAGED
+                                                          : 0U)) ||
+            !valid_path(item.path1, item.path1_len) || !valid_path(item.path2, item.path2_len) ||
+            (maps && item.path1_len) || (!maps && !mapping && !merge && item.path2_len) ||
+            (!maps && (item.target_ino || item.target_dev || item.spoofed_ino || item.spoofed_dev)))
+            return invalid();
+        InventoryEntry entry;
+        entry.category = item.category;
+        entry.owner = item.owner;
+        entry.id_kind = item.id_kind;
+        entry.type = item.type;
+        entry.flags = item.flags;
+        entry.id = item.id;
+        entry.definition_generation = item.definition_generation;
+        entry.target_ino = item.target_ino;
+        entry.target_dev = item.target_dev;
+        entry.spoofed_ino = item.spoofed_ino;
+        entry.spoofed_dev = item.spoofed_dev;
+        entry.path1.assign(item.path1, item.path1_len);
+        entry.path2.assign(item.path2, item.path2_len);
+        parsed.entries.push_back(std::move(entry));
+    }
+    page = std::move(parsed);
+    return true;
+}
+
 std::vector<std::string> feature_names(int bitmask) {
     std::vector<std::string> names;
     if (bitmask & SUMH_FEATURE_MANAGED_HIDE)
@@ -144,6 +311,8 @@ std::vector<std::string> feature_names(int bitmask) {
         names.emplace_back("maps_spoof");
     if (bitmask & SUMH_FEATURE_MANAGED_MAPS)
         names.emplace_back("managed_maps");
+    if (bitmask & SUMH_FEATURE_TEMPORARY_MAPS_DELETE)
+        names.emplace_back("temporary_maps_delete");
     if (bitmask & SUMH_FEATURE_STATFS_SPOOF)
         names.emplace_back("statfs_spoof");
     if (bitmask & SUMH_FEATURE_KSTAT_SPOOF)
@@ -158,6 +327,14 @@ std::vector<std::string> feature_names(int bitmask) {
         names.emplace_back("mount_hide_aggressive");
     if (bitmask & SUMH_FEATURE_KERNEL_BUILD_SPOOF)
         names.emplace_back("kernel_build_spoof");
+    if (bitmask & SUMH_FEATURE_RUNTIME_STATE)
+        names.emplace_back("runtime_state");
+    if (bitmask & SUMH_FEATURE_RUNTIME_SET)
+        names.emplace_back("runtime_set");
+    if (bitmask & SUMH_FEATURE_KERNEL_BUILD_CAS)
+        names.emplace_back("kernel_build_cas");
+    if (bitmask & SUMH_FEATURE_RULE_INVENTORY)
+        names.emplace_back("rule_inventory");
     return names;
 }
 
@@ -449,6 +626,50 @@ bool original_kernel_build(KernelBuild& state) {
     return read_kernel_build(SUMH_IOC_GET_ORIGINAL_KERNEL_BUILD, state);
 }
 
+bool kernel_build_snapshot(KernelBuildSnapshot& snapshot, bool include_original) {
+    KernelBuildSnapshot parsed;
+    RuntimeState after;
+    if (!runtime_state(parsed.runtime) || !kernel_build(parsed.current) ||
+        (include_original && !original_kernel_build(parsed.original)) || !runtime_state(after))
+        return false;
+    if (parsed.runtime.instance_id != after.instance_id ||
+        parsed.runtime.generation != after.generation) {
+        errno = ESTALE;
+        return false;
+    }
+    const auto* feature = after.find(RuntimeFeature::KernelBuild);
+    if (!feature || feature->configured != parsed.current.enabled ||
+        (include_original && parsed.original.enabled != parsed.current.enabled)) {
+        errno = EPROTO;
+        return false;
+    }
+    parsed.runtime = std::move(after);
+    parsed.has_original = include_original;
+    snapshot = std::move(parsed);
+    return true;
+}
+
+bool set_kernel_build_conditional(const RuntimeState& expected, const KernelBuild& desired) {
+    if (!expected.generation || !expected.instance_id) {
+        errno = EINVAL;
+        return false;
+    }
+    if (desired.enabled && (!valid_kernel_build_field(desired.release, true) ||
+                            !valid_kernel_build_field(desired.version, true)))
+        return false;
+    sumh_kernel_build_cas_arg arg{};
+    arg.size = sizeof(arg);
+    arg.version = SUMH_RUNTIME_STATE_VERSION;
+    arg.enable = desired.enabled;
+    arg.expected_generation = expected.generation;
+    arg.expected_instance_id = expected.instance_id;
+    if (desired.enabled) {
+        std::memcpy(arg.release, desired.release.c_str(), desired.release.size() + 1);
+        std::memcpy(arg.version_string, desired.version.c_str(), desired.version.size() + 1);
+    }
+    return execute(SUMH_IOC_SET_KERNEL_BUILD_CAS, &arg) == 0;
+}
+
 bool clear_rules() {
     return execute(SUMH_IOC_CLEAR_ALL, nullptr) == 0;
 }
@@ -504,7 +725,42 @@ bool clear_maps_rules() {
     return execute(SUMH_IOC_CLEAR_MAPS_RULES, nullptr) == 0;
 }
 
-bool replace_managed_maps_rules(const std::vector<MapsRule>& rules) {
+bool delete_temporary_maps_rule(std::uint64_t target_ino, std::uint64_t target_dev,
+                                std::uint64_t instance_id, std::uint64_t generation,
+                                bool& attempted) {
+    attempted = false;
+    if (!instance_id || !generation || target_dev > UINT32_MAX) {
+        errno = EINVAL;
+        return false;
+    }
+    const auto caps = feature_capabilities();
+    if (!caps.ok) {
+        errno = caps.last_errno;
+        return false;
+    }
+    constexpr int required = SUMH_FEATURE_TEMPORARY_MAPS_DELETE | SUMH_FEATURE_RULE_INVENTORY;
+    if ((caps.bitmask & required) != required) {
+        errno = EOPNOTSUPP;
+        return false;
+    }
+    sumh_maps_delete_arg arg{};
+    arg.size = sizeof(arg);
+    arg.version = SUMH_MAPS_DELETE_VERSION;
+    arg.expected_instance_id = instance_id;
+    arg.expected_generation = generation;
+    arg.target_ino = target_ino;
+    arg.target_dev = target_dev;
+    attempted = true;
+    errno = 0;
+    if (execute(SUMH_IOC_DELETE_TEMPORARY_MAPS, &arg) == 0)
+        return true;
+    if (!errno)
+        errno = EIO;
+    return false;
+}
+
+bool replace_managed_maps_rules_checked(const std::vector<MapsRule>& rules, bool& submitted) {
+    submitted = false;
     if (rules.size() > SUMH_MANAGED_MAPS_MAX_RULES) {
         errno = E2BIG;
         return false;
@@ -548,7 +804,13 @@ bool replace_managed_maps_rules(const std::vector<MapsRule>& rules) {
     arg.size = sizeof(arg);
     arg.count = static_cast<std::uint32_t>(encoded.size());
     arg.rules = encoded.empty() ? 0 : reinterpret_cast<std::uintptr_t>(encoded.data());
-    return execute(SUMH_IOC_SET_MANAGED_MAPS, &arg) == 0;
+    submitted = execute(SUMH_IOC_SET_MANAGED_MAPS, &arg) == 0;
+    return submitted;
+}
+
+bool replace_managed_maps_rules(const std::vector<MapsRule>& rules) {
+    bool submitted = false;
+    return replace_managed_maps_rules_checked(rules, submitted);
 }
 
 int enabled_state() {

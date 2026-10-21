@@ -9,6 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/namei.h>
 #include <linux/rcupdate.h>
+#include <linux/refcount.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
@@ -19,6 +20,7 @@
 #include "sumh_base.h"
 #include "sumh_dirhijack.h"
 #include "sumh_fop_override.h"
+#include "sumh_overlay.h"
 #include "sumh_path_policy.h"
 #include "sumh_runtime.h"
 #include "sumh_sop_shadow.h"
@@ -60,6 +62,7 @@ struct sumh_dh_iop {
 };
 
 struct sumh_dh_dir {
+	refcount_t refs;
 	struct inode *dir_inode; /* igrab'd real parent directory */
 	struct hlist_head children;
 	struct sumh_dh_iop *iop_meta;
@@ -87,32 +90,75 @@ struct sumh_dh_dop_meta {
 	u32 name_hash;
 	u16 name_len;
 	bool synthetic_negative;
+	bool projected;
+	struct sumh_dh_payload
+	    *payload; /* pins immutable projection identity */
 	struct hlist_node node;
 	struct list_head retire_node;
 	char name[];
 };
 
-struct sumh_dh_child {
-	struct hlist_node node;
-	struct rcu_head rcu;
-	struct llist_node free_node;
-	struct path source; /* pinned; {NULL} for a hide or virtual dir */
+/* SUMH_DH_OWNERS_TYPES_BEGIN */
+struct sumh_dh_payload {
+	refcount_t refs;
+	struct path source;
 	unsigned long v_ino;
+	u8 flags;
+	bool hide, lookup_only;
+	char *vpath;
+};
+
+/* Stable physical slot; it never borrows a caller's path spelling. */
+struct sumh_dh_child {
+	refcount_t refs;
+	struct sumh_dh_dir *dir;
+	struct dentry *cache_parent;
+	struct hlist_node node;
+	struct list_head owners, prepared_claims;
+	struct list_head retire_node, invalidate_node;
+	struct sumh_dh_payload __rcu *winner;
+	spinlock_t lock;
+	unsigned int prepared, attached, hide_users;
 	u32 name_hash;
 	u16 name_len;
+	bool indexed;
+	char name[];
+};
+
+enum sumh_dh_claim_state {
+	DH_PREPARED,
+	DH_INVALIDATED,
+	DH_ATTACHED,
+	DH_DETACHED,
+};
+struct sumh_dh_claim {
+	enum sumh_dh_owner_kind kind;
+	enum sumh_dh_claim_state state;
+	struct sumh_dh_child *slot;
+	struct dentry *observed_parent;
+	struct sumh_dh_payload *payload;
+	struct list_head owner_node;
+	struct rcu_head rcu;
+	struct llist_node free_node;
+};
+
+/* Borrowed only inside RCU. Lookup pins the payload before leaving RCU.
+ */
+struct sumh_dh_view {
+	struct sumh_dh_payload *payload;
+	struct path source;
+	unsigned long v_ino;
 	u8 flags;
 	unsigned int hide_users;
-	bool legacy;
-	u8 hide; /* 1 = suppress-only: negative lookup, no
-		  * vnode, not emitted in readdir (Slice 2) */
-	u8 lookup_only; /* 1 = dh serves lookup (vnode) but not
-			 * readdir: the overlay filldir owns emit
-			 * and dedup for this name (Slice 4a merge
-			 * materialized files) */
-	char *vpath; /* F_VIRTUAL_DIR: the synthesized dir's own
-		      * visible path, for rule-table child
-		      * resolution (Slice 4c-v2); NULL else */
-	char name[];
+	bool legacy, hide, lookup_only;
+	const char *vpath;
+};
+/* SUMH_DH_OWNERS_TYPES_END */
+
+/* A captured observer decision. A NULL payload is valid for managed hide. */
+struct sumh_dh_projection {
+	struct sumh_dh_payload *payload;
+	bool hidden;
 };
 
 static LIST_HEAD(sumh_dh_dirs);
@@ -128,9 +174,9 @@ static bool sumh_dh_fuse_registered;
 
 static void sumh_dh_reap_dops_workfn(struct work_struct *work);
 static DECLARE_WORK(sumh_dh_reap_dops_work, sumh_dh_reap_dops_workfn);
-static void sumh_dh_free_children_workfn(struct work_struct *work);
-static DECLARE_WORK(sumh_dh_free_children_work, sumh_dh_free_children_workfn);
-static LLIST_HEAD(sumh_dh_free_children);
+static void sumh_dh_release_workfn(struct work_struct *work);
+static DECLARE_WORK(sumh_dh_release_work, sumh_dh_release_workfn);
+static LLIST_HEAD(sumh_dh_released_claims);
 
 static struct dentry *sumh_dh_lookup(struct inode *dir, struct dentry *dentry,
 				     unsigned int flags);
@@ -141,8 +187,13 @@ static int sumh_dh_iterate(struct file *file, struct dir_context *ctx,
 			   const struct file_operations *orig, void *data);
 static int sumh_dh_set_dentry_ops(struct sumh_dh_dir *dir,
 				  struct dentry *dentry,
-				  bool synthetic_negative);
-static void sumh_dh_child_free(struct sumh_dh_child *c);
+				  const struct sumh_dh_projection *projection);
+static bool
+sumh_dh_validate_projection(struct sumh_dh_dir *dir, struct dentry *dentry,
+			    const struct sumh_dh_projection *projection);
+static void sumh_dh_drop_projection(struct dentry *dentry);
+static void sumh_dh_payload_put(struct sumh_dh_payload *payload);
+static void sumh_dh_dir_put(struct sumh_dh_dir *dir);
 
 bool sumh_dirhijack_enabled(void)
 {
@@ -156,20 +207,20 @@ bool sumh_dirhijack_fuse_guard_available(void)
 
 /* ---- meta accessors ---------------------------------------------------- */
 
-static struct sumh_dh_iop *sumh_dh_iop_of(const struct inode *inode)
+static struct sumh_dh_iop *sumh_dh_iop_meta(const struct inode_operations *iop)
 {
-	const struct inode_operations *iop;
-
-	if (!inode)
-		return NULL;
-	iop = smp_load_acquire(&inode->i_op);
 	if (iop && iop->lookup == sumh_dh_lookup)
 		return container_of(iop, struct sumh_dh_iop, fake_iop);
 	return NULL;
 }
 
+static struct sumh_dh_iop *sumh_dh_iop_of(const struct inode *inode)
+{
+	return inode ? sumh_dh_iop_meta(smp_load_acquire(&inode->i_op)) : NULL;
+}
+
 static struct sumh_dh_child *
-sumh_dh_find_child(struct sumh_dh_dir *dir, const char *name, u16 len, u32 hash)
+sumh_dh_find_slot(struct sumh_dh_dir *dir, const char *name, u16 len, u32 hash)
 {
 	struct sumh_dh_child *c;
 
@@ -180,6 +231,43 @@ sumh_dh_find_child(struct sumh_dh_dir *dir, const char *name, u16 len, u32 hash)
 			return c;
 	}
 	return NULL;
+}
+
+static struct sumh_dh_child *
+sumh_dh_find_child(struct sumh_dh_dir *dir, const char *name, u16 len, u32 hash)
+{
+	struct sumh_dh_child *c = sumh_dh_find_slot(dir, name, len, hash);
+
+	return c && READ_ONCE(c->attached) ? c : NULL;
+}
+
+/* Caller owns RCU; no borrowed pointer in @view may outlive it. The lock is
+ * below dentry->d_lock (FUSE guard), so writers release it before d_op work. */
+static bool sumh_dh_read_view(struct sumh_dh_child *c,
+			      struct sumh_dh_view *view)
+{
+	struct sumh_dh_payload *payload;
+	bool active;
+
+	memset(view, 0, sizeof(*view));
+	if (!c)
+		return false;
+	spin_lock(&c->lock);
+	active = c->attached != 0;
+	view->hide_users = c->hide_users;
+	payload = rcu_dereference_protected(c->winner, 1);
+	view->payload = payload;
+	if (payload) {
+		view->source = payload->source;
+		view->v_ino = payload->v_ino;
+		view->flags = payload->flags;
+		view->hide = payload->hide;
+		view->lookup_only = payload->lookup_only;
+		view->vpath = payload->vpath;
+		view->legacy = true;
+	}
+	spin_unlock(&c->lock);
+	return active;
 }
 
 const struct inode_operations *
@@ -201,7 +289,7 @@ static bool sumh_dh_current_sees(void)
 	return sumh_policy_current_is_view_target();
 }
 
-static bool sumh_dh_current_hides(const struct sumh_dh_child *child,
+static bool sumh_dh_current_hides(const struct sumh_dh_view *child,
 				  const struct inode *parent)
 {
 	return (child->hide || READ_ONCE(child->hide_users)) &&
@@ -209,7 +297,7 @@ static bool sumh_dh_current_hides(const struct sumh_dh_child *child,
 	       sumh_policy_current_is_hide_target(parent);
 }
 
-static bool sumh_dh_current_targets(const struct sumh_dh_child *child,
+static bool sumh_dh_current_targets(const struct sumh_dh_view *child,
 				    const struct inode *parent)
 {
 	if (child->flags & SUMH_VNODE_F_SU)
@@ -219,10 +307,10 @@ static bool sumh_dh_current_targets(const struct sumh_dh_child *child,
 	return child->legacy && !child->hide && sumh_dh_current_sees();
 }
 
-static bool sumh_dh_child_emitted(const struct sumh_dh_child *child,
+static bool sumh_dh_child_emitted(const struct sumh_dh_view *child,
 				  const struct inode *parent)
 {
-	if (child->hide || child->lookup_only ||
+	if (!child->legacy || child->hide || child->lookup_only ||
 	    sumh_dh_current_hides(child, parent))
 		return false;
 	return (child->flags & SUMH_VNODE_F_SU)
@@ -235,6 +323,7 @@ static bool sumh_dh_hidden_name(struct inode *parent, const struct qstr *name)
 {
 	struct sumh_dh_iop *m = sumh_dh_iop_of(parent);
 	struct sumh_dh_child *child;
+	struct sumh_dh_view view;
 	bool hidden = false;
 
 	if (!m || !m->dir || !name || READ_ONCE(m->dir->retiring))
@@ -243,11 +332,112 @@ static bool sumh_dh_hidden_name(struct inode *parent, const struct qstr *name)
 	child =
 	    sumh_dh_find_child(m->dir, name->name, (u16)name->len,
 			       full_name_hash(parent, name->name, name->len));
-	if (child)
-		hidden = sumh_dh_current_hides(child, parent);
+	if (sumh_dh_read_view(child, &view))
+		hidden = sumh_dh_current_hides(&view, parent);
 	rcu_read_unlock();
 	return hidden;
 }
+
+static bool sumh_dh_capture_projection(struct sumh_dh_dir *dn,
+				       struct inode *dir, const char *name,
+				       u16 len,
+				       struct sumh_dh_projection *projection)
+{
+	struct sumh_dh_child *child;
+	struct sumh_dh_view view;
+	bool selected = false;
+
+	memset(projection, 0, sizeof(*projection));
+	if (!dn || READ_ONCE(dn->retiring))
+		return false;
+	rcu_read_lock();
+	child =
+	    sumh_dh_find_child(dn, name, len, full_name_hash(dir, name, len));
+	if (sumh_dh_read_view(child, &view) &&
+	    sumh_dh_current_targets(&view, dir)) {
+		projection->payload = view.payload;
+		if (view.payload)
+			refcount_inc(&view.payload->refs);
+		projection->hidden = sumh_dh_current_hides(&view, dir) ||
+				     ((view.flags & SUMH_VNODE_F_SU) &&
+				      !ksu_sucompat_vfs_visible());
+		selected = true;
+	}
+	rcu_read_unlock();
+	return selected;
+}
+
+/* Called under RCU or DH; source identity is held by the projection/meta. */
+static bool
+sumh_dh_projection_matches(struct sumh_dh_child *child, struct inode *dir,
+			   const struct sumh_dh_projection *projection)
+{
+	struct sumh_dh_view view;
+	bool hidden;
+
+	if (!sumh_dh_read_view(child, &view) ||
+	    view.payload != projection->payload ||
+	    !sumh_dh_current_targets(&view, dir))
+		return false;
+	hidden =
+	    sumh_dh_current_hides(&view, dir) ||
+	    ((view.flags & SUMH_VNODE_F_SU) && !ksu_sucompat_vfs_visible());
+	return hidden == projection->hidden;
+}
+
+static int sumh_dh_requested_name(struct dentry *dentry, char *name)
+{
+	unsigned int len;
+
+	spin_lock(&dentry->d_lock);
+	len = dentry->d_name.len;
+	if (len <= NAME_MAX) {
+		memcpy(name, dentry->d_name.name, len);
+		name[len] = '\0';
+	}
+	spin_unlock(&dentry->d_lock);
+	return len > NAME_MAX ? -ENAMETOOLONG : (int)len;
+}
+
+/* Native lookup may return a moved alias and may publish after a commit.
+ * Recheck the requested slot after the native call, including PREPARED.
+ * This governs completion; it does not gate a filesystem's internal
+ * hash-to-return interval or READDIRPLUS cache ingress. */
+static void sumh_dh_native_complete(struct sumh_dh_dir *dn, const char *name,
+				    u16 len, struct dentry *result)
+{
+	bool governed, retiring, same_name;
+
+	if (!dn || !result || IS_ERR(result))
+		return;
+	/* Observe withdrawal and slot eligibility together. If a governed
+	 * slot retires after unlocking, set_dentry_ops rechecks and drops. */
+	mutex_lock(&sumh_dh_lock);
+	retiring = READ_ONCE(dn->retiring);
+	governed =
+	    !retiring &&
+	    sumh_dh_find_slot(dn, name, len,
+			      full_name_hash(dn->dir_inode, name, len)) != NULL;
+	mutex_unlock(&sumh_dh_lock);
+	if (retiring) {
+		sumh_dh_drop_projection(result);
+		return;
+	}
+	if (!governed)
+		return;
+	spin_lock(&result->d_lock);
+	same_name = d_inode(result->d_parent) == dn->dir_inode &&
+		    result->d_name.len == len &&
+		    !memcmp(result->d_name.name, name, len);
+	spin_unlock(&result->d_lock);
+	if (!same_name || sumh_dh_set_dentry_ops(dn, result, NULL))
+		sumh_dh_drop_projection(result);
+}
+
+static struct dentry *
+sumh_dh_materialize(struct inode *dir, struct sumh_dh_dir *dn,
+		    struct dentry *dentry,
+		    const struct sumh_dh_projection *projection);
 
 static int SUMH_NOCFI sumh_dh_atomic_open_inner(struct inode *dir,
 						struct dentry *dentry,
@@ -255,16 +445,44 @@ static int SUMH_NOCFI sumh_dh_atomic_open_inner(struct inode *dir,
 						unsigned int flags,
 						umode_t mode)
 {
-	struct sumh_dh_iop *m = sumh_dh_iop_of(dir);
-	const struct inode_operations *orig =
-	    m ? m->orig_iop : READ_ONCE(dir->i_op);
+	const struct inode_operations *iop = smp_load_acquire(&dir->i_op);
+	struct sumh_dh_iop *m = sumh_dh_iop_meta(iop);
+	struct sumh_dh_dir *dn = m ? m->dir : NULL;
+	const struct inode_operations *orig = m ? m->orig_iop : iop;
+	struct sumh_dh_projection projection;
+	struct dentry *result;
+	char name[NAME_MAX + 1];
+	int len, ret;
 
-	if (sumh_dh_hidden_name(dir, &dentry->d_name))
-		return -ENOENT;
+	len = sumh_dh_requested_name(dentry, name);
+	if (len < 0)
+		return len;
+	if (sumh_dh_capture_projection(dn, dir, name, len, &projection)) {
+		if (projection.hidden) {
+			sumh_dh_payload_put(projection.payload);
+			return -ENOENT;
+		}
+		/* atomic_open also receives already hashed negative dentries.
+		 * Both d_add and d_splice_alias require an unhashed input. */
+		d_drop(dentry);
+		result = sumh_dh_materialize(dir, dn, dentry, &projection);
+		sumh_dh_payload_put(projection.payload);
+		/* Consumes an alias reference; NULL means input was filled.
+		 * VFS owns lookup_done and all ordinary open/create checks. */
+		return finish_no_open(file, result);
+	}
 	if (!orig || !orig->atomic_open ||
 	    orig->atomic_open == sumh_dh_atomic_open)
 		return -EOPNOTSUPP;
-	return orig->atomic_open(dir, dentry, file, flags, mode);
+	ret = orig->atomic_open(dir, dentry, file, flags, mode);
+	if (ret)
+		return ret;
+	/* A failed/malformed native callback can leave DENTRY_NOT_SET.
+	 * Never dereference it. VFS retains its own diagnostic/error policy. */
+	result = file->f_path.dentry;
+	if (!IS_ERR(result))
+		sumh_dh_native_complete(dn, name, len, result ?: dentry);
+	return ret;
 }
 
 static int sumh_dh_atomic_open(struct inode *dir, struct dentry *dentry,
@@ -327,145 +545,107 @@ static int sumh_dh_fuse_revalidate_pre(struct kprobe *probe,
 
 /* ---- hijacked lookup (SRCU-wrapped) ------------------------------------ */
 
+static struct dentry *
+sumh_dh_materialize(struct inode *dir, struct sumh_dh_dir *dn,
+		    struct dentry *dentry,
+		    const struct sumh_dh_projection *projection)
+{
+	struct sumh_dh_payload *payload = projection->payload;
+	struct inode *vi = NULL;
+	struct dentry *res = NULL;
+	int ret;
+
+	if (!projection->hidden) {
+		if (!payload) {
+			ret = -EAGAIN;
+			goto failed_input;
+		}
+		if ((payload->flags & SUMH_VNODE_F_VIRTUAL_DIR) &&
+		    payload->vpath)
+			vi = sumh_vnode_new_virtual(dir->i_sb, payload->vpath,
+						    payload->v_ino, dir);
+		else
+			vi = sumh_vnode_new(
+			    dir->i_sb,
+			    payload->source.dentry ? &payload->source : NULL,
+			    payload->v_ino, S_IFREG | 0644, payload->flags);
+		if (!vi) {
+			ret = -ENOMEM;
+			goto failed_input;
+		}
+	}
+	ret = sumh_dh_set_dentry_ops(dn, dentry, projection);
+	if (ret) {
+		if (vi)
+			iput(vi);
+		goto failed_input;
+	}
+	if (projection->hidden)
+		d_add(dentry, NULL);
+	else
+		res = d_splice_alias(vi, dentry);
+	if (IS_ERR(res)) {
+		sumh_dh_drop_projection(dentry);
+		return res;
+	}
+	if (res) {
+		/* The unused input must not keep a shadow/lifetime pin until
+		 * some later DEL. Retirement runs after this SRCU callback. */
+		sumh_dh_drop_projection(dentry);
+		ret = sumh_dh_set_dentry_ops(dn, res, projection);
+		if (ret)
+			goto stale;
+	}
+	/* DEL can restore the first d_op before d_add/splice publishes.
+	 * Recheck without allocation after the actual publication. */
+	if (!sumh_dh_validate_projection(dn, res ?: dentry, projection)) {
+		ret = -EAGAIN;
+		goto stale;
+	}
+	return res;
+stale:
+	sumh_dh_drop_projection(res ?: dentry);
+	if (res)
+		dput(res);
+	return ERR_PTR(ret == -ENOENT || ret == -ESHUTDOWN ? -EAGAIN : ret);
+failed_input:
+	/* An observer can change after a native negative revalidates but before
+	 * atomic_open selects this projection. Its old immutable metadata must
+	 * retire even when allocation/installation fails before publication. */
+	sumh_dh_drop_projection(dentry);
+	return ERR_PTR(ret == -ENOENT || ret == -ESHUTDOWN ? -EAGAIN : ret);
+}
+
 static struct dentry *SUMH_NOCFI sumh_dh_lookup_inner(struct inode *dir,
 						      struct dentry *dentry,
 						      unsigned int flags)
 {
-	struct sumh_dh_iop *m = sumh_dh_iop_of(dir);
+	const struct inode_operations *iop = smp_load_acquire(&dir->i_op);
+	struct sumh_dh_iop *m = sumh_dh_iop_meta(iop);
 	struct sumh_dh_dir *dn = m ? READ_ONCE(m->dir) : NULL;
-	struct sumh_dh_child *c;
-	struct path source = {};
-	unsigned long v_ino = 0;
-	umode_t mode = S_IFREG | 0644;
-	u8 cflags = 0;
-	char *vpath = NULL;
-	bool found = false;
-	bool is_hide = false;
+	const struct inode_operations *orig = m ? m->orig_iop : iop;
+	struct sumh_dh_projection projection;
+	struct dentry *res;
+	char name[NAME_MAX + 1];
+	int len;
 
-	if (!m || !dn)
-		goto orig;
-
-	rcu_read_lock();
-	c = sumh_dh_find_child(
-	    dn, dentry->d_name.name, (u16)dentry->d_name.len,
-	    full_name_hash(dir, dentry->d_name.name, dentry->d_name.len));
-	if (c && sumh_dh_current_targets(c, dir)) {
-		if (c->source.dentry) {
-			source = c->source;
-			path_get(&source);
-		}
-		if (c->vpath)
-			vpath = kstrdup(c->vpath, GFP_ATOMIC);
-		v_ino = c->v_ino;
-		cflags = c->flags;
-		is_hide = sumh_dh_current_hides(c, dir) ||
-			  ((c->flags & SUMH_VNODE_F_SU) &&
-			   !ksu_sucompat_vfs_visible());
-		found = true;
-	}
-	rcu_read_unlock();
-
-	if (found) {
-		struct inode *vi;
-		struct dentry *res;
-		int dop_ret;
-
-		if (is_hide) {
-			/* Hidden for this observer: confirm a negative dentry
-			 * so the name resolves to -ENOENT.  Never call the real
-			 * lookup (it would surface the hidden inode) and never
-			 * mint a vnode (a hide has no source).  Our d_op makes
-			 * a non-seeing observer re-resolve to the real entry.
-			 */
-			if (source.dentry)
-				path_put(&source);
-			kfree(vpath);
-			dop_ret = sumh_dh_set_dentry_ops(dn, dentry, true);
-			if (dop_ret) {
-				/* DEL/CLEAR won the race: resolve through the
-				 * original filesystem instead of publishing an
-				 * ungoverned negative. */
-				if (dop_ret == -ENOENT || dop_ret == -ESHUTDOWN)
-					goto orig;
-				return ERR_PTR(dop_ret);
-			}
-			d_add(dentry, NULL);
-			return NULL;
-		}
-		if ((cflags & SUMH_VNODE_F_VIRTUAL_DIR) && vpath)
-			vi = sumh_vnode_new_virtual(dir->i_sb, vpath, v_ino,
-						    dir);
-		else
-			vi = sumh_vnode_new(dir->i_sb,
-					    source.dentry ? &source : NULL,
-					    v_ino, mode, cflags);
-		if (source.dentry)
-			path_put(&source);
-		kfree(vpath);
-		if (vi) {
-			dop_ret = sumh_dh_set_dentry_ops(dn, dentry, false);
-			if (dop_ret) {
-				iput(vi);
-				if (dop_ret == -ENOENT || dop_ret == -ESHUTDOWN)
-					goto orig;
-				return ERR_PTR(dop_ret);
-			}
-			res = d_splice_alias(vi, dentry);
-			if (res && !IS_ERR(res)) {
-				dop_ret =
-				    sumh_dh_set_dentry_ops(dn, res, false);
-				if (dop_ret) {
-					/* The alias became visible after
-					 * DEL/CLEAR began. Unhash it so the
-					 * next lookup reaches orig_iop. */
-					d_drop(res);
-					dput(res);
-					return ERR_PTR(dop_ret == -ENOENT ||
-							       dop_ret ==
-								   -ESHUTDOWN
-							   ? -EAGAIN
-							   : dop_ret);
-				}
-			}
-			return res;
-		}
-	}
-
-orig:
-	/* Not served to this observer.  If a rule nonetheless registers this
-	 * name (for a different observer), govern the resulting dentry with our
-	 * d_revalidate: otherwise a negative/real dentry cached here by a
-	 * non-seeing observer (e.g. root probing first) would be inherited by a
-	 * seeing observer without re-resolution, hiding the virtual file from
-	 * the very view that must see it — and, in the reverse order, leaking
-	 * it to a view that must not.  Attaching our d_op makes both orderings
-	 * re-resolve through the shadow lookup per current observer. */
-	{
-		struct dentry *res = NULL;
-		bool is_child = false;
-
-		if (m && dn) {
-			rcu_read_lock();
-			is_child =
-			    sumh_dh_find_child(
-				dn, dentry->d_name.name,
-				(u16)dentry->d_name.len,
-				full_name_hash(dir, dentry->d_name.name,
-					       dentry->d_name.len)) != NULL;
-			rcu_read_unlock();
-		}
-		if (m && m->orig_iop && m->orig_iop->lookup)
-			res = m->orig_iop->lookup(dir, dentry, flags);
-		else
-			d_add(dentry, NULL);
-		if (is_child && !IS_ERR(res) &&
-		    sumh_dh_set_dentry_ops(dn, res ? res : dentry, false))
-			/* Do not leave an ungoverned result cached: the current
-			 * non-seeing lookup may use it, but the next observer
-			 * must resolve through our lookup gate again. */
-			d_drop(res ? res : dentry);
+	len = sumh_dh_requested_name(dentry, name);
+	if (len < 0)
+		return ERR_PTR(len);
+	if (sumh_dh_capture_projection(dn, dir, name, len, &projection)) {
+		res = sumh_dh_materialize(dir, dn, dentry, &projection);
+		sumh_dh_payload_put(projection.payload);
 		return res;
 	}
+	/* A callback loaded before restoration may enter after i_op is
+	 * native again. Use that current native lookup rather than minting
+	 * an invented negative or recursively entering the shadow. */
+	if (!orig || !orig->lookup || orig->lookup == sumh_dh_lookup)
+		return ERR_PTR(-EOPNOTSUPP);
+	res = orig->lookup(dir, dentry, flags);
+	if (!IS_ERR(res))
+		sumh_dh_native_complete(dn, name, len, res ?: dentry);
+	return res;
 }
 
 static struct dentry *sumh_dh_lookup(struct inode *dir, struct dentry *dentry,
@@ -501,6 +681,7 @@ static bool SUMH_NOCFI sumh_dh_proxy_actor(struct dir_context *ctx,
 	if (p->dir) {
 		u32 hash = full_name_hash(p->dir->dir_inode, name, namelen);
 		struct sumh_dh_child *c;
+		struct sumh_dh_view view;
 
 		rcu_read_lock();
 		c = sumh_dh_find_child(p->dir, name, (u16)namelen, hash);
@@ -509,9 +690,10 @@ static bool SUMH_NOCFI sumh_dh_proxy_actor(struct dir_context *ctx,
 		 * overlay filldir, which already emits and dedups the name, so
 		 * it must pass through here untouched. */
 		injected =
-		    c && (sumh_dh_current_hides(c, p->dir->dir_inode) ||
-			  (!c->lookup_only &&
-			   sumh_dh_current_targets(c, p->dir->dir_inode)));
+		    sumh_dh_read_view(c, &view) &&
+		    (sumh_dh_current_hides(&view, p->dir->dir_inode) ||
+		     (!view.lookup_only &&
+		      sumh_dh_current_targets(&view, p->dir->dir_inode)));
 		rcu_read_unlock();
 	}
 	if (injected)
@@ -556,7 +738,9 @@ static int sumh_dh_emit_children(struct dir_context *ctx,
 	{
 		u32 cur;
 		struct sumh_dh_emit_entry *entry;
-		if (!sumh_dh_child_emitted(c, dir->dir_inode))
+		struct sumh_dh_view view;
+		if (!sumh_dh_read_view(c, &view) ||
+		    !sumh_dh_child_emitted(&view, dir->dir_inode))
 			continue; /* suppress-only, or readdir owned by the
 				   * overlay filldir: occupies no readdir slot
 				   */
@@ -564,11 +748,11 @@ static int sumh_dh_emit_children(struct dir_context *ctx,
 		if (cur < want)
 			continue;
 		entry = &entries[count++];
-		entry->ino = c->v_ino;
+		entry->ino = view.v_ino;
 		entry->name_len = c->name_len;
-		entry->type = (c->flags & SUMH_VNODE_F_DIR)   ? DT_DIR
-			      : (c->flags & SUMH_VNODE_F_LNK) ? DT_LNK
-							      : DT_REG;
+		entry->type = (view.flags & SUMH_VNODE_F_DIR)	? DT_DIR
+			      : (view.flags & SUMH_VNODE_F_LNK) ? DT_LNK
+								: DT_REG;
 		memcpy(entry->name, c->name, c->name_len + 1);
 		if (count == SUMH_DH_EMIT_BATCH)
 			break;
@@ -578,8 +762,9 @@ static int sumh_dh_emit_children(struct dir_context *ctx,
 		struct sumh_dh_emit_entry *entry = &entries[i];
 
 		ctx->pos = sumh_dh_pack_pos(want + i);
-		if (!dir_emit(ctx, entry->name, entry->name_len, entry->ino,
-			      entry->type))
+		if (!sumh_emit_projected_dirent(ctx, entry->name,
+						entry->name_len, entry->ino,
+						entry->type))
 			break;
 		ctx->pos = sumh_dh_pack_pos(want + i + 1);
 	}
@@ -713,20 +898,33 @@ static int SUMH_NOCFI sumh_dh_revalidate_inner(
 	 * directory where it was installed.  It is no longer governed there. */
 	if (dir && dir == dn->dir_inode) {
 		struct sumh_dh_child *c;
+		struct sumh_dh_view view;
 
 		rcu_read_lock();
 		c = sumh_dh_find_child(
 		    dn, name->name, (u16)name->len,
 		    full_name_hash(dir, name->name, name->len));
-		if (c) {
+		if (dm->projected) {
+			struct sumh_dh_projection projection = {
+			    .payload = dm->payload,
+			    .hidden = dm->synthetic_negative,
+			};
+
+			if (!sumh_dh_projection_matches(c, dir, &projection)) {
+				rcu_read_unlock();
+				return 0;
+			}
+		}
+		if (sumh_dh_read_view(c, &view)) {
 			governed = true;
-			child_hide = c->hide || sumh_dh_current_hides(c, dir);
-			sees = sumh_dh_current_targets(c, dir);
-			if (c->flags & SUMH_VNODE_F_SU) {
+			child_hide =
+			    view.hide || sumh_dh_current_hides(&view, dir);
+			sees = sumh_dh_current_targets(&view, dir);
+			if (view.flags & SUMH_VNODE_F_SU) {
 				bool enabled =
-				    ksu_sucompat_vfs_current_ino(c->v_ino);
+				    ksu_sucompat_vfs_current_ino(view.v_ino);
 				bool visible = ksu_sucompat_vfs_visible();
-				unsigned long ino = c->v_ino;
+				unsigned long ino = view.v_ino;
 				rcu_read_unlock();
 				if (enabled)
 					return visible
@@ -866,20 +1064,28 @@ out:
 
 static int sumh_dh_set_dentry_ops(struct sumh_dh_dir *dir,
 				  struct dentry *dentry,
-				  bool synthetic_negative)
+				  const struct sumh_dh_projection *projection)
 {
 	struct sumh_dh_dop_meta *m, *existing;
+	struct sumh_dh_child *slot;
 	const struct dentry_operations *orig;
-	const char *name;
+	char name[NAME_MAX + 1];
 	u32 hash;
 	u16 len;
-	bool governed;
 	int ret = 0;
 
-	if (!dir || !dir->dir_inode || !dentry || dentry->d_name.len > NAME_MAX)
+	if (!dir || !dir->dir_inode || !dentry)
 		return -EINVAL;
-	name = dentry->d_name.name;
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_name.len > NAME_MAX ||
+	    d_inode(dentry->d_parent) != dir->dir_inode) {
+		spin_unlock(&dentry->d_lock);
+		return -EAGAIN;
+	}
 	len = (u16)dentry->d_name.len;
+	memcpy(name, dentry->d_name.name, len);
+	name[len] = '\0';
+	spin_unlock(&dentry->d_lock);
 	hash = full_name_hash(dir->dir_inode, name, len);
 
 	m = kzalloc(sizeof(*m) + len + 1, GFP_KERNEL);
@@ -889,7 +1095,11 @@ static int sumh_dh_set_dentry_ops(struct sumh_dh_dir *dir,
 	m->dir = dir;
 	m->name_hash = hash;
 	m->name_len = len;
-	m->synthetic_negative = synthetic_negative;
+	m->projected = projection != NULL;
+	m->synthetic_negative = projection && projection->hidden;
+	m->payload = projection ? projection->payload : NULL;
+	if (m->payload)
+		refcount_inc(&m->payload->refs);
 	INIT_LIST_HEAD(&m->retire_node);
 	memcpy(m->name, name, len);
 	m->name[len] = '\0';
@@ -899,33 +1109,54 @@ static int sumh_dh_set_dentry_ops(struct sumh_dh_dir *dir,
 		ret = -ESHUTDOWN;
 		goto out_unlock;
 	}
-	/* DEL removes the child while holding this mutex.  Recheck here so a
-	 * lookup that copied the rule just before DEL cannot publish a late
-	 * d_op. */
-	rcu_read_lock();
-	governed = sumh_dh_find_child(dir, m->name, len, hash) != NULL;
-	rcu_read_unlock();
-	if (!governed) {
+	/* PREPARED stays transparent but governs native cache completions.
+	 * Synthetic metadata must still belong to the captured payload, not
+	 * merely to any winner that happens to occupy the same slot now. */
+	slot = sumh_dh_find_slot(dir, m->name, len, hash);
+	if (!slot) {
 		ret = -ENOENT;
+		goto out_unlock;
+	}
+	if (projection &&
+	    !sumh_dh_projection_matches(slot, dir->dir_inode, projection)) {
+		ret = -EAGAIN;
 		goto out_unlock;
 	}
 
 	existing = sumh_dh_dop_lookup_locked(dentry);
 	if (existing) {
 		spin_lock(&dentry->d_lock);
-		if (dentry->d_op != &existing->shadow_dop ||
-		    existing->dir != dir || existing->name_hash != hash ||
-		    existing->name_len != len ||
-		    memcmp(existing->name, name, len))
+		if (d_inode(dentry->d_parent) != dir->dir_inode ||
+		    dentry->d_name.len != len ||
+		    memcmp(dentry->d_name.name, name, len))
+			ret = -EAGAIN;
+		else if (test_bit(SUMH_DH_DOP_AUTO_RETIRE, &existing->state) ||
+			 dentry->d_op != &existing->shadow_dop ||
+			 existing->dir != dir || existing->name_hash != hash ||
+			 existing->name_len != len ||
+			 memcmp(existing->name, name, len) ||
+			 existing->projected != m->projected ||
+			 existing->synthetic_negative !=
+			     m->synthetic_negative ||
+			 existing->payload != m->payload)
 			ret = -EBUSY;
-		else
-			WRITE_ONCE(existing->synthetic_negative,
-				   synthetic_negative);
 		spin_unlock(&dentry->d_lock);
 		goto out_unlock;
 	}
 
+	if (refcount_read(&dir->refs) >= INT_MAX - 4) {
+		ret = -EOVERFLOW;
+		goto out_unlock;
+	}
 	spin_lock(&dentry->d_lock);
+	if (d_inode(dentry->d_parent) != dir->dir_inode ||
+	    dentry->d_name.len != len ||
+	    memcmp(dentry->d_name.name, m->name, len)) {
+		spin_unlock(&dentry->d_lock);
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
+	refcount_inc(&dir->refs);
 	orig = READ_ONCE(dentry->d_op);
 	m->orig_dop = orig;
 	if (orig)
@@ -946,8 +1177,56 @@ static int sumh_dh_set_dentry_ops(struct sumh_dh_dir *dir,
 out_unlock:
 	mutex_unlock(&sumh_dh_lock);
 	dput(m->dentry);
+	sumh_dh_payload_put(m->payload);
 	kfree(m);
 	return ret;
+}
+
+/* No allocation and no grace wait inside a lookup callback. A concurrent
+ * retirement before publication may have restored d_op; after publication
+ * it must either own and drop this exact dentry or fail this check. */
+static bool
+sumh_dh_validate_projection(struct sumh_dh_dir *dir, struct dentry *dentry,
+			    const struct sumh_dh_projection *projection)
+{
+	struct sumh_dh_dop_meta *m;
+	struct sumh_dh_child *slot;
+	bool valid = false;
+
+	mutex_lock(&sumh_dh_lock);
+	if (READ_ONCE(dir->retiring))
+		goto out;
+	m = sumh_dh_dop_lookup_locked(dentry);
+	if (!m || m->dir != dir || !m->projected ||
+	    m->payload != projection->payload ||
+	    m->synthetic_negative != projection->hidden ||
+	    test_bit(SUMH_DH_DOP_AUTO_RETIRE, &m->state))
+		goto out;
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_op != &m->shadow_dop ||
+	    d_inode(dentry->d_parent) != dir->dir_inode ||
+	    dentry->d_name.len != m->name_len ||
+	    memcmp(dentry->d_name.name, m->name, m->name_len))
+		goto unlock_dentry;
+	slot = sumh_dh_find_slot(dir, m->name, m->name_len, m->name_hash);
+	valid = sumh_dh_projection_matches(slot, dir->dir_inode, projection);
+unlock_dentry:
+	spin_unlock(&dentry->d_lock);
+out:
+	mutex_unlock(&sumh_dh_lock);
+	return valid;
+}
+
+static void sumh_dh_drop_projection(struct dentry *dentry)
+{
+	struct sumh_dh_dop_meta *m;
+
+	mutex_lock(&sumh_dh_lock);
+	m = sumh_dh_dop_lookup_locked(dentry);
+	if (m)
+		sumh_dh_queue_dop_retire(m);
+	d_drop(dentry);
+	mutex_unlock(&sumh_dh_lock);
 }
 
 /* Caller holds sumh_dh_lock.  The dget in @m remains live across the SRCU
@@ -989,6 +1268,8 @@ static void sumh_dh_free_retired_dops(struct list_head *retired)
 	list_for_each_entry_safe (m, tmp, retired, retire_node) {
 		list_del(&m->retire_node);
 		dput(m->dentry);
+		sumh_dh_payload_put(m->payload);
+		sumh_dh_dir_put(m->dir);
 		kfree(m);
 	}
 }
@@ -997,8 +1278,8 @@ static void sumh_dh_free_retired_dops(struct list_head *retired)
  * Retire every dentry that a revalidation declared stale.  The mutex
  * serializes ownership with DEL/CLEAR: whichever side removes a meta from the
  * hash owns its eventual dput/free, while the other side can no longer find
- * it.  No post-unlock step dereferences m->dir, so a concurrent last-child DEL
- * may safely detach and later free the directory metadata.
+ * it. Each meta owns a directory reference through its child dput, so a
+ * concurrent last-child DEL cannot free the directory before this worker.
  */
 static void sumh_dh_reap_dops_workfn(struct work_struct *work)
 {
@@ -1133,6 +1414,7 @@ static struct sumh_dh_dir *sumh_dh_install_dir(struct inode *inode,
 		kfree(dir);
 		return NULL;
 	}
+	refcount_set(&dir->refs, 1);
 	INIT_HLIST_HEAD(&dir->children);
 	spin_lock_init(&dir->lock);
 	INIT_LIST_HEAD(&dir->list);
@@ -1170,9 +1452,8 @@ static struct sumh_dh_dir *sumh_dh_install_dir(struct inode *inode,
 	return dir;
 }
 
-/* Roll back a just-published, still-empty directory after child allocation
- * failed.  Publication is withdrawn under sumh_dh_lock; the sleepable drain
- * and owner release happen afterwards in sumh_dh_release_detached_dir(). */
+/* Withdraw an empty directory under sumh_dh_lock. The sleepable callback
+ * drain and registry-reference release happen in sumh_dh_retire_finish(). */
 static void sumh_dh_detach_dir_locked(struct sumh_dh_dir *dir)
 {
 	struct inode *inode;
@@ -1191,146 +1472,6 @@ static void sumh_dh_detach_dir_locked(struct sumh_dh_dir *dir)
 	if (!list_empty(&dir->list))
 		list_del_init(&dir->list);
 }
-
-static void sumh_dh_release_detached_dir(struct sumh_dh_dir *dir)
-{
-	struct sumh_dh_child *c;
-	struct hlist_node *tmp;
-	struct inode *inode;
-	struct super_block *sb;
-
-	if (!dir)
-		return;
-	/* Cover a stale i_op fetch, callbacks already inside the dirhijack SRCU
-	 * domain, and an iterate client that acquired @dir before unbind. */
-	synchronize_rcu_tasks();
-	synchronize_srcu(&sumh_dh_srcu);
-	sumh_fop_synchronize_iterate_clients();
-	synchronize_rcu_tasks();
-
-	hlist_for_each_entry_safe(c, tmp, &dir->children, node)
-	{
-		hlist_del(&c->node);
-		sumh_dh_child_free(c);
-	}
-	inode = dir->dir_inode;
-	sb = inode ? inode->i_sb : NULL;
-	/* Keep the s_op client's s_active pin until the parent inode reference
-	 * is gone.  A concurrent late-vnode reap may otherwise drop the final
-	 * active superblock reference and start shutdown while iput still uses
-	 * it.
-	 */
-	dir->dir_inode = NULL;
-	if (inode)
-		iput(inode);
-	if (dir->sop_client && sb) {
-		sumh_sop_shadow_unregister_dh(sb);
-		dir->sop_client = false;
-	}
-	kfree(dir->iop_meta);
-	kfree(dir);
-	sumh_sop_shadow_reap();
-}
-
-/* ---- child index ------------------------------------------------------- */
-
-static void sumh_dh_child_free_rcu(struct rcu_head *rcu)
-{
-	struct sumh_dh_child *c = container_of(rcu, struct sumh_dh_child, rcu);
-
-	/* RCU callback context cannot run path_put()/dput(). Move the object to
-	 * a lockless queue and finish its sleepable teardown on the system
-	 * workqueue.
-	 */
-	llist_add(&c->free_node, &sumh_dh_free_children);
-	schedule_work(&sumh_dh_free_children_work);
-}
-
-static void sumh_dh_child_free(struct sumh_dh_child *c)
-{
-	if (c->source.dentry)
-		path_put(&c->source);
-	kfree(c->vpath);
-	kfree(c);
-}
-
-static void sumh_dh_free_children_workfn(struct work_struct *work)
-{
-	struct llist_node *head, *node, *next;
-
-	(void)work;
-	while ((head = llist_del_all(&sumh_dh_free_children)) != NULL) {
-		llist_for_each_safe(node, next, head)
-		{
-			struct sumh_dh_child *c =
-			    container_of(node, struct sumh_dh_child, free_node);
-
-			sumh_dh_child_free(c);
-		}
-	}
-}
-
-static int sumh_dh_dir_add_child(struct sumh_dh_dir *dir, const char *name,
-				 u16 len, const struct path *source,
-				 unsigned long v_ino, u8 flags, bool hide,
-				 bool lookup_only, const char *vpath)
-{
-	struct sumh_dh_child *c, *old;
-	u32 hash = full_name_hash(dir->dir_inode, name, len);
-
-	c = kmalloc(sizeof(*c) + len + 1, GFP_KERNEL);
-	if (!c)
-		return -ENOMEM;
-	c->vpath = NULL;
-	if (vpath) {
-		c->vpath = kstrdup(vpath, GFP_KERNEL);
-		if (!c->vpath) {
-			kfree(c);
-			return -ENOMEM;
-		}
-	}
-	memset(&c->source, 0, sizeof(c->source));
-	if (source && source->dentry) {
-		c->source = *source;
-		path_get(&c->source);
-	}
-	c->v_ino = v_ino;
-	c->name_hash = hash;
-	c->name_len = len;
-	c->flags = flags;
-	c->hide = hide ? 1 : 0;
-	c->legacy = true;
-	c->hide_users = 0;
-	c->lookup_only = lookup_only ? 1 : 0;
-	memcpy(c->name, name, len);
-	c->name[len] = '\0';
-
-	spin_lock(&dir->lock);
-	old = sumh_dh_find_child(dir, name, len, hash);
-	if (old && (old->flags & SUMH_VNODE_F_SU) &&
-	    !(flags & SUMH_VNODE_F_SU)) {
-		spin_unlock(&dir->lock);
-		sumh_dh_child_free(c);
-		return -EPERM;
-	}
-	if (old && (flags & SUMH_VNODE_F_SU) &&
-	    !(old->flags & SUMH_VNODE_F_SU)) {
-		spin_unlock(&dir->lock);
-		sumh_dh_child_free(c);
-		return -EEXIST;
-	}
-	if (old) {
-		c->hide_users = old->hide_users;
-		hlist_del_rcu(&old->node);
-	}
-	hlist_add_head_rcu(&c->node, &dir->children);
-	spin_unlock(&dir->lock);
-	if (old)
-		call_rcu(&old->rcu, sumh_dh_child_free_rcu);
-	return 0;
-}
-
-/* ---- public control surface -------------------------------------------- */
 
 static int sumh_dh_split_parent(const char *visible_path, char **parent_out,
 				const char **child_out)
@@ -1355,659 +1496,6 @@ static int sumh_dh_split_parent(const char *visible_path, char **parent_out,
 		*slash = '\0';
 	*parent_out = parent;
 	return 0;
-}
-
-/*
- * Slice 4c-v2: register a rule whose visible path has missing intermediate
- * directories.  Walk up @visible_path's parent chain to the deepest existing
- * real directory R, then register the first missing segment s1 at R as a
- * F_VIRTUAL_DIR child (visible path R/s1).  That synthesized directory resolves
- * everything below it — deeper virtual dirs and the leaf — dynamically from the
- * rule table (sumh_rule_vpath_*), so only the top segment needs registering.
- * The child is shared across all rules under R/s1.
- */
-static SUMH_NOCFI int sumh_dh_register_vtopo(const char *visible_path)
-{
-	char *pparent = NULL;
-	char *probe;
-	char *seg = NULL;
-	char *vpath = NULL;
-	const char *leaf;
-	const char *after;
-	const char *slash;
-	struct path rpath;
-	struct inode *rinode;
-	struct sumh_dh_dir *dir = NULL;
-	struct sumh_dh_dir *rollback_dir = NULL;
-	size_t rlen, seg_len;
-	bool sop_registered = false;
-	int ret;
-
-	ret = sumh_dh_split_parent(visible_path, &pparent, &leaf);
-	if (ret)
-		return ret;
-	probe = kstrdup(pparent, GFP_KERNEL);
-	kfree(pparent);
-	if (!probe)
-		return -ENOMEM;
-
-	/* Walk up to the deepest existing real directory. */
-	for (;;) {
-		char *ls;
-
-		ret =
-		    kern_path(probe, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &rpath);
-		if (ret == 0)
-			break;
-		if (ret != -ENOENT) {
-			kfree(probe);
-			return ret;
-		}
-		ls = strrchr(probe, '/');
-		if (!ls) {
-			kfree(probe);
-			return -ENOENT;
-		}
-		if (ls == probe) {
-			if (probe[1]) { /* collapse "/x" -> "/" and retry root
-					 */
-				probe[1] = '\0';
-				continue;
-			}
-			kfree(probe); /* even "/" did not resolve */
-			return -ENOENT;
-		}
-		*ls = '\0';
-	}
-	rinode = d_inode(rpath.dentry);
-	if (!rinode || !S_ISDIR(rinode->i_mode)) {
-		path_put(&rpath);
-		kfree(probe);
-		return -ENOTDIR;
-	}
-	rlen = (strcmp(probe, "/") == 0) ? 0 : strlen(probe);
-	kfree(probe);
-
-	/* First segment of @visible_path after R, and the virtual dir path
-	 * R/s1. */
-	after = visible_path + rlen + 1;
-	slash = strchr(after, '/');
-	seg_len = slash ? (size_t)(slash - after) : strlen(after);
-	if (!seg_len || seg_len > NAME_MAX) {
-		path_put(&rpath);
-		return -EINVAL;
-	}
-	seg = kstrndup(after, seg_len, GFP_KERNEL);
-	vpath = kstrndup(visible_path, rlen + 1 + seg_len, GFP_KERNEL);
-	if (!seg || !vpath) {
-		kfree(seg);
-		kfree(vpath);
-		path_put(&rpath);
-		return -ENOMEM;
-	}
-
-	mutex_lock(&sumh_dh_lock);
-	if (!sumh_dh_iop_of(rinode)) {
-		ret = sumh_sop_shadow_register_dh(rpath.dentry->d_sb);
-		if (ret)
-			goto out;
-		sop_registered = true;
-	}
-	dir = sumh_dh_install_dir(rinode, true, sop_registered, &ret);
-	if (!dir) {
-		if (!ret)
-			ret = -ENOMEM;
-		if (sop_registered)
-			sumh_sop_shadow_unregister_dh(rpath.dentry->d_sb);
-		goto out;
-	}
-	ret = sumh_dh_dir_add_child(
-	    dir, seg, (u16)seg_len, NULL, sumh_vnode_vpath_ino(vpath),
-	    SUMH_VNODE_F_DIR | SUMH_VNODE_F_VIRTUAL_DIR, false, false, vpath);
-	if (ret) {
-		if (sop_registered) {
-			sumh_dh_detach_dir_locked(dir);
-			rollback_dir = dir;
-		}
-		goto out;
-	}
-	{
-		struct qstr qn;
-		struct dentry *cached;
-
-		qn.name = seg;
-		qn.len = (u32)seg_len;
-		qn.hash = full_name_hash(rpath.dentry, seg, seg_len);
-		cached = d_lookup(rpath.dentry, &qn);
-		if (cached) {
-			d_drop(cached);
-			dput(cached);
-		}
-	}
-out:
-	mutex_unlock(&sumh_dh_lock);
-	if (rollback_dir)
-		sumh_dh_release_detached_dir(rollback_dir);
-	else if (ret && sop_registered && !dir)
-		sumh_sop_shadow_reap();
-	path_put(&rpath);
-	pr_info("sumh: dirhijack_vtopo visible=%s vdir=%s ret=%d\n",
-		visible_path, vpath, ret);
-	kfree(seg);
-	kfree(vpath);
-	return ret;
-}
-
-static SUMH_NOCFI int sumh_dh_register(const char *visible_path,
-				       const struct path *source,
-				       unsigned long v_ino, u8 flags, bool hide,
-				       bool lookup_only,
-				       struct path *bound_parent)
-{
-	char *parent = NULL;
-	const char *child = NULL;
-	struct path ppath;
-	struct inode *pinode;
-	struct sumh_dh_dir *dir = NULL;
-	struct sumh_dh_dir *rollback_dir = NULL;
-	struct dentry *cached;
-	struct qstr qname;
-	size_t child_len;
-	bool sop_registered = false;
-	int ret;
-
-	if (!READ_ONCE(sumh_dh_ready))
-		return -EOPNOTSUPP;
-	if (!visible_path)
-		return -EINVAL;
-	ret = sumh_dh_split_parent(visible_path, &parent, &child);
-	if (ret)
-		return ret;
-	child_len = strlen(child);
-	if (!child_len || child_len > NAME_MAX) {
-		kfree(parent);
-		return -EINVAL;
-	}
-	ret = kern_path(parent, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &ppath);
-	if (ret) {
-		kfree(parent);
-		/* Missing intermediate directory: synthesize virtual topology
-		 * so a deep visible path still resolves.  Only for backed
-		 * inject/dir-source rules — a hide or merge-shadow with a
-		 * missing parent is meaningless. */
-		if (ret == -ENOENT && !hide && !lookup_only &&
-		    !(flags & SUMH_VNODE_F_SU))
-			return sumh_dh_register_vtopo(visible_path);
-		return ret;
-	}
-	if (hide && ppath.dentry->d_sb->s_magic == FUSE_SUPER_MAGIC &&
-	    !READ_ONCE(sumh_dh_fuse_registered)) {
-		path_put(&ppath);
-		kfree(parent);
-		return -EOPNOTSUPP;
-	}
-	pinode = d_inode(ppath.dentry);
-	if (!pinode || !S_ISDIR(pinode->i_mode)) {
-		path_put(&ppath);
-		kfree(parent);
-		return -ENOTDIR;
-	}
-	if (flags & SUMH_VNODE_F_SU) {
-		struct path existing;
-
-		ret = kern_path(visible_path, 0, &existing);
-		if (!ret) {
-			bool is_su = ksu_sucompat_vfs_is_path(&existing);
-
-			path_put(&existing);
-			if (!is_su)
-				ret = -EEXIST;
-		} else if (ret == -ENOENT) {
-			ret = 0;
-		}
-		if (ret) {
-			path_put(&ppath);
-			kfree(parent);
-			return ret;
-		}
-	}
-
-	mutex_lock(&sumh_dh_lock);
-	if (!sumh_dh_iop_of(pinode)) {
-		ret = sumh_sop_shadow_register_dh(ppath.dentry->d_sb);
-		if (ret)
-			goto out;
-		sop_registered = true;
-	}
-	dir = sumh_dh_install_dir(pinode, !lookup_only, sop_registered, &ret);
-	if (!dir) {
-		if (!ret)
-			ret = -ENOMEM;
-		if (sop_registered)
-			sumh_sop_shadow_unregister_dh(ppath.dentry->d_sb);
-		goto out;
-	}
-	ret = sumh_dh_dir_add_child(dir, child, (u16)child_len, source, v_ino,
-				    flags, hide, lookup_only, NULL);
-	if (ret) {
-		if (sop_registered) {
-			sumh_dh_detach_dir_locked(dir);
-			rollback_dir = dir;
-		}
-		goto out;
-	}
-
-	qname.name = child;
-	qname.len = (u32)child_len;
-	qname.hash = full_name_hash(ppath.dentry, child, child_len);
-	cached = d_lookup(ppath.dentry, &qname);
-	if (cached) {
-		d_drop(cached);
-		dput(cached);
-	}
-out:
-	mutex_unlock(&sumh_dh_lock);
-	if (rollback_dir)
-		sumh_dh_release_detached_dir(rollback_dir);
-	else if (ret && sop_registered && !dir)
-		sumh_sop_shadow_reap();
-	if (!ret && bound_parent) {
-		*bound_parent = ppath;
-		path_get(bound_parent);
-	}
-	path_put(&ppath);
-	pr_info("sumh: dirhijack_%s visible=%s child=%s ret=%d\n",
-		hide	      ? "hide"
-		: lookup_only ? "shadow"
-			      : "add",
-		visible_path, child ? child : "(null)", ret);
-	kfree(parent);
-	return ret;
-}
-
-int sumh_dirhijack_add(const char *visible_path, const struct path *source,
-		       unsigned long v_ino, u8 flags)
-{
-	return sumh_dh_register(visible_path, source, v_ino, flags, false,
-				false, NULL);
-}
-
-int sumh_dirhijack_add_su(const char *visible_path, unsigned long v_ino,
-			  struct path *parent)
-{
-	return sumh_dh_register(visible_path, NULL, v_ino, SUMH_VNODE_F_SU,
-				false, false, parent);
-}
-
-int sumh_dirhijack_match_su(const char *visible_path, const struct path *parent,
-			    unsigned long v_ino)
-{
-	struct sumh_dh_iop *m;
-	struct sumh_dh_child *c;
-	struct path resolved;
-	char *parent_name;
-	const char *child;
-	size_t len;
-	int idx, ret;
-
-	if (!parent->dentry || !v_ino)
-		return 0;
-	ret = sumh_dh_split_parent(visible_path, &parent_name, &child);
-	if (ret)
-		return ret;
-	ret =
-	    kern_path(parent_name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &resolved);
-	if (ret)
-		goto out;
-	if (!path_equal(&resolved, parent))
-		goto out_path;
-	len = strlen(child);
-	idx = srcu_read_lock(&sumh_dh_srcu);
-	rcu_read_lock();
-	m = sumh_dh_iop_of(d_inode(resolved.dentry));
-	if (m && m->dir && !READ_ONCE(m->dir->retiring)) {
-		c = sumh_dh_find_child(
-		    m->dir, child, (u16)len,
-		    full_name_hash(m->dir->dir_inode, child, len));
-		ret = c && (c->flags & SUMH_VNODE_F_SU) && c->v_ino == v_ino;
-	}
-	rcu_read_unlock();
-	srcu_read_unlock(&sumh_dh_srcu, idx);
-out_path:
-	path_put(&resolved);
-out:
-	kfree(parent_name);
-	return ret;
-}
-
-/*
- * Register a lookup-only child at @visible_path backed by @source: VFS lookup
- * resolves it to a SUMH vnode (open/stat/readlink), but dirhijack does not
- * touch this dir's readdir — the overlay filldir injection owns emit and dedup
- * for the name.  Used to sink a merge-materialized file's lookup axis onto the
- * VFS layer (Slice 4a) without double-injecting the entry into getdents.
- * Sleepable context only.
- */
-int sumh_dirhijack_add_shadow(const char *visible_path,
-			      const struct path *source, unsigned long v_ino,
-			      u8 flags)
-{
-	return sumh_dh_register(visible_path, source, v_ino, flags, false, true,
-				NULL);
-}
-
-/*
- * Register a suppress-only child at @visible_path: VFS lookup returns a
- * negative dentry (-ENOENT) and readdir omits the name for hide-target
- * observers. Root and rule-management lookups retain the real entry.
- * Sleepable context only. Returns 0 or a negative errno.
- */
-int sumh_dirhijack_hide(const char *visible_path)
-{
-	if (!sumh_dirhijack_enabled())
-		return -EOPNOTSUPP;
-	return sumh_dh_register(visible_path, NULL, 0, 0, true, false, NULL);
-}
-
-static SUMH_NOCFI int sumh_dh_unregister(struct path ppath, const char *child,
-					 unsigned long su_ino, bool user)
-{
-	struct sumh_dh_iop *m;
-	struct sumh_dh_child *c = NULL, *replacement = NULL;
-	bool keep = false;
-	struct sumh_dh_dir *dead_dir = NULL;
-	struct sumh_dh_dop_meta *dm;
-	struct hlist_node *htmp;
-	LIST_HEAD(retired_dops);
-	size_t child_len = strlen(child);
-	bool had_dops;
-	int bkt;
-	if (!child_len || child_len > NAME_MAX)
-		return -EINVAL;
-
-	mutex_lock(&sumh_dh_lock);
-	m = sumh_dh_iop_of(d_inode(ppath.dentry));
-	if (m && m->dir) {
-		c = sumh_dh_find_child(
-		    m->dir, child, (u16)child_len,
-		    full_name_hash(m->dir->dir_inode, child, child_len));
-		if (!user && !su_ino && c && c->hide_users) {
-			replacement = kzalloc(
-			    sizeof(*replacement) + child_len + 1, GFP_KERNEL);
-			if (!replacement) {
-				mutex_unlock(&sumh_dh_lock);
-				return -ENOMEM;
-			}
-			replacement->hide = 1;
-			replacement->hide_users = c->hide_users;
-			replacement->name_hash = c->name_hash;
-			replacement->name_len = c->name_len;
-			memcpy(replacement->name, c->name, child_len + 1);
-		}
-		spin_lock(&m->dir->lock);
-		c = sumh_dh_find_child(
-		    m->dir, child, (u16)child_len,
-		    full_name_hash(m->dir->dir_inode, child, child_len));
-		if ((su_ino && (!c || !(c->flags & SUMH_VNODE_F_SU) ||
-				c->v_ino != su_ino)) ||
-		    (!su_ino && c && (c->flags & SUMH_VNODE_F_SU))) {
-			spin_unlock(&m->dir->lock);
-			mutex_unlock(&sumh_dh_lock);
-			kfree(replacement);
-			return su_ino ? -ENOENT : -EPERM;
-		}
-		if (user && c) {
-			if (WARN_ON_ONCE(!c->hide_users)) {
-				spin_unlock(&m->dir->lock);
-				mutex_unlock(&sumh_dh_lock);
-				return -ENOENT;
-			}
-			WRITE_ONCE(c->hide_users, c->hide_users - 1);
-			keep = c->hide_users || c->legacy;
-		}
-		if (c && !keep) {
-			hlist_del_rcu(&c->node);
-			if (replacement)
-				hlist_add_head_rcu(&replacement->node,
-						   &m->dir->children);
-		}
-		if (c && hlist_empty(&m->dir->children))
-			dead_dir = m->dir;
-		spin_unlock(&m->dir->lock);
-		if (c && !keep)
-			call_rcu(&c->rcu, sumh_dh_child_free_rcu);
-
-		/* A d_splice_alias path can leave more than one held dentry for
-		 * the same governed name.  Retire every matching shadow, not
-		 * only the object currently returned by d_lookup(). */
-		hash_for_each_safe(sumh_dh_dops, bkt, htmp, dm, node)
-		{
-			if (dm->dir == m->dir && dm->name_len == child_len &&
-			    dm->name_hash == full_name_hash(m->dir->dir_inode,
-							    child, child_len) &&
-			    !memcmp(dm->name, child, child_len))
-				sumh_dh_retire_dop_locked(dm, &retired_dops);
-		}
-		if (dead_dir)
-			sumh_dh_detach_dir_locked(dead_dir);
-	}
-	if (c) {
-		/* Drop any dentry cached under this name so the next resolution
-		 * runs the now child-free real lookup.  Essential for a hide:
-		 * the cached negative that made the name -ENOENT for a view
-		 * observer must be dropped, else the name stays "hidden" after
-		 * its rule is gone (revalidate treats an ungoverned negative as
-		 * a genuine absence and keeps it). */
-		struct qstr qname;
-		struct dentry *cached;
-
-		qname.name = child;
-		qname.len = (u32)child_len;
-		qname.hash = full_name_hash(ppath.dentry, child, child_len);
-		cached = d_lookup(ppath.dentry, &qname);
-		if (cached) {
-			d_drop(cached);
-			dput(cached);
-		}
-	}
-	mutex_unlock(&sumh_dh_lock);
-	had_dops = !list_empty(&retired_dops);
-	if (had_dops) {
-		/* Close the d_op-load-to-callback-entry window first, then
-		 * drain callbacks that published their dm through the SRCU
-		 * wrapper. */
-		synchronize_rcu_tasks();
-		synchronize_srcu(&sumh_dh_srcu);
-		/* Cover the wrapper epilogue after srcu_read_unlock(). */
-		synchronize_rcu_tasks();
-		synchronize_rcu();
-		sumh_dh_free_retired_dops(&retired_dops);
-	}
-	if (dead_dir) {
-		/* An auto-retire worker may already own a matching dm which DEL
-		 * no longer found in the hash. Drain its dget before
-		 * release_detached_dir() drops the final s_op client/s_active
-		 * reference for this directory.
-		 */
-		flush_work(&sumh_dh_reap_dops_work);
-	}
-	if (c || had_dops)
-		shrink_dcache_sb(ppath.dentry->d_sb);
-	if (dead_dir)
-		sumh_dh_release_detached_dir(dead_dir);
-	return c ? 0 : -ENOENT;
-}
-
-struct sumh_hide_binding {
-	struct dentry *parent;
-	char name[];
-};
-
-bool sumh_dirhijack_hide_matches(const struct sumh_hide_binding *binding,
-				 const struct path *parent)
-{
-	return binding && binding->parent == parent->dentry &&
-	       !d_unlinked(binding->parent);
-}
-
-int sumh_dirhijack_hide_get(const struct path *parent, const char *name,
-			    struct sumh_hide_binding **result)
-{
-	struct inode *inode = d_inode(parent->dentry);
-	struct sumh_hide_binding *binding;
-	struct sumh_dh_dir *dir = NULL, *rollback = NULL;
-	struct sumh_dh_child *child;
-	bool registered = false;
-	size_t len = strlen(name);
-	int ret = 0;
-	struct qstr qname = QSTR_INIT(name, len);
-	struct dentry *cached;
-
-	if (!READ_ONCE(sumh_dh_ready))
-		return -EOPNOTSUPP;
-	if (!inode || !S_ISDIR(inode->i_mode) || !len || len > NAME_MAX)
-		return -EINVAL;
-	if (inode->i_sb->s_magic == FUSE_SUPER_MAGIC &&
-	    !READ_ONCE(sumh_dh_fuse_registered))
-		return -EOPNOTSUPP;
-	if (sumh_vnode_is_ours(inode))
-		return -EOPNOTSUPP;
-	binding = kmalloc(sizeof(*binding) + len + 1, GFP_KERNEL);
-	if (!binding)
-		return -ENOMEM;
-	memcpy(binding->name, name, len + 1);
-	binding->parent = dget(parent->dentry);
-	mutex_lock(&sumh_dh_lock);
-	if (!sumh_dh_iop_of(inode)) {
-		ret = sumh_sop_shadow_register_dh(inode->i_sb);
-		if (ret)
-			goto out;
-		registered = true;
-	}
-	dir = sumh_dh_install_dir(inode, true, registered, &ret);
-	if (!dir) {
-		ret = ret ?: -ENOMEM;
-		if (registered)
-			sumh_sop_shadow_unregister_dh(inode->i_sb);
-		goto out;
-	}
-	child = sumh_dh_find_child(dir, name, len,
-				   full_name_hash(inode, name, len));
-	if (child && (child->flags & SUMH_VNODE_F_SU)) {
-		ret = -EPERM;
-		goto out;
-	}
-	if (!child) {
-		ret = sumh_dh_dir_add_child(dir, name, len, NULL, 0, 0, true,
-					    false, NULL);
-		if (ret) {
-			if (registered) {
-				sumh_dh_detach_dir_locked(dir);
-				rollback = dir;
-			}
-			goto out;
-		}
-		child = sumh_dh_find_child(dir, name, len,
-					   full_name_hash(inode, name, len));
-		WRITE_ONCE(child->legacy, false);
-	}
-	WRITE_ONCE(child->hide_users, child->hide_users + 1);
-	qname.hash = full_name_hash(parent->dentry, name, len);
-	cached = d_lookup(parent->dentry, &qname);
-	if (cached) {
-		d_drop(cached);
-		dput(cached);
-	}
-out:
-	mutex_unlock(&sumh_dh_lock);
-	if (rollback)
-		sumh_dh_release_detached_dir(rollback);
-	else if (ret && registered && !dir)
-		sumh_sop_shadow_reap();
-	if (ret) {
-		dput(binding->parent);
-		kfree(binding);
-	} else {
-		*result = binding;
-	}
-	return ret;
-}
-
-void sumh_dirhijack_hide_put(struct sumh_hide_binding *binding)
-{
-	struct super_block *sb;
-	struct path parent = {};
-
-	if (!binding)
-		return;
-	parent.dentry = binding->parent;
-	sb = parent.dentry->d_sb;
-	/* No long-lived mount reference: ordinary umount must remain possible.
-	 * Keep the superblock alive until the last held dentry is released. */
-	atomic_inc(&sb->s_active);
-	sumh_dh_unregister(parent, binding->name, 0, true);
-	dput(binding->parent);
-	kfree(binding);
-	deactivate_super(sb);
-}
-
-bool sumh_dirhijack_hidden(struct inode *parent, const char *name, int len)
-{
-	struct qstr qname = QSTR_INIT(name, len);
-	int idx = srcu_read_lock(&sumh_dh_srcu);
-	bool hidden = sumh_dh_hidden_name(parent, &qname);
-
-	srcu_read_unlock(&sumh_dh_srcu, idx);
-	return hidden;
-}
-
-bool sumh_dirhijack_emits(struct inode *parent, const char *name, int len)
-{
-	struct sumh_dh_iop *meta;
-	struct sumh_dh_child *child;
-	bool emits = false;
-	int idx = srcu_read_lock(&sumh_dh_srcu);
-
-	meta = sumh_dh_iop_of(parent);
-	if (!meta || !meta->dir || READ_ONCE(meta->dir->retiring))
-		goto out;
-	rcu_read_lock();
-	child = sumh_dh_find_child(meta->dir, name, (u16)len,
-				   full_name_hash(parent, name, len));
-	if (child)
-		emits = sumh_dh_child_emitted(child, parent);
-	rcu_read_unlock();
-out:
-	srcu_read_unlock(&sumh_dh_srcu, idx);
-	return emits;
-}
-
-int sumh_dirhijack_del(const char *visible_path)
-{
-	char *parent = NULL;
-	const char *child = NULL;
-	struct path ppath;
-	int ret;
-
-	ret = sumh_dh_split_parent(visible_path, &parent, &child);
-	if (ret)
-		return ret;
-	ret = kern_path(parent, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &ppath);
-	if (!ret) {
-		ret = sumh_dh_unregister(ppath, child, 0, false);
-		path_put(&ppath);
-	} else if (ret == -ENOENT) {
-		ret = 0;
-	}
-	kfree(parent);
-	return ret;
-}
-
-void sumh_dirhijack_del_su(const struct path *parent, const char *name,
-			   unsigned long v_ino)
-{
-	if (parent->dentry && v_ino)
-		sumh_dh_unregister(*parent, name, v_ino, false);
 }
 
 static void sumh_dh_shrink_dead_sbs(struct list_head *dead_dirs)
@@ -2035,127 +1523,793 @@ static void sumh_dh_shrink_dead_sbs(struct list_head *dead_dirs)
 	}
 }
 
+/* SUMH_DH_OWNERS_BEGIN */
+void sumh_dh_retire_init(struct sumh_dh_retire *retired, bool bulk)
+{
+	memset(retired, 0, sizeof(*retired));
+	INIT_LIST_HEAD(&retired->slots);
+	INIT_LIST_HEAD(&retired->dirs);
+	INIT_LIST_HEAD(&retired->dops);
+	INIT_LIST_HEAD(&retired->invalidations);
+	retired->bulk = bulk;
+}
+
+/* These final puts run only in sleepable contexts outside config/DH. Registry
+ * references enforce grace/callback completion independently of owner refs. */
+static void sumh_dh_dir_put(struct sumh_dh_dir *dir)
+{
+	struct super_block *sb;
+
+	if (!refcount_dec_and_test(&dir->refs))
+		return;
+	WARN_ON_ONCE(!dir->retiring || !hlist_empty(&dir->children));
+	sb = dir->dir_inode->i_sb;
+	iput(dir->dir_inode);
+	if (dir->sop_client)
+		sumh_sop_shadow_unregister_dh(sb);
+	kfree(dir->iop_meta);
+	kfree(dir);
+	/* Ordinary DEL/abort may have no vnode and no later CLEAR to reap it.
+	 * The bootstrap pin protects this helper and its worker epilogue. */
+	sumh_sop_shadow_reap();
+}
+
+static void sumh_dh_slot_put(struct sumh_dh_child *slot)
+{
+	if (!refcount_dec_and_test(&slot->refs))
+		return;
+	WARN_ON_ONCE(slot->indexed || slot->attached || slot->prepared);
+	dput(slot->cache_parent);
+	sumh_dh_dir_put(slot->dir);
+	kfree(slot);
+}
+
+static void sumh_dh_payload_put(struct sumh_dh_payload *payload)
+{
+	if (!payload || !refcount_dec_and_test(&payload->refs))
+		return;
+	if (payload->source.dentry)
+		path_put(&payload->source);
+	kfree(payload->vpath);
+	kfree(payload);
+}
+
+static void sumh_dh_claim_free(struct sumh_dh_claim *claim)
+{
+	sumh_dh_payload_put(claim->payload);
+	dput(claim->observed_parent);
+	sumh_dh_slot_put(claim->slot);
+	kfree(claim);
+}
+
+static void sumh_dh_claim_free_rcu(struct rcu_head *rcu)
+{
+	struct sumh_dh_claim *claim =
+	    container_of(rcu, struct sumh_dh_claim, rcu);
+
+	llist_add(&claim->free_node, &sumh_dh_released_claims);
+	schedule_work(&sumh_dh_release_work);
+}
+
+static void sumh_dh_release_workfn(struct work_struct *work)
+{
+	struct llist_node *head, *node, *next;
+
+	(void)work;
+	while ((head = llist_del_all(&sumh_dh_released_claims)) != NULL) {
+		llist_for_each_safe(node, next, head)
+		{
+			struct sumh_dh_claim *claim =
+			    container_of(node, struct sumh_dh_claim, free_node);
+			sumh_dh_claim_free(claim);
+			cond_resched();
+		}
+	}
+}
+
+void sumh_dh_claim_put(struct sumh_dh_claim *claim)
+{
+	if (!claim || WARN_ON_ONCE(claim->state != DH_DETACHED))
+		return;
+	/* Payload readers are RCU-only. No logical mutation belongs here. */
+	call_rcu(&claim->rcu, sumh_dh_claim_free_rcu);
+}
+
+void sumh_dh_drain_releases(void)
+{
+	/* Run AFTER store_drain: store work may enqueue this second RCU stage.
+	 * Runtime CLEAR drains its withdrawn cohort; SU may submit later work.
+	 */
+	rcu_barrier();
+	flush_work(&sumh_dh_release_work);
+}
+
+/* Caller drops the returned lookup reference outside any parent inode lock. */
+static struct dentry *sumh_dh_drop_cached(struct dentry *parent,
+					  const char *name)
+{
+	struct qstr qname = QSTR_INIT(name, strlen(name));
+	struct dentry *cached;
+
+	qname.hash = full_name_hash(parent, name, qname.len);
+	cached = d_lookup(parent, &qname);
+	if (cached)
+		d_drop(cached);
+	return cached;
+}
+
+static void sumh_dh_invalidate_parent(struct dentry *parent, const char *name)
+{
+	dput(sumh_dh_drop_cached(parent, name));
+}
+
+/* DH held, slot spinlock NOT held: FUSE takes dentry lock before slot lock. */
+static void sumh_dh_retire_slot_dops(struct sumh_dh_child *slot,
+				     struct sumh_dh_retire *retired)
+{
+	struct sumh_dh_dop_meta *dm;
+	struct hlist_node *tmp;
+	int bkt;
+
+	hash_for_each_safe(sumh_dh_dops, bkt, tmp, dm, node)
+	{
+		if (dm->dir == slot->dir && dm->name_hash == slot->name_hash &&
+		    dm->name_len == slot->name_len &&
+		    !memcmp(dm->name, slot->name, slot->name_len))
+			sumh_dh_retire_dop_locked(dm, &retired->dops);
+	}
+}
+
+static void sumh_dh_record_invalidation(struct sumh_dh_claim *claim,
+					struct sumh_dh_retire *retired)
+{
+	struct sumh_dh_child *slot = claim->slot;
+
+	if (retired->bulk) {
+		/* Bulk callers are mutation-serialized. One reserved reference
+		 * of headroom covers this list even if PREPARED keeps the slot
+		 * indexed. */
+		if (list_empty(&slot->invalidate_node)) {
+			refcount_inc(&slot->refs);
+			list_add_tail(&slot->invalidate_node,
+				      &retired->invalidations);
+		}
+	} else {
+		struct sumh_dh_invalidation *item;
+
+		if (WARN_ON_ONCE(retired->count >= ARRAY_SIZE(retired->single)))
+			return;
+		item = &retired->single[retired->count++];
+		item->parent = dget(claim->observed_parent);
+		memcpy(item->name, slot->name, slot->name_len + 1);
+	}
+	sumh_dh_retire_slot_dops(slot, retired);
+}
+
+static void sumh_dh_retire_empty_slot(struct sumh_dh_child *slot,
+				      struct sumh_dh_retire *retired)
+{
+	struct sumh_dh_dir *dir = slot->dir;
+	struct sumh_dh_dop_meta *dm;
+	struct hlist_node *tmp;
+	int bkt;
+
+	if (!slot->indexed || slot->attached || slot->prepared)
+		return;
+	hlist_del_rcu(&slot->node);
+	slot->indexed = false;
+	list_add_tail(&slot->retire_node, &retired->slots);
+	if (!hlist_empty(&dir->children))
+		return;
+	sumh_dh_detach_dir_locked(dir);
+	list_add_tail(&dir->list, &retired->dirs);
+	hash_for_each_safe(sumh_dh_dops, bkt, tmp, dm, node) if (dm->dir == dir)
+	    sumh_dh_retire_dop_locked(dm, &retired->dops);
+}
+
+/* The owner list is individually ordered even for identical topology values. */
+static void sumh_dh_select_winner(struct sumh_dh_child *slot)
+{
+	struct sumh_dh_claim *claim;
+	struct sumh_dh_payload *winner = NULL;
+
+	list_for_each_entry (claim, &slot->owners, owner_node) {
+		if (claim->payload) {
+			winner = claim->payload;
+			break;
+		}
+	}
+	rcu_assign_pointer(slot->winner, winner);
+}
+
+static void sumh_dh_detach_locked(struct sumh_dh_claim *claim,
+				  struct sumh_dh_retire *retired)
+{
+	struct sumh_dh_child *slot;
+
+	if (!claim || claim->state == DH_DETACHED)
+		return;
+	if (WARN_ON_ONCE(claim->state != DH_ATTACHED))
+		return;
+	slot = claim->slot;
+	spin_lock(&slot->lock);
+	list_del_init(&claim->owner_node);
+	slot->attached--;
+	if (claim->kind == SUMH_DH_OWNER_MANAGED_HIDE)
+		slot->hide_users--;
+	claim->state = DH_DETACHED;
+	sumh_dh_select_winner(slot);
+	spin_unlock(&slot->lock);
+	sumh_dh_record_invalidation(claim, retired);
+	sumh_dh_retire_empty_slot(slot, retired);
+}
+
+void sumh_dh_detach(struct sumh_dh_claim *claim, struct sumh_dh_retire *retired)
+{
+	mutex_lock(&sumh_dh_lock);
+	sumh_dh_detach_locked(claim, retired);
+	mutex_unlock(&sumh_dh_lock);
+}
+
+int sumh_dh_change_begin(struct sumh_dh_claim *add,
+			 struct sumh_dh_claim *remove,
+			 struct sumh_dh_change *change)
+{
+	struct sumh_dh_child *slot;
+	struct sumh_dh_claim *owner;
+	int ret = 0;
+
+	mutex_lock(&sumh_dh_lock);
+	if (!add)
+		goto ready;
+	if (!READ_ONCE(sumh_dh_ready)) {
+		ret = -ESHUTDOWN;
+		goto fail;
+	}
+	if (add->state == DH_INVALIDATED) {
+		ret = -EAGAIN;
+		goto fail;
+	}
+	slot = add->slot;
+	if (add->state != DH_PREPARED || !slot->indexed || !slot->prepared ||
+	    slot->dir->retiring) {
+		ret = -EINVAL;
+		goto fail;
+	}
+	list_for_each_entry (owner, &slot->owners, owner_node) {
+		if (owner == remove)
+			continue;
+		if (owner->kind == SUMH_DH_OWNER_SU ||
+		    add->kind == SUMH_DH_OWNER_SU) {
+			ret = add->kind == SUMH_DH_OWNER_SU ? -EEXIST : -EPERM;
+			goto fail;
+		}
+	}
+	if (slot->attached == UINT_MAX ||
+	    (add->kind == SUMH_DH_OWNER_MANAGED_HIDE &&
+	     slot->hide_users == UINT_MAX)) {
+		ret = -EOVERFLOW;
+		goto fail;
+	}
+ready:
+	if (remove && remove->state != DH_ATTACHED &&
+	    remove->state != DH_DETACHED) {
+		ret = -EINVAL;
+		goto fail;
+	}
+	change->add = add;
+	change->remove = remove;
+	return 0;
+fail:
+	mutex_unlock(&sumh_dh_lock);
+	return ret;
+}
+
+void sumh_dh_change_commit(struct sumh_dh_change *change,
+			   struct sumh_dh_retire *retired)
+{
+	struct sumh_dh_claim *claim = change->add;
+
+	if (claim) {
+		struct sumh_dh_child *slot = claim->slot;
+
+		spin_lock(&slot->lock);
+		list_del_init(&claim->owner_node);
+		slot->prepared--;
+		list_add(&claim->owner_node, &slot->owners);
+		slot->attached++;
+		if (claim->kind == SUMH_DH_OWNER_MANAGED_HIDE)
+			slot->hide_users++;
+		claim->state = DH_ATTACHED;
+		sumh_dh_select_winner(slot);
+		spin_unlock(&slot->lock);
+		sumh_dh_record_invalidation(claim, retired);
+	}
+	sumh_dh_detach_locked(change->remove, retired);
+}
+
+void sumh_dh_change_end(void)
+{
+	mutex_unlock(&sumh_dh_lock);
+}
+
+void sumh_dh_retire_finish(struct sumh_dh_retire *retired)
+{
+	struct sumh_dh_child *slot, *stmp;
+	struct sumh_dh_dir *dir, *dtmp;
+	unsigned int i;
+	bool callbacks =
+	    !list_empty(&retired->dirs) || !list_empty(&retired->dops);
+
+	if (callbacks) {
+		synchronize_rcu_tasks();
+		synchronize_srcu(&sumh_dh_srcu);
+		sumh_fop_synchronize_iterate_clients();
+		synchronize_rcu_tasks();
+	}
+	if (callbacks || !list_empty(&retired->slots))
+		synchronize_rcu();
+	sumh_dh_free_retired_dops(&retired->dops);
+	for (i = 0; i < retired->count; i++) {
+		sumh_dh_invalidate_parent(retired->single[i].parent,
+					  retired->single[i].name);
+		dput(retired->single[i].parent);
+	}
+	retired->count = 0;
+	list_for_each_entry_safe (slot, stmp, &retired->invalidations,
+				  invalidate_node) {
+		/* Only the serialized bulk producer uses this node. */
+		list_del_init(&slot->invalidate_node);
+		sumh_dh_invalidate_parent(slot->cache_parent, slot->name);
+		sumh_dh_slot_put(slot);
+	}
+	sumh_dh_shrink_dead_sbs(&retired->dirs);
+	list_for_each_entry_safe (slot, stmp, &retired->slots, retire_node) {
+		list_del_init(&slot->retire_node);
+		sumh_dh_slot_put(slot);
+	}
+	list_for_each_entry_safe (dir, dtmp, &retired->dirs, list) {
+		list_del_init(&dir->list);
+		sumh_dh_dir_put(dir);
+	}
+}
+
+void sumh_dh_abort(struct sumh_dh_claim *claim)
+{
+	struct sumh_dh_retire retired;
+
+	if (!claim)
+		return;
+	sumh_dh_retire_init(&retired, false);
+	mutex_lock(&sumh_dh_lock);
+	if (WARN_ON_ONCE(claim->state != DH_PREPARED &&
+			 claim->state != DH_INVALIDATED)) {
+		mutex_unlock(&sumh_dh_lock);
+		return;
+	}
+	if (claim->state == DH_PREPARED) {
+		list_del_init(&claim->owner_node);
+		claim->slot->prepared--;
+		claim->state = DH_INVALIDATED;
+		sumh_dh_retire_empty_slot(claim->slot, &retired);
+	}
+	mutex_unlock(&sumh_dh_lock);
+	sumh_dh_retire_finish(&retired);
+	/* Unpublished payload was never a winner and needs no grace of its own.
+	 */
+	sumh_dh_claim_free(claim);
+}
+
+static int sumh_dh_prepare_observed(const struct path *parent, const char *name,
+				    const struct sumh_dh_spec *spec,
+				    const char *vpath,
+				    struct sumh_dh_claim **out)
+{
+	struct inode *inode =
+	    parent && parent->dentry ? d_inode(parent->dentry) : NULL;
+	struct sumh_dh_child *slot, *spare = NULL;
+	struct sumh_dh_claim *claim = NULL;
+	struct sumh_dh_dir *dir = NULL;
+	struct dentry *cached = NULL;
+	struct sumh_dh_retire retired;
+	bool registered = false;
+	size_t len = name ? strlen(name) : 0;
+	int ret = -ENOMEM;
+
+	*out = NULL;
+	if (!inode || !S_ISDIR(inode->i_mode) || !len || len > NAME_MAX ||
+	    strchr(name, '/'))
+		return -EINVAL;
+	if (sumh_vnode_is_ours(inode))
+		return -EOPNOTSUPP;
+	if ((spec->kind == SUMH_DH_OWNER_LEGACY_HIDE ||
+	     spec->kind == SUMH_DH_OWNER_MANAGED_HIDE) &&
+	    inode->i_sb->s_magic == FUSE_SUPER_MAGIC &&
+	    !READ_ONCE(sumh_dh_fuse_registered))
+		return -EOPNOTSUPP;
+	claim = kzalloc(sizeof(*claim), GFP_KERNEL);
+	spare = kzalloc(sizeof(*spare) + len + 1, GFP_KERNEL);
+	if (!claim || !spare)
+		goto fail;
+	if (spec->kind != SUMH_DH_OWNER_MANAGED_HIDE) {
+		claim->payload = kzalloc(sizeof(*claim->payload), GFP_KERNEL);
+		if (!claim->payload)
+			goto fail;
+		refcount_set(&claim->payload->refs, 1);
+		if (vpath) {
+			claim->payload->vpath = kstrdup(vpath, GFP_KERNEL);
+			if (!claim->payload->vpath)
+				goto fail;
+		}
+		if (spec->source) {
+			claim->payload->source = *spec->source;
+			path_get(&claim->payload->source);
+		}
+		claim->payload->v_ino = spec->v_ino;
+		claim->payload->flags = spec->flags;
+		claim->payload->hide = spec->kind == SUMH_DH_OWNER_LEGACY_HIDE;
+		claim->payload->lookup_only =
+		    spec->kind == SUMH_DH_OWNER_SHADOW;
+	}
+	claim->kind = spec->kind;
+	claim->state = DH_PREPARED;
+	claim->observed_parent = dget(parent->dentry);
+	INIT_LIST_HEAD(&claim->owner_node);
+	sumh_dh_retire_init(&retired, false);
+	/* Normal native lookup/atomic_open runs with this parent locked.
+	 * Drain callbacks started before shadow publication. Callers prepare
+	 * outside config; callbacks already take inode -> DH, never reverse. */
+	inode_lock(inode);
+	mutex_lock(&sumh_dh_lock);
+	if (!READ_ONCE(sumh_dh_ready)) {
+		ret = -ESHUTDOWN;
+		goto unlock;
+	}
+	if (!sumh_dh_iop_of(inode)) {
+		ret = sumh_sop_shadow_register_dh(inode->i_sb);
+		if (ret)
+			goto unlock;
+		registered = true;
+	}
+	dir = sumh_dh_install_dir(inode, spec->kind != SUMH_DH_OWNER_SHADOW,
+				  registered, &ret);
+	if (!dir) {
+		ret = ret ?: -ENOMEM;
+		if (registered)
+			sumh_sop_shadow_unregister_dh(inode->i_sb);
+		goto unlock;
+	}
+	slot =
+	    sumh_dh_find_slot(dir, name, len, full_name_hash(inode, name, len));
+	if (slot) {
+		if (slot->prepared == UINT_MAX ||
+		    refcount_read(&slot->refs) >= INT_MAX - 4) {
+			ret = -EOVERFLOW;
+			goto unlock;
+		}
+	} else {
+		if (refcount_read(&dir->refs) >= INT_MAX - 4) {
+			ret = -EOVERFLOW;
+			goto unlock;
+		}
+		slot = spare;
+		spare = NULL;
+		refcount_set(&slot->refs, 1); /* index */
+		refcount_inc(&dir->refs);
+		slot->dir = dir;
+		slot->cache_parent = dget(parent->dentry);
+		slot->name_len = len;
+		slot->name_hash = full_name_hash(inode, name, len);
+		memcpy(slot->name, name, len + 1);
+		spin_lock_init(&slot->lock);
+		INIT_LIST_HEAD(&slot->owners);
+		INIT_LIST_HEAD(&slot->prepared_claims);
+		INIT_LIST_HEAD(&slot->retire_node);
+		INIT_LIST_HEAD(&slot->invalidate_node);
+		slot->indexed = true;
+		hlist_add_head_rcu(&slot->node, &dir->children);
+	}
+	refcount_inc(&slot->refs); /* caller claim */
+	slot->prepared++;
+	claim->slot = slot;
+	list_add_tail(&claim->owner_node, &slot->prepared_claims);
+	cached = sumh_dh_drop_cached(parent->dentry, name);
+	if (cached) {
+		struct sumh_dh_dop_meta *dm = sumh_dh_dop_lookup_locked(cached);
+
+		if (dm)
+			sumh_dh_queue_dop_retire(dm);
+	}
+	ret = 0;
+unlock:
+	if (ret && dir && hlist_empty(&dir->children)) {
+		sumh_dh_detach_dir_locked(dir);
+		list_add_tail(&dir->list, &retired.dirs);
+	}
+	mutex_unlock(&sumh_dh_lock);
+	inode_unlock(inode);
+	dput(cached);
+	sumh_dh_retire_finish(&retired);
+	if (ret && registered && !dir)
+		sumh_sop_shadow_reap();
+	if (ret)
+		goto fail;
+	kfree(spare);
+	*out = claim;
+	return 0;
+fail:
+	if (claim) {
+		sumh_dh_payload_put(claim->payload);
+		if (claim->observed_parent)
+			dput(claim->observed_parent);
+		kfree(claim);
+	}
+	kfree(spare);
+	return ret;
+}
+
+int sumh_dh_prepare_parent(const struct path *parent, const char *name,
+			   const struct sumh_dh_spec *spec,
+			   struct sumh_dh_claim **out)
+{
+	if (!out || !spec)
+		return -EINVAL;
+	return sumh_dh_prepare_observed(parent, name, spec, NULL, out);
+}
+
+int SUMH_NOCFI sumh_dh_prepare_path(const char *visible,
+				    const struct sumh_dh_spec *spec,
+				    struct sumh_dh_claim **out,
+				    struct path *native_parent)
+{
+	struct path parent = {};
+	struct sumh_dh_spec top;
+	char *parent_name = NULL, *probe = NULL, *segment = NULL, *vpath = NULL;
+	const char *child, *after, *slash;
+	size_t base, len;
+	int ret;
+
+	if (!out || !spec || !visible)
+		return -EINVAL;
+	*out = NULL;
+	if (native_parent)
+		memset(native_parent, 0, sizeof(*native_parent));
+	ret = sumh_dh_split_parent(visible, &parent_name, &child);
+	if (ret)
+		return ret;
+	probe = kstrdup(parent_name, GFP_KERNEL);
+	if (!probe) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	ret = kern_path(probe, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &parent);
+	if (ret == -ENOENT && spec->kind == SUMH_DH_OWNER_MAPPING) {
+		/* Retry the immediate parent once: it may have appeared since
+		 * the failed observation. A successful retry is an ordinary
+		 * mapping. */
+		for (;;) {
+			char *last;
+			ret = kern_path(probe, LOOKUP_FOLLOW | LOOKUP_DIRECTORY,
+					&parent);
+			if (!ret || ret != -ENOENT)
+				break;
+			last = strrchr(probe, '/');
+			if (!last || (last == probe && !probe[1]))
+				break;
+			if (last == probe)
+				probe[1] = '\0';
+			else
+				*last = '\0';
+		}
+	}
+	if (ret)
+		goto out;
+	if (!strcmp(probe, parent_name)) {
+		if (spec->kind == SUMH_DH_OWNER_SU) {
+			struct path existing;
+			ret = kern_path(visible, 0, &existing);
+			if (!ret) {
+				ret = ksu_sucompat_vfs_is_path(&existing)
+					  ? 0
+					  : -EEXIST;
+				path_put(&existing);
+			} else if (ret == -ENOENT) {
+				ret = 0;
+			}
+			if (ret)
+				goto out_path;
+		}
+		ret = sumh_dh_prepare_observed(&parent, child, spec, NULL, out);
+		if (!ret && native_parent) {
+			*native_parent = parent;
+			path_get(native_parent);
+		}
+	} else {
+		base = !strcmp(probe, "/") ? 0 : strlen(probe);
+		after = visible + base + 1;
+		slash = strchr(after, '/');
+		len = slash ? (size_t)(slash - after) : strlen(after);
+		segment = kstrndup(after, len, GFP_KERNEL);
+		vpath = kstrndup(visible, base + 1 + len, GFP_KERNEL);
+		if (!segment || !vpath) {
+			ret = -ENOMEM;
+			goto out_path;
+		}
+		memset(&top, 0, sizeof(top));
+		top.kind = SUMH_DH_OWNER_VTOPO;
+		top.v_ino = sumh_vnode_vpath_ino(vpath);
+		top.flags = SUMH_VNODE_F_DIR | SUMH_VNODE_F_VIRTUAL_DIR;
+		ret = sumh_dh_prepare_observed(&parent, segment, &top, vpath,
+					       out);
+	}
+out_path:
+	path_put(&parent);
+out:
+	kfree(segment);
+	kfree(vpath);
+	kfree(probe);
+	kfree(parent_name);
+	return ret;
+}
+
+bool sumh_dh_claim_matches_parent(const struct sumh_dh_claim *claim,
+				  const struct path *parent)
+{
+	return claim && parent && claim->state == DH_ATTACHED &&
+	       claim->observed_parent == parent->dentry &&
+	       claim->slot->dir->dir_inode == d_inode(parent->dentry) &&
+	       !d_unlinked(claim->observed_parent);
+}
+
+int SUMH_NOCFI sumh_dirhijack_match_su(const char *visible,
+				       const struct sumh_dh_claim *claim,
+				       unsigned long ino)
+{
+	char *parent_name = NULL;
+	const char *name;
+	struct path parent;
+	int ret;
+
+	if (!claim || !ino)
+		return 0;
+	ret = sumh_dh_split_parent(visible, &parent_name, &name);
+	if (ret)
+		return ret;
+	ret = kern_path(parent_name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &parent);
+	if (!ret) {
+		mutex_lock(&sumh_dh_lock);
+		ret = sumh_dh_claim_matches_parent(claim, &parent) &&
+		      claim->kind == SUMH_DH_OWNER_SU &&
+		      claim->payload->v_ino == ino &&
+		      !strcmp(claim->slot->name, name);
+		mutex_unlock(&sumh_dh_lock);
+		path_put(&parent);
+	}
+	kfree(parent_name);
+	return ret;
+}
+
+struct sumh_hide_binding {
+	struct sumh_dh_claim *claim;
+};
+
+bool sumh_dirhijack_hide_matches(const struct sumh_hide_binding *binding,
+				 const struct path *parent)
+{
+	return binding && sumh_dh_claim_matches_parent(binding->claim, parent);
+}
+
+int sumh_dirhijack_hide_get(const struct path *parent, const char *name,
+			    struct sumh_hide_binding **result)
+{
+	struct sumh_dh_spec spec = {.kind = SUMH_DH_OWNER_MANAGED_HIDE};
+	struct sumh_dh_change change;
+	struct sumh_dh_retire retired;
+	struct sumh_hide_binding *binding;
+	int ret;
+
+	*result = NULL;
+	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
+	if (!binding)
+		return -ENOMEM;
+	ret = sumh_dh_prepare_parent(parent, name, &spec, &binding->claim);
+	if (ret)
+		goto fail;
+	ret = sumh_dh_change_begin(binding->claim, NULL, &change);
+	if (ret) {
+		sumh_dh_abort(binding->claim);
+		goto fail;
+	}
+	sumh_dh_retire_init(&retired, false);
+	sumh_dh_change_commit(&change, &retired);
+	sumh_dh_change_end();
+	sumh_dh_retire_finish(&retired);
+	*result = binding;
+	return 0;
+fail:
+	kfree(binding);
+	return ret;
+}
+
+void sumh_dirhijack_hide_put(struct sumh_hide_binding *binding)
+{
+	struct sumh_dh_retire retired;
+
+	if (!binding)
+		return;
+	sumh_dh_retire_init(&retired, false);
+	sumh_dh_detach(binding->claim, &retired);
+	sumh_dh_retire_finish(&retired);
+	sumh_dh_claim_put(binding->claim);
+	kfree(binding);
+}
+
+bool sumh_dirhijack_hidden(struct inode *parent, const char *name, int len)
+{
+	struct qstr qname = QSTR_INIT(name, len);
+	int idx = srcu_read_lock(&sumh_dh_srcu);
+	bool hidden = sumh_dh_hidden_name(parent, &qname);
+
+	srcu_read_unlock(&sumh_dh_srcu, idx);
+	return hidden;
+}
+
+bool sumh_dirhijack_emits(struct inode *parent, const char *name, int len)
+{
+	struct sumh_dh_iop *meta;
+	struct sumh_dh_child *child;
+	struct sumh_dh_view view;
+	bool emits = false;
+	int idx = srcu_read_lock(&sumh_dh_srcu);
+
+	meta = sumh_dh_iop_of(parent);
+	if (!meta || !meta->dir || READ_ONCE(meta->dir->retiring))
+		goto out;
+	rcu_read_lock();
+	child = sumh_dh_find_child(meta->dir, name, (u16)len,
+				   full_name_hash(parent, name, len));
+	if (sumh_dh_read_view(child, &view))
+		emits = sumh_dh_child_emitted(&view, parent);
+	rcu_read_unlock();
+out:
+	srcu_read_unlock(&sumh_dh_srcu, idx);
+	return emits;
+}
+
 void sumh_dirhijack_clear(void)
 {
 	struct sumh_dh_dir *dir, *dtmp;
-	struct sumh_dh_dop_meta *dm;
-	struct hlist_node *htmp;
-	LIST_HEAD(dead_dirs);
-	LIST_HEAD(retired_dops);
-	int bkt;
+	struct sumh_dh_child *slot;
+	struct hlist_node *tmp;
+	struct sumh_dh_claim *claim, *ctmp;
+	struct sumh_dh_retire retired;
 
+	sumh_dh_retire_init(&retired, true);
 	mutex_lock(&sumh_dh_lock);
-
-	/* Phase 1: stop late installs, restore the dir i_op vector and withdraw
-	 * the shared f_op iterate client so no NEW lookup/iterate callback
-	 * acquires dir metadata.  The s_op client is released only after these
-	 * callbacks drain. */
 	list_for_each_entry_safe (dir, dtmp, &sumh_dh_dirs, list) {
-		struct inode *inode = dir->dir_inode;
-		struct sumh_dh_child *child;
-		struct hlist_node *next;
-		bool reserved = false;
-
-		if (READ_ONCE(sumh_dh_ready)) {
-			hlist_for_each_entry(child, &dir->children, node)
-			    reserved |= !!(child->flags & SUMH_VNODE_F_SU);
-		}
-		if (reserved) {
-			hlist_for_each_entry_safe(child, next, &dir->children,
-						  node)
-			{
-				if (child->flags & SUMH_VNODE_F_SU)
-					continue;
-				hlist_del_rcu(&child->node);
-				call_rcu(&child->rcu, sumh_dh_child_free_rcu);
+		hlist_for_each_entry_safe(slot, tmp, &dir->children, node)
+		{
+			list_for_each_entry_safe (
+			    claim, ctmp, &slot->prepared_claims, owner_node) {
+				list_del_init(&claim->owner_node);
+				slot->prepared--;
+				claim->state = DH_INVALIDATED;
 			}
-			continue;
+			list_for_each_entry_safe (claim, ctmp, &slot->owners,
+						  owner_node) {
+				if (READ_ONCE(sumh_dh_ready) &&
+				    claim->kind == SUMH_DH_OWNER_SU)
+					continue;
+				sumh_dh_detach_locked(claim, &retired);
+			}
+			sumh_dh_retire_empty_slot(slot, &retired);
 		}
-
-		WRITE_ONCE(dir->retiring, true);
-		if (inode && dir->iop_meta)
-			smp_store_release(&inode->i_op,
-					  dir->iop_meta->orig_iop);
-		if (inode && dir->iterate_bound) {
-			sumh_fop_unbind_iterate_client(inode, dir);
-			dir->iterate_bound = false;
-		}
-		list_move(&dir->list, &dead_dirs);
-	}
-	/* Restore each real filesystem d_op and its exact operation flags while
-	 * the dget-held dentry is still alive, then unhash it. */
-	hash_for_each_safe(sumh_dh_dops, bkt, htmp, dm, node)
-	{
-		struct sumh_dh_child *child =
-		    dm->dir ? sumh_dh_find_child(dm->dir, dm->name,
-						 dm->name_len, dm->name_hash)
-			    : NULL;
-		if (READ_ONCE(sumh_dh_ready) && child &&
-		    (child->flags & SUMH_VNODE_F_SU))
-			continue;
-		sumh_dh_retire_dop_locked(dm, &retired_dops);
 	}
 	mutex_unlock(&sumh_dh_lock);
-
-	/* Phase 2: first close the d_op-load-to-callback-entry window, then
-	 * drain every lookup/iterate/revalidate that entered before the
-	 * restores above. Retain every dentry/meta dget through both windows so
-	 * an old callback cannot race d_release or metadata free. */
-	if (!list_empty(&dead_dirs) || !list_empty(&retired_dops))
-		synchronize_rcu_tasks();
-	synchronize_srcu(&sumh_dh_srcu);
-	sumh_fop_synchronize_iterate_clients();
-	if (!list_empty(&dead_dirs) || !list_empty(&retired_dops))
-		synchronize_rcu_tasks();
-	if (!list_empty(&retired_dops))
-		synchronize_rcu();
-	sumh_dh_free_retired_dops(&retired_dops);
-	/* No shadow callback can enqueue retirement after the drains above.
-	 * Wait for a worker that won ownership of an auto-retired meta before
-	 * freeing its directory or allowing module text to go away.
-	 */
+	sumh_dh_retire_finish(&retired);
 	flush_work(&sumh_dh_reap_dops_work);
-
-	/* Drop other cached aliases/negatives after explicit d_op restoration.
-	 * Do this once per affected superblock; shrink alone is not the safety
-	 * proof. */
-	sumh_dh_shrink_dead_sbs(&dead_dirs);
-
-	/* Phase 3: no callback can reference the metas now — free them. */
-	list_for_each_entry_safe (dir, dtmp, &dead_dirs, list) {
-		struct sumh_dh_child *c;
-		struct hlist_node *ctmp;
-		struct inode *inode = dir->dir_inode;
-		struct super_block *sb = inode ? inode->i_sb : NULL;
-
-		hlist_for_each_entry_safe(c, ctmp, &dir->children, node)
-		{
-			hlist_del(&c->node);
-			sumh_dh_child_free(c);
-		}
-		list_del(&dir->list);
-		/* dh_clients owns the s_active pin that makes this final parent
-		 * iput safe; publish that the dir no longer owns the inode
-		 * before allowing the shared s_op meta to reap.
-		 */
-		dir->dir_inode = NULL;
-		if (inode)
-			iput(inode);
-		if (dir->sop_client && sb) {
-			sumh_sop_shadow_unregister_dh(sb);
-			dir->sop_client = false;
-		}
-		kfree(dir->iop_meta);
-		kfree(dir);
-	}
-	sumh_sop_shadow_reap();
-
-	/* Cover every per-child RCU bridge, then drain the sleepable path_put
-	 * work before PREPARE/exit can release the module lifecycle pin.
-	 */
-	rcu_barrier();
-	flush_work(&sumh_dh_free_children_work);
 }
+/* SUMH_DH_OWNERS_END */
 
 int sumh_dirhijack_init(void)
 {

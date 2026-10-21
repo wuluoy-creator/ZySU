@@ -1,15 +1,10 @@
 package com.zying.zysu.ui.sumh
 
-import android.content.Context
 import android.content.res.Configuration
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -19,43 +14,24 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.zying.zysu.ui.util.SnackbarController
-import com.zying.zysu.ui.util.rememberSnackbarController
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.YukiIcon
-import com.zying.zysu.ui.component.YukiPanel
 import com.zying.zysu.ui.component.YukiAlertDialog
 import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
 import com.zying.zysu.ui.screen.WorkspaceOperationGuard
-import com.zying.zysu.ui.theme.isExpressiveUi
 import com.zying.zysu.ui.theme.UtilityPreviewTheme
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as SUMHManager
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter.SUMHStatus
@@ -64,12 +40,11 @@ import com.zying.zysu.ui.sumh.util.parseSUMHMapsNumber
 import com.zying.zysu.ui.sumh.util.parseSUMHMapsDevice
 import com.zying.zysu.ui.sumh.util.parseSUMHMapsRuleInput
 import com.zying.zysu.ui.sumh.util.validateSUMHMapsPath
-import com.zying.zysu.ui.theme.getCardColors
-import com.zying.zysu.ui.theme.getCardBorder
-import com.zying.zysu.ui.theme.getCardElevation
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.SUMHConfigScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SUMHCapabilitiesScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SUMHProfilesScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -100,6 +75,18 @@ fun SUMHConfigScreen(navigator: DestinationsNavigator) {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             SUMHTabs(selectedSection, enabled = !saving) { if (!saving) selectedSection = it }
+            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+                TextButton(
+                    onClick = { navigator.navigate(SUMHCapabilitiesScreenDestination) },
+                    enabled = !saving,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.sumh_capabilities_title)) }
+                TextButton(
+                    onClick = { navigator.navigate(SUMHProfilesScreenDestination) },
+                    enabled = !saving,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.sumh_profiles_title)) }
+            }
             Box(Modifier.weight(1f)) {
                 SUMHWorkspace(selectedSection, onSavingChanged = { saving = it })
             }
@@ -118,6 +105,8 @@ internal fun StatusTab(
     refreshEnabled: Boolean = true,
     loading: Boolean = false,
     loadError: String? = null,
+    controlState: com.zying.zysu.ui.sumh.util.SUMHControlState? = null,
+    config: SUMHManager.SUMHPConfig = SUMHManager.SUMHPConfig(),
 ) {
     Column(
         modifier = (if (scrollable) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth())
@@ -135,6 +124,10 @@ internal fun StatusTab(
             includeRuntimeDetails = true,
             includeKernel = scrollable,
         )
+        if (controlState != null) {
+            Spacer(Modifier.height(12.dp))
+            SUMHControlStatePanel(controlState, config, SUMHSection.Status, onRefresh, enabled = refreshEnabled)
+        }
     }
 }
 
@@ -169,8 +162,9 @@ internal fun SettingTextField(
     enabled: Boolean = true,
     placeholder: String = "",
     position: MoreSettingsItemPosition = MoreSettingsItemPosition.Middle,
+    confirmEnabled: Boolean = enabled,
 ) {
-    var isEditing by remember { mutableStateOf(false) }
+    var isEditing by rememberSaveable { mutableStateOf(false) }
     SUMHControlGroup(position) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -208,11 +202,10 @@ internal fun SettingTextField(
                 enabled = enabled,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
-                    onConfirm()
-                    isEditing = false
+                    if (confirmEnabled) onConfirm()
                 }),
                 trailingIcon = {
-                    IconButton(onClick = { onConfirm(); isEditing = false }, enabled = enabled) {
+                    IconButton(onClick = onConfirm, enabled = confirmEnabled) {
                         YukiIcon(Icons.Filled.Done, contentDescription = stringResource(R.string.sumh_rule_save))
                     }
                 },
@@ -245,6 +238,7 @@ internal fun MapsSpoofControls(
     var path by rememberSaveable { mutableStateOf("") }
     var submitted by rememberSaveable { mutableStateOf(false) }
     var editedFields by rememberSaveable { mutableStateOf(0) }
+    var draftLimit by remember { mutableStateOf(false) }
 
     if (showClearConfirm) {
         YukiAlertDialog(
@@ -305,13 +299,15 @@ internal fun MapsSpoofControls(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (draftLimit) SUMHSmallDraftLimit()
                     val labels = listOf(R.string.sumh_maps_target_ino, R.string.sumh_maps_target_dev,
                         R.string.sumh_maps_spoof_ino, R.string.sumh_maps_spoof_dev)
                     numbers.forEachIndexed { index, value ->
                         OutlinedTextField(
                             value = value,
                             onValueChange = {
-                                when (index) { 0 -> tIno = it; 1 -> tDev = it; 2 -> sIno = it; 3 -> sDev = it }
+                                draftLimit = !sumhSmallDraftFits(it)
+                                if (!draftLimit) when (index) { 0 -> tIno = it; 1 -> tDev = it; 2 -> sIno = it; 3 -> sDev = it }
                                 editedFields = editedFields or (1 shl index)
                             },
                             label = { Text(stringResource(labels[index])) },
@@ -330,7 +326,7 @@ internal fun MapsSpoofControls(
                     }
                     OutlinedTextField(
                         value = path,
-                        onValueChange = { path = it; editedFields = editedFields or (1 shl 4) },
+                        onValueChange = { draftLimit = !sumhSmallDraftFits(it); if (!draftLimit) path = it; editedFields = editedFields or (1 shl 4) },
                         label = { Text(stringResource(R.string.sumh_maps_spoof_path)) },
                         modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[4]),
                         enabled = enabled,
@@ -403,267 +399,6 @@ internal fun MapsSpoofControls(
                 YukiIcon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.sumh_maps_runtime_add))
-            }
-        }
-    }
-}
-
-enum class LogLevel(val displayNameRes: Int, val color: Color, val tag: String) {
-    VERBOSE(R.string.sumh_logs_filter_verbose, Color(0xFF9C27B0), "VERBOSE"),
-    DEBUG(R.string.sumh_logs_filter_debug, Color(0xFF4CAF50), "DEBUG"),
-    INFO(R.string.sumh_logs_filter_info, Color(0xFF2196F3), "INFO"),
-    WARN(R.string.sumh_logs_filter_warn, Color(0xFFFF9800), "WARN"),
-    ERROR(R.string.sumh_logs_filter_error, Color(0xFFF44336), "ERROR")
-}
-
-private val taggedLogLevel = Regex("\\[(VERBOSE|DEBUG|INFO|WARN(?:ING)?|ERROR)]", RegexOption.IGNORE_CASE)
-
-private fun logLevelOf(line: String): LogLevel? {
-    val tag = taggedLogLevel.find(line)?.groupValues?.get(1)?.uppercase()
-    if (tag != null) return LogLevel.entries.firstOrNull { it.tag == if (tag == "WARNING") "WARN" else tag }
-    return LogLevel.entries.asReversed().firstOrNull { line.contains(it.tag, ignoreCase = true) }
-}
-
-@Composable
-internal fun LogsTab(
-    showKernelLog: Boolean,
-    onToggleLogType: () -> Unit,
-    logContent: String,
-    onRefreshLog: () -> Unit,
-    onClearLog: () -> Unit,
-) {
-    val context = LocalContext.current
-    val resources = LocalResources.current
-    val snackbarHostState = rememberSnackbarController()
-    val coroutineScope = rememberCoroutineScope()
-
-    var selectedLogLevels by rememberSaveable(
-        stateSaver = listSaver(
-            save = { levels: Set<LogLevel> -> levels.map { it.name } },
-            restore = { names -> names.map(LogLevel::valueOf).toSet() },
-        )
-    ) { mutableStateOf(emptySet<LogLevel>()) }
-    var filterExpanded by remember { mutableStateOf(false) }
-    var sourceExpanded by remember { mutableStateOf(false) }
-    var searchExpanded by rememberSaveable { mutableStateOf(false) }
-    var search by rememberSaveable { mutableStateOf("") }
-    var clearConfirm by remember { mutableStateOf(false) }
-    val searchFocus = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
-
-    fun closeSearch() {
-        search = ""
-        searchExpanded = false
-        focusManager.clearFocus()
-        keyboard?.hide()
-    }
-
-    BackHandler(enabled = searchExpanded) { closeSearch() }
-    LaunchedEffect(searchExpanded) {
-        if (searchExpanded) searchFocus.requestFocus()
-    }
-
-    val filteredLogContent = remember(logContent, selectedLogLevels, search) {
-        logContent.lineSequence().filter { line ->
-            (search.isEmpty() || line.contains(search, ignoreCase = true)) &&
-                (selectedLogLevels.isEmpty() || logLevelOf(line) in selectedLogLevels)
-        }.joinToString("\n")
-    }
-
-    if (clearConfirm) YukiAlertDialog(
-        onDismissRequest = { clearConfirm = false },
-        title = { Text(stringResource(R.string.sumh_logs_clear)) },
-        text = { Text(stringResource(R.string.sumh_logs_clear_confirm)) },
-        confirmButton = { TextButton(onClick = { clearConfirm = false; onClearLog() }) { Text(stringResource(android.R.string.ok)) } },
-        dismissButton = { TextButton(onClick = { clearConfirm = false }) { Text(stringResource(android.R.string.cancel)) } },
-    )
-
-    val annotatedLogContent = remember(filteredLogContent) {
-        buildAnnotatedString {
-            filteredLogContent.lines().forEach { line ->
-                val color = logLevelOf(line)?.color ?: Color.White
-                withStyle(style = SpanStyle(color = color)) {
-                    append(line)
-                }
-                append("\n")
-            }
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-
-        SUMHLogActions {
-            if (searchExpanded) {
-                OutlinedTextField(
-                    value = search,
-                    onValueChange = { search = it },
-                    modifier = Modifier.weight(1f).focusRequester(searchFocus),
-                    singleLine = true,
-                    placeholder = {
-                        Text(stringResource(R.string.sumh_logs_search), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { closeSearch() }) {
-                            YukiIcon(Icons.Filled.Close, stringResource(R.string.close))
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        focusManager.clearFocus()
-                        keyboard?.hide()
-                    }),
-                )
-            } else {
-                Box(Modifier.weight(1f)) {
-                    FilledTonalButton(onClick = { sourceExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            stringResource(if (showKernelLog) R.string.sumh_logs_kernel else R.string.sumh_logs_daemon),
-                            modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        )
-                        YukiIcon(Icons.Filled.ArrowDropDown, null, Modifier.size(18.dp))
-                    }
-                    DropdownMenu(expanded = sourceExpanded, onDismissRequest = { sourceExpanded = false }) {
-                        listOf(false, true).forEach { kernel ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(if (kernel) R.string.sumh_logs_kernel else R.string.sumh_logs_daemon)) },
-                                trailingIcon = {
-                                    if (showKernelLog == kernel) YukiIcon(Icons.Filled.Check, null)
-                                },
-                                onClick = {
-                                    sourceExpanded = false
-                                    if (showKernelLog != kernel) onToggleLogType()
-                                },
-                            )
-                        }
-                    }
-                }
-                IconButton(onClick = { searchExpanded = true }) {
-                    YukiIcon(Icons.Filled.Search, stringResource(R.string.sumh_logs_search))
-                }
-            }
-            IconButton(onClick = onRefreshLog) {
-                YukiIcon(Icons.Filled.Refresh, stringResource(R.string.sumh_rules_refresh))
-            }
-
-            Box {
-                IconButton(onClick = { filterExpanded = true }) {
-                    YukiIcon(
-                        Icons.Filled.MoreVert,
-                        contentDescription = stringResource(R.string.sumh_logs_actions),
-                        tint = if (selectedLogLevels.isEmpty()) LocalContentColor.current else MaterialTheme.colorScheme.primary,
-                    )
-                }
-                DropdownMenu(
-                    expanded = filterExpanded,
-                    onDismissRequest = { filterExpanded = false },
-                    modifier = Modifier.widthIn(min = 180.dp)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.sumh_logs_copy)) },
-                        leadingIcon = { YukiIcon(Icons.Filled.ContentCopy, null) },
-                        onClick = {
-                            filterExpanded = false
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("SUMH Log", filteredLogContent)
-                            clipboard.setPrimaryClip(clip)
-                            coroutineScope.launchUi(snackbarHostState) {
-                                snackbarHostState.showSnackbar(resources.getString(R.string.sumh_logs_copy_success))
-                            }
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.sumh_logs_clear)) },
-                        leadingIcon = { YukiIcon(Icons.Filled.Delete, null) },
-                        enabled = !showKernelLog,
-                        onClick = { filterExpanded = false; clearConfirm = true },
-                    )
-                    HorizontalDivider()
-                    Column(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.sumh_logs_filter),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                        )
-                        FilterChip(
-                            selected = selectedLogLevels.isEmpty(),
-                            onClick = {
-                                selectedLogLevels = emptySet()
-                                filterExpanded = false
-                            },
-                            label = { Text(stringResource(R.string.sumh_logs_filter_all)) },
-                            modifier = Modifier.padding(horizontal = 12.dp)
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        FlowRow(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            LogLevel.entries.forEach { level ->
-                                FilterChip(
-                                    selected = level in selectedLogLevels,
-                                    onClick = {
-                                        selectedLogLevels = if (level in selectedLogLevels) {
-                                            selectedLogLevels - level
-                                        } else {
-                                            selectedLogLevels + level
-                                        }
-                                    },
-                                    label = { Text(stringResource(level.displayNameRes)) },
-                                    leadingIcon = {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .background(level.color, shape = RoundedCornerShape(4.dp))
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            shape = sumhCardShape(),
-            border = getCardBorder(),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF1E1E1E)
-            )
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                val scrollState = rememberScrollState()
-
-                Text(
-                    text = annotatedLogContent,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = if (isExpressiveUi) 12.sp else 11.sp
-                )
-
-                SnackbarHost(
-                    hostState = snackbarHostState.hostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                )
             }
         }
     }

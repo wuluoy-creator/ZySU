@@ -1,6 +1,8 @@
 // Exercise the production upgrade using real temporary files. Only Android
 // metadata and the platform atomic writer are substituted on the host.
+#include "core/config_document.hpp"
 #include "core/json.hpp"
+#include "core/user_hide_store.hpp"
 
 #include <cassert>
 #include <cerrno>
@@ -14,6 +16,7 @@
 #include <string>
 
 namespace fs = std::filesystem;
+#include "user_hide_digest_fixture.inc"
 namespace {
 bool fail_write = false;
 bool fail_sync = false;
@@ -46,17 +49,24 @@ std::optional<std::string> read_file(const std::string& path) {
     return contents.str();
 }
 
-bool write_file_atomic(const fs::path& path, const std::string& contents) {
+bool write_file_durable(const fs::path& path, const std::string& contents, std::string& error) {
     if (fail_write) {
         errno = ENOSPC;
+        error = "file not replaced: ENOSPC";
         return false;
     }
     put(path, contents);
+    if (fail_sync) {
+        errno = EIO;
+        error = "file replaced but durability is unconfirmed: EIO";
+        return false;
+    }
     return true;
 }
 }  // namespace ksud
 
 namespace sumhp {
+#include "sumh_config_document_under_test.inc"
 bool prepare_private_directory(const fs::path& path, std::string&) {
     return fs::is_directory(fs::symlink_status(path));
 }
@@ -97,7 +107,7 @@ int main() {
     assert(sumhp::migrate_legacy_state(legacy, current, error));
     assert(!fs::exists(legacy));
     put(legacy / "config.json", R"({"mount_backend":"kasumi","work_dir":"/dev/kagami",
-        "mirror_dir":"/dev/kagami/mirror","debug":true,"custom":"kasumi"})");
+        "mirror_dir":"/dev/kagami/mirror","debug":true})");
     put(legacy / "module_mode.json", R"({"first":"kasumi","other":"overlay"})");
     put(legacy / "module_rules.json", R"({"first":[{"path":"/system/kasumi","mode":"kasumi"},
         {"path":"/vendor","mode":"hide"}],"configured":{"mode":"kasumi","rules":[
@@ -112,7 +122,6 @@ int main() {
     assert(config.find("work_dir")->s == "/dev/sumhp");
     assert(config.find("mirror_dir")->s == "/dev/sumhp/mirror");
     assert(config.find("debug")->b);
-    assert(config.find("custom")->s == "kasumi");
     auto modes = json::parse(get(current / "module_mode.json"));
     assert(modes.find("first")->s == "sumh" && modes.find("other")->s == "overlay");
     auto rules = json::parse(get(current / "module_rules.json"));
@@ -151,6 +160,27 @@ int main() {
     assert(config.find("mount_backend")->s == "sumh");
     assert(config.find("work_dir")->s == "/dev/kagami-custom");
     assert(config.find("mirror_dir")->s == "/custom/kagami");
+
+    // The retired fixed mirror default must retain its automatic semantics.
+    reset();
+    const std::string future_config =
+        R"({"schema_version":2,"mount_backend":"kasumi","future":9007199254740993})";
+    put(current / "config.json", future_config);
+    assert(sumhp::migrate_legacy_state(legacy, current, error));
+    assert(get(current / "config.json") == future_config);
+
+    reset();
+    const std::string unknown_legacy = R"({"mount_backend":"kasumi","future":9007199254740993})";
+    put(current / "config.json", unknown_legacy);
+    assert(sumhp::migrate_legacy_state(legacy, current, error));
+    assert(get(current / "config.json") == unknown_legacy);
+
+    // A future document imported from the legacy directory is copied exactly,
+    // so the version-aware loader can report it without destroying its data.
+    reset();
+    put(legacy / "config.json", future_config);
+    assert(sumhp::migrate_legacy_state(legacy, current, error));
+    assert(get(current / "config.json") == future_config);
 
     // The retired fixed mirror default must retain its automatic semantics.
     reset();
@@ -212,6 +242,26 @@ int main() {
     fs::create_directories(legacy / "config.json");
     assert(!sumhp::migrate_legacy_state(legacy, current, error));
     assert(!fs::exists(current / "config.json"));
+
+    // Relocation preserves versioned hide metadata and disabled definitions;
+    // format conversion is reserved for an explicit definition mutation.
+    reset();
+    sumhp::hide::Document hidden;
+    hidden.rules = {{std::string(32, 'a'), "/one", false, "name", "note", "group"}};
+    const auto hidden_bytes = sumhp::hide::encode_document(hidden);
+    put(legacy / "user_hide_rules.json", hidden_bytes);
+    assert(sumhp::migrate_legacy_state(legacy, current, error));
+    assert(get(current / "user_hide_rules.json") == hidden_bytes);
+    reset();
+    const auto unknown_hide = "{\"schema_version\":2,\"rules\":[]}";
+    put(current / "user_hide_rules.json", unknown_hide);
+    assert(sumhp::migrate_legacy_state(legacy, current, error));
+    assert(get(current / "user_hide_rules.json") == unknown_hide);
+    reset();
+    put(legacy / "user_hide_rules.json", unknown_hide);
+    assert(!sumhp::migrate_legacy_state(legacy, current, error));
+    assert(get(legacy / "user_hide_rules.json") == unknown_hide &&
+           !fs::exists(current / "user_hide_rules.json"));
 
     fs::remove_all(root);
     std::cout << "SUMHP configuration migration tests passed\n";

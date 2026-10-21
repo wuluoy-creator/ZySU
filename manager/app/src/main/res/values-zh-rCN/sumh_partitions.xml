@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_partitions_title">额外分区</string>
+    <string name="sumh_partitions_intro">从已安装模块发现名称，选择添加或移除，再预览并保存。发现结果只检查当前结构，不能证明后端能够挂载模块，也不代表应用的实际视图。</string>
+    <string name="sumh_partitions_open">管理分区选择</string>
+    <string name="sumh_partitions_discover">发现当前候选分区</string>
+    <string name="sumh_partitions_loading">正在读取候选分区和已保存配置…</string>
+    <string name="sumh_partitions_not_loaded">请手动发现候选分区。之前的选择会保留。</string>
+    <string name="sumh_partitions_stale">观测结果已过期。请重新发现后再预览或保存。</string>
+    <string name="sumh_partitions_unknown">当前状态未知或不受支持，不能依据此结果保存选择。</string>
+    <string name="sumh_partitions_partial">发现结果不完整。已保存定义和您的选择会保留，请查看诊断后重新发现。</string>
+    <string name="sumh_partitions_empty">完整扫描未发现候选分区，已有的分区名称仍会保留。</string>
+    <string name="sumh_partitions_ready">发现完成。请选择需要保存在配置中的名称。</string>
+    <string name="sumh_partitions_conflict">草稿依据的是较早的配置。请对照当前列表，明确保留计划中的添加和移除。</string>
+    <string name="sumh_partitions_rebase">在当前已保存列表上保留我的修改</string>
+    <string name="sumh_partitions_saved_unknown">已保存；当前无法识别或不符合添加条件。只有您明确移除时才会删除。</string>
+    <string name="sumh_partitions_eligible">本次发现允许添加，尚未验证实际挂载能力。</string>
+    <string name="sumh_partitions_not_eligible">本次发现不允许添加，请查看诊断原因。</string>
+    <string name="sumh_partitions_review">预览选择变更</string>
+    <string name="sumh_partitions_add">添加：%1$s</string>
+    <string name="sumh_partitions_remove">移除：%1$s</string>
+    <string name="sumh_partitions_reboot">保存只更新分区列表。请重启设备以使用保存的配置。</string>
+    <string name="sumh_partitions_save">仅保存选择</string>
+    <string name="sumh_partitions_saved">分区选择已保存并读回确认，需要重启。</string>
+    <string name="sumh_partitions_save_unconfirmed">保存结果未获确认，您的选择已保留。再次保存前请先发现当前状态，程序不会自动重复请求。</string>
+</resources>

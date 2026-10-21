@@ -411,7 +411,7 @@ std::optional<ScopedWorkDir> make_work_dir() {
     std::string pattern = std::string(kAk3TempRoot) + "/ak3-flash-XXXXXX";
     std::vector<char> buffer(pattern.begin(), pattern.end());
     buffer.push_back('\0');
-    char* created = mkdtemp(buffer.data());
+    const char* created = mkdtemp(buffer.data());
     if (!created)
         return std::nullopt;
     chmod(created, 0700);

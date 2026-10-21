@@ -1,5 +1,6 @@
 #include "cli_args.hpp"
 #include "../sumhp/include/sumhp/config.hpp"
+#include "../sumhp/src/core/user_hide_input.hpp"
 #include "terminal.hpp"
 
 #include <algorithm>
@@ -15,6 +16,8 @@
 
 namespace ksud {
 namespace {
+
+thread_local bool quiet_validation = false;
 
 struct Option {
     std::string_view name;
@@ -220,16 +223,94 @@ const std::vector<Command>& commands() {
           {"--no-reuse", "", "", ""}}},
         {"sumhp", "Manage built-in SUMH and module mounts", "<COMMAND>"},
         {"sumhp version", "Show the built-in controller version", ""},
+        {"sumhp operation", "Read bounded recorded command history without daemon startup",
+         "<COMMAND>"},
+        {"sumhp operation list", "List retained operation records", ""},
+        {"sumhp operation show", "Read one retained operation record", "<ID>", 1, 1},
+        {"sumhp operation result", "Read a retained typed resource result", "<ID>", 1, 1},
+        {"sumhp operation wait", "Poll a recorded operation; never repeat or cancel it",
+         "<ID> <TIMEOUT-MS>", 2, 2},
+        {"sumhp operation prepare",
+         "Reserve a bound operation ID without executing the command",
+         "--input <ABSOLUTE-FILE|->",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp operation execute",
+         "Execute a retained prepared operation once",
+         "<ID> --input <ABSOLUTE-FILE|->",
+         1,
+         1,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp profile", "Manage inactive SUMH configuration profiles (exact local route)",
+         "<COMMAND>"},
+        {"sumhp profile list", "List inactive profiles and the bank revision", ""},
+        {"sumhp profile show", "Read an inactive profile and its revision", "<ID>", 1, 1},
+        {"sumhp profile export", "Export a portable profile as JSON", "<ID>", 1, 1},
+        {"sumhp profile preview",
+         "Compare selected saved resources without applying",
+         "<ID> --resources <SCOPES>",
+         1,
+         1,
+         {{"--resources", "", "SCOPES", ""}}},
+        {"sumhp profile import-preview",
+         "Validate and compare a portable profile without saving",
+         "--input <ABSOLUTE-FILE|-> --resources <SCOPES>",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}, {"--resources", "", "SCOPES", ""}}},
+        {"sumhp profile capture",
+         "Capture saved settings into an inactive profile",
+         "--input <ABSOLUTE-FILE|->",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp profile import",
+         "Import into a new inactive profile ID",
+         "--input <ABSOLUTE-FILE|->",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp profile clone",
+         "Copy an inactive profile with revision checks",
+         "--input <ABSOLUTE-FILE|->",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp profile rename",
+         "Change profile name and note with revision checks",
+         "--input <ABSOLUTE-FILE|->",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp profile remove",
+         "Remove an inactive profile with revision checks",
+         "--input <ABSOLUTE-FILE|->",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
         {"sumhp config", "Manage mount configuration", "<COMMAND>"},
         {"sumhp config show", "Read configuration as JSON", ""},
         {"sumhp config gen", "Write the default configuration", ""},
         {"sumhp config merge-json", "Merge a JSON object into configuration", "<JSON>", 1, 1},
         {"sumhp config apply", "Apply the saved configuration", ""},
-        {"sumhp config sync-partitions", "Find additional module partitions", ""},
+        {"sumhp config sync-partitions", "Discover partition candidates without saving", ""},
+        {"sumhp config discover-partitions", "Discover extra partition candidates without saving",
+         ""},
+        {"sumhp config set-partitions",
+         "Conditionally save selected extra partitions; reboot required", "<REVISION> <JSON-ARRAY>",
+         2, 2},
         {"sumhp api", "Query controller state as JSON", "<COMMAND>"},
         {"sumhp api system", "Read system information", ""},
         {"sumhp api storage", "Read storage information", ""},
         {"sumhp api sumh", "Read SUMH information", ""},
+        {"sumhp api runtime", "Read versioned SUMH runtime state (not observer visibility)", ""},
+        {"sumhp api capabilities", "Read a bounded capability and scope summary without recovery",
+         ""},
+        {"sumhp api state", "Read saved revisions, live drift and the persistent last operation",
+         ""},
+        {"sumhp api inventory", "Read one bounded page of registered rule definitions",
+         "[CATEGORY [INSTANCE_ID GENERATION CURSOR]]", 0, 4},
         {"sumhp api features", "Read SUMH features", ""},
         {"sumhp api hooks", "Read active kernel hooks", ""},
         {"sumhp api mounts", "Read mount state", ""},
@@ -267,9 +348,28 @@ const std::vector<Command>& commands() {
         {"sumhp module hot-mount", "Hot-mount a SUMH module", "<ID>", 1, 1},
         {"sumhp module hot-unmount", "Hot-unmount a SUMH module", "<ID>", 1, 1},
         {"sumhp module check-conflicts", "Find conflicting module paths", ""},
+        {"sumhp module plan",
+         "Preview production module planning without saving or applying",
+         "[--input <ABSOLUTE-FILE|->]",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp module explain",
+         "Explain a path's production module plan contributions",
+         "<ABSOLUTE-PATH> [--input <ABSOLUTE-FILE|->]",
+         1,
+         1,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp module inspect", "Inspect an isolated developer module with production planning",
+         "<ABSOLUTE-PATH>", 1, 1},
         {"sumhp module mount-all", "Mount enabled modules during boot", ""},
         {"sumhp module unmount", "Unmount the controller's mounts", ""},
-        {"sumhp module normalize", "Normalize a module's metadata", "<PATH>", 1, 1},
+        {"sumhp module normalize",
+         "Normalize module layout or preview changes",
+         "<PATH> [--dry-run]",
+         1,
+         1,
+         {{"--dry-run", "", "", "Preview only"}}},
         {"sumhp sumh", "Control SUMH", "<COMMAND>"},
         {"sumhp sumh version", "Read the SUMH version", ""},
         {"sumhp sumh list", "Read SUMH rules", ""},
@@ -294,6 +394,45 @@ const std::vector<Command>& commands() {
         {"sumhp sumh maps add", "Add a maps spoofing rule",
          "<TARGET-INO> <TARGET-DEV> <SPOOF-INO> <SPOOF-DEV> <PATH>", 5, 5},
         {"sumhp sumh maps list-paths", "Read saved maps path definitions", ""},
+        {"sumhp sumh maps preview",
+         "Read saved Maps paths, current identities and submission history", ""},
+        {"sumhp doctor",
+         "Read one structured SUMH diagnostic scenario without recovery",
+         "--input <ABSOLUTE-FILE|->",
+         0,
+         0,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}}},
+        {"sumhp doctor package", "Manage local diagnostic packages", "<COMMAND>"},
+        {"sumhp doctor package list", "List retained diagnostic packages", ""},
+        {"sumhp doctor package create",
+         "Create a private diagnostic package; redact identities by default",
+         "<ID> --input <ABSOLUTE-FILE|-> [--include-identifiers]",
+         1,
+         1,
+         {{"--input", "", "ABSOLUTE-FILE|-", ""}, {"--include-identifiers", "", "", ""}}},
+        {"sumhp doctor package preview", "Preview a complete retained diagnostic package", "<ID>",
+         1, 1},
+        {"sumhp doctor package export",
+         "Export the exact reviewed package bytes to stdout",
+         "<ID> --revision <REVISION>",
+         1,
+         1,
+         {{"--revision", "", "REVISION", ""}}},
+        {"sumhp doctor package remove",
+         "Remove one retained diagnostic package with its reviewed revision",
+         "<ID> --revision <REVISION>",
+         1,
+         1,
+         {{"--revision", "", "REVISION", ""}}},
+        {"sumhp sumh maps list-temporary",
+         "Read one temporary Maps inventory page without recovery", "[INSTANCE GENERATION CURSOR]",
+         0, 3},
+        {"sumhp sumh maps remove",
+         "Delete one temporary Maps key with an inventory token",
+         "<TARGET-INO> <TARGET-DEV> --instance <ID> --generation <GENERATION>",
+         2,
+         2,
+         {{"--instance", "", "ID", ""}, {"--generation", "", "GENERATION", ""}}},
         {"sumhp sumh maps add-path", "Save and apply a maps path definition",
          "<TARGET-PATH> <REPLACEMENT-PATH>", 2, 2},
         {"sumhp sumh maps remove-path", "Remove a saved maps path definition", "<TARGET-PATH>", 1,
@@ -308,6 +447,26 @@ const std::vector<Command>& commands() {
         {"sumhp hide apply", "Restore hidden paths after boot completion", ""},
         {"sumhp hide add", "Add an absolute path", "<ABSOLUTE-PATH>", 1, 1},
         {"sumhp hide remove", "Remove an absolute path", "<ABSOLUTE-PATH>", 1, 1},
+        {"sumhp hide retry-path", "Retry a saved enabled absolute path", "<ABSOLUTE-PATH>", 1, 1},
+        {"sumhp hide status", "Read paged saved definitions and sampled registration",
+         "[REVISION CURSOR]", 0, 2},
+        {"sumhp hide definitions", "Read paged persistent definitions without kernel queries",
+         "[REVISION CURSOR]", 0, 2},
+        {"sumhp hide export", "Export a complete portable definition document without mutation",
+         ""},
+        {"sumhp hide create", "Create a managed hide definition", "<REVISION> <JSON>", 2, 2},
+        {"sumhp hide import-id", "Conditionally import one reviewed stable definition",
+         "<ID> <REVISION> <JSON>", 3, 3},
+        {"sumhp hide annotate", "Save definition name, note or group", "<ID> <REVISION> <JSON>", 3,
+         3},
+        {"sumhp hide enable", "Enable a saved definition", "<ID> <REVISION>", 2, 2},
+        {"sumhp hide disable", "Disable a definition without deleting it", "<ID> <REVISION>", 2, 2},
+        {"sumhp hide enable-group", "Enable all definitions in an exact group",
+         "<GROUP> <REVISION>", 2, 2},
+        {"sumhp hide disable-group", "Disable all definitions in an exact group",
+         "<GROUP> <REVISION>", 2, 2},
+        {"sumhp hide retry", "Retry one enabled definition", "<ID> <REVISION>", 2, 2},
+        {"sumhp hide remove-id", "Remove a definition by stable ID", "<ID> <REVISION>", 2, 2},
         {"sumhp recovery", "Manage mount recovery state", "<COMMAND>"},
         {"sumhp recovery status", "Read recovery state", ""},
         {"sumhp recovery reset", "Reset recovery state", ""},
@@ -443,6 +602,8 @@ std::string_view example(std::string_view path) {
 }
 
 void help(const Command& command) {
+    if (quiet_validation)
+        return;
     (void)printf("%.*s\n\n", static_cast<int>(command.description.size()),
                  command.description.data());
     terminal::heading(stdout, "Usage: ");
@@ -524,6 +685,8 @@ std::string suggestion(std::string_view word, const std::vector<std::string_view
 }
 
 int fail(const Command& command, const std::string& message) {
+    if (quiet_validation)
+        return 2;
     const int result = terminal::usage_error(message, usage(command));
     const std::string path = command.path.empty() ? "ksud" : "ksud " + std::string(command.path);
     (void)fprintf(stderr, "For more information, run '%s --help'.\n", path.c_str());
@@ -626,7 +789,8 @@ int read_option(const Command& command, const std::vector<std::string>& input, s
         (!unsigned_value(value, 65535) || value.find_first_not_of('0') == std::string::npos))
         return fail(command, "invalid port '" + value + "'; expected 1 through 65535");
     if (option->name == "--color") {
-        (void)terminal::set_color(value);
+        if (!quiet_validation)
+            (void)terminal::set_color(value);
     } else if (option->name == "--verbose") {
         parsed.verbose = true;
     } else {
@@ -653,6 +817,22 @@ int validate(const Command& command, const std::vector<std::string>& operands,
     const auto numeric = [&](size_t index, uint64_t maximum, bool auto_base = false) {
         return unsigned_value(operands[index], maximum, auto_base);
     };
+    if (path == "sumhp api inventory") {
+        if (!operands.empty() && operands.size() != 1 && operands.size() != 4)
+            return bad("expected CATEGORY alone or CATEGORY INSTANCE_ID GENERATION CURSOR");
+        if (!operands.empty() &&
+            !one_of(operands[0], "metadata|mapping|legacy_hide|merge|maps_managed|maps_temporary|"
+                                 "inject|user_hide|overlay_xattr|kstat|vnode"))
+            return bad("unknown inventory category");
+        if (operands.size() == 4 &&
+            (!numeric(1, UINT64_MAX) || !numeric(2, UINT64_MAX) || !numeric(3, UINT64_MAX) ||
+             operands[1].find_first_not_of('0') == std::string::npos ||
+             operands[2].find_first_not_of('0') == std::string::npos ||
+             (operands[0] == "metadata" &&
+              operands[3].find_first_not_of('0') != std::string::npos)))
+            return bad("expected nonzero decimal instance/generation and a decimal cursor "
+                       "(metadata requires zero)");
+    }
     if (path == "module config get" || path == "module config set" ||
         path == "module config delete") {
         if (operands[0].find_first_of("=\r\n") != std::string::npos)
@@ -689,6 +869,16 @@ int validate(const Command& command, const std::vector<std::string>& operands,
             return bad("invalid signature hash; expected exactly 64 hexadecimal digits");
     }
     if (path.rfind("sumhp ", 0) == 0) {
+        if (path.rfind("sumhp hide ", 0) == 0) {
+            std::vector<std::string> args = {"hide", std::string(path.substr(11))};
+            if (sumhp::hide::definition_command(args)) {
+                args.insert(args.end(), operands.begin(), operands.end());
+                sumhp::hide::Request request;
+                std::string error;
+                if (!sumhp::hide::parse_request(args, request, error))
+                    return bad(error);
+            }
+        }
         if (path == "sumhp config merge-json") {
             json::Value object;
             std::string error;
@@ -756,8 +946,9 @@ int validate(const Command& command, const std::vector<std::string>& operands,
 
 int parse_input(const std::vector<std::string>& input, CliArguments& parsed, unsigned depth) {
     if (depth > 8)
-        return terminal::usage_error("too many nested daemon calls",
-                                     "ksud sumhp daemon call <COMMAND>");
+        return quiet_validation ? 2
+                                : terminal::usage_error("too many nested daemon calls",
+                                                        "ksud sumhp daemon call <COMMAND>");
     size_t index = 0;
     const Command* current = &commands().front();
     bool help_requested = false;
@@ -813,6 +1004,31 @@ int parse_input(const std::vector<std::string>& input, CliArguments& parsed, uns
     }
     if (!children(current->path).empty())
         return fail(*current, "a subcommand is required");
+    // Preview's read-only guarantee belongs to the dedicated outer argv route,
+    // not a generic/nested daemon call that may perform startup restoration.
+    // Keep the public command discoverable, but reject alternative dispatches.
+    if (current->path == "sumhp sumh maps preview" &&
+        (depth != 0 || input != std::vector<std::string>{"sumhp", "sumh", "maps", "preview"}))
+        return fail(*current, "use the exact read-only command: ksud sumhp sumh maps preview");
+    // Unlike ordinary commands, these must enter through cli_run's exact raw
+    // argv route. Reject every generic route, including daemon call and global
+    // option wrappers; parsing cannot silently turn them into restoring calls.
+    if (current->path == "sumhp doctor" || current->path.compare(0, 13, "sumhp doctor ") == 0 ||
+        current->path == "sumhp profile" || current->path.compare(0, 14, "sumhp profile ") == 0 ||
+        current->path == "sumhp sumh maps remove" ||
+        current->path == "sumhp sumh maps list-temporary" ||
+        current->path.compare(0, 16, "sumhp operation ") == 0 ||
+        current->path == "sumhp api capabilities" || current->path == "sumhp hide status" ||
+        current->path == "sumhp hide definitions" || current->path == "sumhp hide export" ||
+        current->path == "sumhp module plan" || current->path == "sumhp module explain" ||
+        current->path == "sumhp module inspect" ||
+        current->path == "sumhp config discover-partitions" ||
+        current->path == "sumhp config sync-partitions" ||
+        current->path == "sumhp config set-partitions" ||
+        (current->path == "sumhp module normalize" &&
+         std::find(input.begin(), input.end(), "--dry-run") != input.end()))
+        return fail(*current,
+                    "use the exact local command; generic or wrapped dispatch is not supported");
     parsed.path = current->path;
     const size_t separator = parsed.path.find(' ');
     parsed.command = parsed.path.substr(0, separator);
@@ -886,6 +1102,25 @@ std::string CliArguments::value(const std::string& name) const {
 int parse_cli(const std::vector<std::string>& input, CliArguments& parsed) {
     parsed = {};
     (void)terminal::set_color("auto");
+    return parse_input(input, parsed, 0);
+}
+
+int parse_cli_quiet(const std::vector<std::string>& input, CliArguments& parsed) {
+    class RestoreQuiet {
+    public:
+        explicit RestoreQuiet(bool previous) : previous_(previous) {}
+        RestoreQuiet(const RestoreQuiet&) = delete;
+        RestoreQuiet& operator=(const RestoreQuiet&) = delete;
+        RestoreQuiet(RestoreQuiet&&) = delete;
+        RestoreQuiet& operator=(RestoreQuiet&&) = delete;
+        ~RestoreQuiet() { quiet_validation = previous_; }
+
+    private:
+        bool previous_;
+    };
+    const RestoreQuiet restore{quiet_validation};
+    quiet_validation = true;
+    parsed = {};
     return parse_input(input, parsed, 0);
 }
 

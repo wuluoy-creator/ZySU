@@ -11,7 +11,25 @@ internal data class KernelBuildState(
     val originalVersion: String,
     val suggestedVersion: String,
     val suggestionSource: String,
-)
+) {
+    // Only offer the suggestion whose meaning the UI can explain. Unknown sources
+    // remain readable through the CLI without becoming an automatic draft action.
+    val systemDateSuggestion: String?
+        get() = suggestedVersion.takeIf {
+            suggestionSource == "ro.build.date" && it.isNotEmpty() && validKernelBuildField(it)
+        }
+
+    // This is a label inferred from the *original* release, not an ABI probe or
+    // a value suitable for choosing a kernel image automatically.
+    val originalKmiLabel: String?
+        get() {
+            val release = Regex("^(\\d+\\.\\d+)(?:\\.\\d+)?(?:-.*)?$")
+                .matchEntire(originalRelease) ?: return null
+            val android = Regex("(?:^|-)android(\\d+)(?:-|$)").find(originalRelease)
+            return android?.let { "android${it.groupValues[1]}-${release.groupValues[1]}" }
+                ?: release.groupValues[1]
+        }
+}
 
 internal fun validKernelBuildField(value: String, release: Boolean = false): Boolean =
     value.toByteArray(Charsets.UTF_8).size <= 64 &&

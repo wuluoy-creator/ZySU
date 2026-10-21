@@ -14,6 +14,9 @@ import subprocess
 import sys
 import tempfile
 
+sys.dont_write_bytecode = True
+from test_sumh_vfs_helpers import function
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -146,6 +149,10 @@ int run(void)
     setup_request(1, "6.1.99-example", "#2 SMP PREEMPT example");
     CHECK(2, sumh_kernel_build_set(&request) == -EOPNOTSUPP &&
         sumh_kernel_build_get(&reply) == -EOPNOTSUPP);
+    setup_request(0, "", "");
+    CHECK(41, !sumh_kernel_build_set(&request) && !writes &&
+        !sumh_kernel_build_enabled());
+    setup_request(1, "6.1.99-example", "#2 SMP PREEMPT example");
     strscpy(initial_uts.name.sysname, "Linux", 65);
     strscpy(initial_uts.name.nodename, "phone", 65);
     strscpy(initial_uts.name.machine, "aarch64", 65);
@@ -157,6 +164,9 @@ int run(void)
     missing_ns = 1;
     sumh_kernel_build_init();
     CHECK(3, !sumh_kernel_build_available() && !writes);
+    setup_request(0, "", "");
+    CHECK(42, !sumh_kernel_build_set(&request) && !writes);
+    setup_request(1, "6.1.99-example", "#2 SMP PREEMPT example");
     missing_ns = 0; missing_sem = 1;
     sumh_kernel_build_init();
     CHECK(4, !sumh_kernel_build_available() && !writes);
@@ -261,6 +271,9 @@ int run(void)
     sumh_kernel_build_exit();
     CHECK(33, writes == prior_writes && !uts_lock.state && !lock_errors);
     CHECK(34, sumh_kernel_build_get(&reply) == -EOPNOTSUPP);
+    setup_request(0, "", "");
+    CHECK(43, !sumh_kernel_build_set(&request) && writes == prior_writes);
+    setup_request(1, "6.1.spoof", "#10 spoof");
     sumh_kernel_build_init();
     CHECK(35, !sumh_kernel_build_get_original(&reply) && !reply.enable &&
         !strcmp(reply.release, "6.1.external") &&
@@ -284,6 +297,85 @@ int main(void) { return run(); }
 #endif
 """
 
+CAS_PRELUDE = r"""
+typedef unsigned long long u64;
+#define __aligned_u64 u64 __attribute__((aligned(8)))
+#define __user
+#define EFAULT 14
+#define ESHUTDOWN 108
+#define ESTALE 116
+#define SUMH_RUNTIME_STATE_VERSION 1
+#define SUMH_RUNTIME_KERNEL_BUILD 6
+static u64 sumh_runtime_generation=1, sumh_runtime_instance=7;
+static int sumh_runtime_errors[6], from_fault;
+static bool sumh_runtime_live=true;
+static void *memchr_inv(const void *p, int value, size_t n) {
+    const unsigned char *s=p;
+    for (size_t i=0;i<n;i++) if (s[i]!=(unsigned char)value) return (void *)(s+i);
+    return NULL;
+}
+static int copy_from_user(void *out,const void *in,size_t n) {
+    if (from_fault) return 1;
+    memcpy(out,in,n); return 0;
+}
+"""
+
+CAS_TESTS = r"""
+static struct sumh_kernel_build_cas_arg cas_request(int enabled) {
+    struct sumh_kernel_build_cas_arg arg={0};
+    arg.size=sizeof(arg); arg.version=1; arg.enable=enabled;
+    arg.expected_generation=sumh_runtime_generation; arg.expected_instance_id=sumh_runtime_instance;
+    if (enabled) { strscpy(arg.release,"6.1.CAS",65); strscpy(arg.version_string,"#2 CAS",65); }
+    return arg;
+}
+static int run_cas_tests(void) {
+    struct sumh_kernel_build_cas_arg arg;
+    struct sumh_kernel_build_arg readback;
+    struct new_utsname original;
+    u64 prior;
+    int prior_writes;
+    sumh_kernel_build_init(); original=initial_uts.name;
+    arg=cas_request(1); prior=sumh_runtime_generation;
+    CHECK(44,!sumh_kernel_build_conditional_set(&arg) && sumh_runtime_generation==prior+1);
+    CHECK(45,!sumh_kernel_build_get(&readback) && readback.enable && !strcmp(readback.release,"6.1.CAS") && !strcmp(readback.version,"#2 CAS"));
+    prior_writes=writes;
+    CHECK(46,sumh_kernel_build_conditional_set(&arg)==-ESTALE && writes==prior_writes && sumh_runtime_generation==prior+1);
+    arg=cas_request(1); arg.expected_instance_id++;
+    CHECK(47,sumh_kernel_build_conditional_set(&arg)==-ESTALE && writes==prior_writes);
+    /* All canonical failures precede CAS, including strings and unused bytes. */
+    prior=sumh_runtime_generation;
+    for(int i=0;i<15;i++) {
+        arg=cas_request(1);
+        switch(i) {
+        case 0:arg.size--;break; case 1:arg.version=2;break; case 2:arg.enable=2;break;
+        case 3:arg.reserved=1;break; case 4:arg.release[0]=0;break;
+        case 5:arg.version_string[0]=0;break; case 6:arg.release[64]='x';break;
+        case 7:arg.version_string[64]='x';break; case 8:arg.release[2]='\n';break;
+        default:arg.reserved_tail[i-9]=1;break;
+        }
+        CHECK(48,sumh_kernel_build_conditional_set(&arg)==-EINVAL && sumh_runtime_generation==prior && writes==prior_writes);
+    }
+    arg=cas_request(1); memset(arg.release,'x',65);
+    CHECK(49,sumh_kernel_build_conditional_set(&arg)==-ENAMETOOLONG && writes==prior_writes && sumh_runtime_generation==prior);
+    from_fault=1; arg=cas_request(0);
+    CHECK(50,sumh_kernel_build_conditional_set(&arg)==-EFAULT && sumh_runtime_generation==prior); from_fault=0;
+    /* A disable restores both original strings, even after multiple overrides. */
+    arg=cas_request(1); strscpy(arg.release,"6.1.next",65);
+    CHECK(51,!sumh_kernel_build_conditional_set(&arg));
+    arg=cas_request(0); CHECK(52,!sumh_kernel_build_conditional_set(&arg));
+    CHECK(53,!memcmp(&original,&initial_uts.name,sizeof(original)) && !sumh_kernel_build_enabled());
+    prior_writes=writes; prior=sumh_runtime_generation; arg=cas_request(0);
+    CHECK(54,!sumh_kernel_build_conditional_set(&arg) && writes==prior_writes && sumh_runtime_generation==prior+1);
+    sumh_kernel_build_exit(); arg=cas_request(1); prior=sumh_runtime_generation;
+    CHECK(55,sumh_kernel_build_conditional_set(&arg)==-EOPNOTSUPP && sumh_runtime_generation==prior+1 && sumh_runtime_errors[5]==-EOPNOTSUPP);
+    arg=cas_request(0); CHECK(56,!sumh_kernel_build_conditional_set(&arg) && !sumh_runtime_errors[5]);
+    prior=sumh_runtime_generation; arg=cas_request(0); sumh_runtime_live=false;
+    CHECK(57,sumh_kernel_build_conditional_set(&arg)==-ESHUTDOWN && sumh_runtime_generation==prior);
+    CHECK(58,!lock_errors && !uts_lock.state);
+    return 0;
+}
+"""
+
 
 def test_source():
     uapi = (ROOT / "uapi/sumh.h").read_text(encoding="utf-8")
@@ -291,7 +383,11 @@ def test_source():
     argument = re.search(r"struct sumh_kernel_build_arg \{.*?\n\};", uapi, re.S).group(0)
     source = (ROOT / "kernel/sumh/features/sumh_kernel_build.c").read_text(encoding="utf-8")
     source = re.sub(r"^#include[^\n]*\n", "", source, flags=re.M)
-    return PRELUDE + limit + "\n" + argument + "\n" + source + TESTS
+    cas_argument = re.search(r"struct sumh_kernel_build_cas_arg \{.*?\n\};", uapi, re.S).group(0)
+    cas_functions = function("kernel/sumh/control/sumh_ioctl.c", "static void sumh_runtime_advance(")
+    cas_functions += "\n" + function("kernel/sumh/control/sumh_ioctl.c", "static int sumh_kernel_build_conditional_set(")
+    tests = TESTS.replace("    return 0;\n}\n#ifndef _WIN32", "    return run_cas_tests();\n}\n#ifndef _WIN32")
+    return PRELUDE + limit + "\n" + argument + "\n" + source + CAS_PRELUDE + cas_argument + cas_functions + CAS_TESTS + tests
 
 
 def main():
@@ -318,7 +414,7 @@ def main():
         result = subprocess.run([str(output)])
         if result.returncode:
             raise AssertionError(f"SUMH kernel-build check {result.returncode} failed")
-        print("SUMH kernel build: 40 ABI/state/validation checks passed")
+        print("SUMH kernel build: 58 ABI/state/validation/CAS checks passed")
 
 
 if __name__ == "__main__":
