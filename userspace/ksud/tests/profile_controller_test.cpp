@@ -13,7 +13,10 @@
 #include "../../common/utf8.hpp"
 #include "core/profile.hpp"
 
-constexpr int O_RDONLY = 0, O_CLOEXEC = 4, CLONE_NEWNS = 16;
+constexpr int O_RDONLY = 0, O_CLOEXEC = 4;
+#ifndef CLONE_NEWNS
+constexpr int CLONE_NEWNS = 16;
+#endif
 struct ProfileStat {
     unsigned st_dev = 0, st_ino = 0;
 };

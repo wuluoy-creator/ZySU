@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <climits>
 #include <cstring>
 #include <filesystem>
 #include <fstream>

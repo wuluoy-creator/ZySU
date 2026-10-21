@@ -54,7 +54,10 @@ int setns(int, int) {
 }
 }  // namespace fixture_io
 constexpr int O_RDONLY = 0, O_RDWR = 1, O_CREAT = 2, O_CLOEXEC = 4, O_NOFOLLOW = 8, O_NONBLOCK = 16;
-constexpr int LOCK_EX = 32, LOCK_NB = 64, CLONE_NEWNS = 128;
+constexpr int LOCK_EX = 32, LOCK_NB = 64;
+#ifndef CLONE_NEWNS
+constexpr int CLONE_NEWNS = 128;
+#endif
 #define S_ISREG(mode) (((mode) & 0170000) == 0100000)
 namespace sumhp {
 #include "profile_config_validators.inc"
@@ -120,7 +123,7 @@ namespace {
 using namespace sumhp;
 using namespace sumhp::profiles;
 std::filesystem::path output_dir;
-JsonValue index = JsonValue::array();
+JsonValue fixture_index = JsonValue::array();
 void write(const std::string& name, const std::string& bytes) {
     std::ofstream out(output_dir / name, std::ios::binary);
     out << bytes;
@@ -157,7 +160,7 @@ JsonValue record(const std::string& name, const JsonValue& input) {
     item.o["response_file"] = name + ".response.json";
     item.o["action"] = input.at("action");
     item.o["status"] = output.at("status");
-    index.a.push_back(item);
+    fixture_index.a.push_back(item);
     return output;
 }
 JsonValue selected(const char* action, const char* id) {
@@ -327,8 +330,9 @@ int main(int argc, char** argv) try {
     fixture_io::files[(runtime_data_dir() / "user_hide_rules.json").generic_string()] =
         stringify_json(prior);
     record("import-preview-hide-conflicts", imported);
-    write("index.json", stringify_json(index));
-    std::cout << index.a.size() << " production native request/response fixture pairs generated\n";
+    write("index.json", stringify_json(fixture_index));
+    std::cout << fixture_index.a.size()
+              << " production native request/response fixture pairs generated\n";
     return 0;
 } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';

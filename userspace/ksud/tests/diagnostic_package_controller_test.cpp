@@ -7,7 +7,10 @@
 #include "core/diagnostic_package.hpp"
 #include "core/diagnostics.hpp"
 
-constexpr int O_RDONLY = 0, O_CLOEXEC = 8, CLONE_NEWNS = 16;
+constexpr int O_RDONLY = 0, O_CLOEXEC = 8;
+#ifndef CLONE_NEWNS
+constexpr int CLONE_NEWNS = 16;
+#endif
 namespace fixture {
 using V = sumhp::JsonValue;
 unsigned checks = 0;

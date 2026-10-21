@@ -221,7 +221,7 @@ internal class HideDefinitionOperations : ViewModel() {
             }
         }
         val rendered = visible.map { SUMHUiAdapter.ActiveRule("hide", it.path, isUserDefined = true, hideState = it.runtime?.binding, persisted = true) }
-        UserHideRuleList(rendered, selecting, operation.selection, !operation.working && drafts.loaded, Modifier.weight(1f),
+        UserHideRuleList(rendered, selecting, operation.selection, !operation.working && drafts.loaded && (selecting || ready), Modifier.weight(1f),
             onSelect = { operation.selection = if (it in operation.selection) operation.selection - it else operation.selection + it },
             onEdit = { open(byPath.getValue(it.src)) }, onRemove = { confirm = HideDefinitionConfirmation("remove-id", listOf(byPath.getValue(it.src).id), sample) },
             onRetry = { operation.selected("retry", listOf(byPath.getValue(it.src).id), change, read) }, onCopy = { copy(listOf(byPath.getValue(it.src))) },

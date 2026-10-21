@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cerrno>
 #include <chrono>
+#include <climits>
 #include <cstring>
 #include <filesystem>
 #include <functional>

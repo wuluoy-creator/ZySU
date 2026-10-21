@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cerrno>
 #include <chrono>
+#include <climits>
 #include <cstring>
 #include <filesystem>
 #include <functional>
@@ -19,7 +20,10 @@
 constexpr int O_RDONLY = 1, O_CLOEXEC = 2, O_NOFOLLOW = 4, O_NONBLOCK = 8, O_DIRECTORY = 16,
               O_CREAT = 32, O_RDWR = 64;
 constexpr int LOCK_EX = 1, LOCK_NB = 2, LOCK_UN = 4, PROT_READ = 1, PROT_WRITE = 2, MAP_SHARED = 1,
-              MAP_ANONYMOUS = 2, CLONE_NEWNS = 1;
+              MAP_ANONYMOUS = 2;
+#ifndef CLONE_NEWNS
+constexpr int CLONE_NEWNS = 1;
+#endif
 #define MAP_FAILED reinterpret_cast<void*>(-1)
 namespace model {
 using sumhp::JsonValue;

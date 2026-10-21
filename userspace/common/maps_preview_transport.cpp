@@ -227,7 +227,7 @@ int receive(int socket, Frame& frame, int& descriptor) {
     const auto count = ::recvmsg(socket, &message, MSG_DONTWAIT | MSG_CMSG_CLOEXEC);
     if (count < 0)
         return errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK ? 0 : -1;
-    bool invalid = count < static_cast<decltype(count)>(sizeof(Header)) ||
+    bool invalid = static_cast<std::size_t>(count) < sizeof(Header) ||
                    (message.msg_flags & (MSG_TRUNC | MSG_CTRUNC));
     for (auto* rights = CMSG_FIRSTHDR(&message); rights; rights = CMSG_NXTHDR(&message, rights)) {
         if (rights->cmsg_level != SOL_SOCKET || rights->cmsg_type != SCM_RIGHTS ||
@@ -252,7 +252,7 @@ int receive(int socket, Frame& frame, int& descriptor) {
         return -2;
     invalid = invalid || frame.header.magic_value != magic || frame.header.size > chunk_limit ||
               frame.header.error > 4095 ||
-              count != static_cast<decltype(count)>(sizeof(Header) + frame.header.size);
+              static_cast<std::size_t>(count) != sizeof(Header) + frame.header.size;
     if (invalid) {
         if (descriptor >= 0)
             ::close(descriptor);
@@ -289,7 +289,7 @@ bool send_frame(int socket, std::uint32_t kind, const char* bytes, std::size_t s
         if (!within_deadline(deadline, previous))
             return false;
         const auto count = ::sendmsg(socket, &message, MSG_DONTWAIT | MSG_NOSIGNAL);
-        if (count == static_cast<decltype(count)>(data.iov_len))
+        if (count >= 0 && static_cast<std::size_t>(count) == data.iov_len)
             return true;
         if (count >= 0) {
             errno = EPROTO;

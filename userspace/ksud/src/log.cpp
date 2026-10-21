@@ -22,6 +22,10 @@ bool g_log_cli_mode = false;
 bool g_log_verbose = false;
 std::array<char, kLogTagSize> g_log_tag = {"KernelSU"};
 
+struct FileCloser {
+    void operator()(FILE* file) const { (void)fclose(file); }
+};
+
 void log_write(LogLevel level, const char* fmt, va_list args) {
     if (level < g_log_level) {
         return;
@@ -60,7 +64,7 @@ void log_write(LogLevel level, const char* fmt, va_list args) {
         msg[0] = '\0';
     }
 
-    const std::unique_ptr<FILE, decltype(&fclose)> log_file(fopen("/dev/log/main", "w"), fclose);
+    const std::unique_ptr<FILE, FileCloser> log_file(fopen("/dev/log/main", "w"));
     if (log_file != nullptr) {
         const int written =
             fprintf(log_file.get(), "%c/%s: %s\n", level_str[0], g_log_tag.data(), msg.data());

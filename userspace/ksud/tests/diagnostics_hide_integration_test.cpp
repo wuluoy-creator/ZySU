@@ -15,7 +15,10 @@
 #include "mount/module_rebuild.hpp"
 #include "userspace/common/maps_preview_transport.hpp"
 
-constexpr int O_RDONLY = 0, O_CLOEXEC = 8, CLONE_NEWNS = 16;
+constexpr int O_RDONLY = 0, O_CLOEXEC = 8;
+#ifndef CLONE_NEWNS
+constexpr int CLONE_NEWNS = 16;
+#endif
 #ifndef CLOCK_MONOTONIC
 constexpr int CLOCK_MONOTONIC = 1;
 #endif

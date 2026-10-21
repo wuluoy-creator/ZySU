@@ -39,7 +39,11 @@ class SUMHHideDefinitionsScreenTest {
     private fun text(id: Int) = compose.activity.getString(id)
     private fun drafts() = SUMHEditorDrafts.forDirectory(File(compose.activity.applicationContext.noBackupFilesDir, "sumh-drafts"))
     private fun loaded(operation: HideDefinitionOperations) {
-        compose.waitUntil(5000) { operation.sample.complete && drafts().loaded && !operation.loading }
+        // Transfer drafts load separately and temporarily block editing too.
+        val transfer = ViewModelProvider(compose.activity)[SUMHHideTransferOperations::class.java]
+        compose.waitUntil(5000) {
+            operation.sample.complete && drafts().loaded && !operation.loading && transfer.loaded && !transfer.busy
+        }
         compose.waitForIdle()
     }
     private fun success(action: String = "annotate", ids: List<String> = listOf(row.id)): HideMutationResult {
@@ -75,6 +79,33 @@ class SUMHHideDefinitionsScreenTest {
         compose.onNodeWithTag("hide_definitions_add").assertIsNotEnabled()
         compose.onNodeWithText(row.path).performClick()
         compose.onNodeWithTag("hide_definition_save").assertDoesNotExist()
+    }
+
+    @Test fun transferActivityDisablesEditorsUntilTransferCompletes() {
+        val operation = HideDefinitionOperations()
+        val gate = CompletableDeferred<SUMHHideSavedDefinitions>()
+        compose.setContent { MaterialTheme { HideDefinitionsScreen(true, {}, { sample() },
+            { _, _, _ -> error("must not mutate") }, operation) } }
+        loaded(operation)
+        val transfer = ViewModelProvider(compose.activity)[SUMHHideTransferOperations::class.java]
+        compose.runOnIdle { transfer.captureExport(null) { gate.await() } }
+        try {
+            compose.onNodeWithText(row.path).assertIsNotEnabled()
+            compose.onNodeWithTag("hide_definitions_add").assertIsNotEnabled()
+            compose.onNodeWithTag("hide_definition_save").assertDoesNotExist()
+            // Selection and copying remain available while editing is unavailable.
+            compose.onNodeWithText(text(R.string.sumh_rules_select)).performClick()
+            compose.onNodeWithText(row.path).assertIsEnabled().performClick()
+            compose.onNodeWithText(text(R.string.sumh_rules_copy)).assertIsEnabled()
+            compose.onNodeWithText(text(R.string.sumh_rules_done)).performClick()
+            compose.onNodeWithText(row.path).assertIsNotEnabled()
+        } finally {
+            compose.runOnIdle { gate.cancel() }
+        }
+        loaded(operation)
+        compose.onNodeWithText(row.path).assertIsEnabled().performClick()
+        compose.onNodeWithTag("hide_definition_name").assertTextContains(row.name)
+        compose.onNodeWithTag("hide_definition_save").assertIsEnabled()
     }
 
     @Test fun wholeGroupConfirmationIncludesFilteredRowsAndBecomesStaleOnRefresh() {
@@ -219,7 +250,7 @@ class SUMHHideDefinitionsScreenTest {
             }
         } }
         loaded(operation)
-        compose.onNodeWithTag("hide_definitions_add").performClick()
+        compose.onNodeWithTag("hide_definitions_add").assertIsEnabled().performClick()
         compose.onNodeWithTag("hide_definition_path").performScrollTo().performTextReplacement("/data/中文 ")
         compose.onNodeWithTag("hide_definition_name").performScrollTo().performTextReplacement("中".repeat(43))
         compose.onNodeWithTag("hide_definition_save").assertIsNotEnabled()
