@@ -6,7 +6,9 @@
     <string name="sumh_module_preview_path_hint">留空查看整个计划。空格和 Unicode 按原样保留。</string>
     <string name="sumh_module_preview_path_limit">路径必须是有效 UTF-8，且不超过 4095 字节。已保留上次接受的输入。</string>
     <string name="sumh_module_preview_snapshot">本次读取使用的固定输入</string>
-    <string name="sumh_module_preview_candidate_snapshot">未保存候选：模式 %1$s · 完整规则 %2$d 条</string>
+    <plurals name="sumh_module_preview_candidate_snapshot">
+        <item quantity="other">未保存候选：模式 %1$s · 完整规则 %2$d 条</item>
+    </plurals>
     <string name="sumh_module_preview_saved_read">读取已保存配置</string>
     <string name="sumh_module_preview_candidate_read">比较完整草稿</string>
     <string name="sumh_module_preview_finish_edit">先完成或取消当前单条规则编辑，再打开预览。</string>
@@ -57,7 +59,6 @@
     <string name="sumh_module_preview_previous_source">先前直接映射源</string>
     <string name="sumh_module_preview_reason">原因 / 详情</string>
     <string name="sumh_module_preview_emission_order">SUMH 生成顺序</string>
-    <string name="sumh_module_preview_rule">%1$s → %2$s</string>
     <string name="sumh_module_preview_backend">模块配置：%1$s · 全局：%2$s\n请求：%3$s · 选择：%4$s\n选择来源：%5$s</string>
     <string name="sumh_module_preview_backend_flags">发生回退：%1$s · 决定完整：%2$s\n含有内容：%3$s · 需要 Magic Mount：%4$s</string>
     <string name="sumh_module_preview_probe">%1$s：已检查=%2$s · 已知=%3$s · 可用=%4$s · errno=%5$d</string>

@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.zying.zysu.ui.sumh.util.*
 import kotlinx.coroutines.CompletableDeferred
@@ -77,6 +78,22 @@ class SUMHDiagnosticPackageWorkflowTest {
     }
     private fun until(condition: () -> Boolean) {
         compose.waitUntil(10000) { ShadowLooper.idleMainLooper(); condition() }; compose.waitForIdle()
+    }
+
+    @Test fun activityFactorySuppliesSavedStateHandlesAndRetainsWorkflowOwners() {
+        lateinit var packages: SUMHDiagnosticPackageOperations
+        lateinit var profiles: SUMHProfileOperations
+        compose.activityRule.scenario.onActivity { activity ->
+            packages = ViewModelProvider(activity)[SUMHDiagnosticPackageOperations::class.java]
+            profiles = ViewModelProvider(activity)[SUMHProfileOperations::class.java]
+            assertFalse(packages.loaded)
+            assertFalse(profiles.loaded)
+        }
+        compose.activityRule.scenario.recreate()
+        compose.activityRule.scenario.onActivity { activity ->
+            assertSame(packages, ViewModelProvider(activity)[SUMHDiagnosticPackageOperations::class.java])
+            assertSame(profiles, ViewModelProvider(activity)[SUMHProfileOperations::class.java])
+        }
     }
     private fun idle(owner: SUMHDiagnosticPackageOperations) = until { !owner.busy }
     private fun load(owner: SUMHDiagnosticPackageOperations, service: Service, checkpoint: SUMHDiagnosticPackageCheckpoint, refresh: Boolean = true) {
@@ -170,7 +187,7 @@ class SUMHDiagnosticPackageWorkflowTest {
         val directory = File(temporary.root, "diagnostic-packages")
         val firstFile = SUMHDiagnosticPackageFile(directory) { }
         val secondFile = SUMHDiagnosticPackageFile(directory) { }
-        val first = owner(); val second = SUMHDiagnosticPackageOperations()
+        val first = owner(); val second = SUMHDiagnosticPackageOperations(SavedStateHandle())
         val firstService = Service(); val secondService = Service()
         load(first, firstService, firstFile); load(second, secondService, secondFile)
         firstService.gate = CompletableDeferred()
@@ -205,7 +222,7 @@ class SUMHDiagnosticPackageWorkflowTest {
                 return changed
             }
         }
-        val first = owner(); val second = SUMHDiagnosticPackageOperations()
+        val first = owner(); val second = SUMHDiagnosticPackageOperations(SavedStateHandle())
         val firstService = Service(); val secondService = Service().also { it.missing = true }
         load(first, firstService, paused); load(second, secondService, SUMHDiagnosticPackageFile(directory) { })
         compose.runOnIdle { assertTrue(second.recoverPending()) }; idle(second)
@@ -235,7 +252,7 @@ class SUMHDiagnosticPackageWorkflowTest {
         assertFalse(secondService.calls.any { it.startsWith("create:") })
     }
     @Test fun cancelledOwnerCannotClaimAndDoesNotLeakTheSharedPermit() {
-        val first = owner(); val second = SUMHDiagnosticPackageOperations()
+        val first = owner(); val second = SUMHDiagnosticPackageOperations(SavedStateHandle())
         val firstService = Service(); val secondService = Service(); val checkpoint = Checkpoint()
         load(first, firstService, checkpoint); load(second, secondService, checkpoint)
         compose.runOnIdle {
@@ -255,7 +272,7 @@ class SUMHDiagnosticPackageWorkflowTest {
     @Test fun cancellationDuringNativeCallRetainsHintAndPermitUntilManualRecoveryIsSafe() {
         val directory = File(temporary.root, "diagnostic-packages")
         val storage = SUMHDiagnosticPackageFile(directory) { }
-        val first = owner(); val second = SUMHDiagnosticPackageOperations()
+        val first = owner(); val second = SUMHDiagnosticPackageOperations(SavedStateHandle())
         val firstService = Service(); val secondService = Service()
         load(first, firstService, storage)
         firstService.gate = CompletableDeferred()

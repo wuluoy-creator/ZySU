@@ -10,7 +10,9 @@
     <string name="sumh_maps_import_merge">合并到已有定义</string>
     <string name="sumh_maps_import_replace">替换完整受管集合</string>
     <string name="sumh_maps_import_replace_scope">替换会移除文档中未包含的已有目标，审阅结果会列出移除项。</string>
-    <string name="sumh_maps_import_conflicts">%1$d 个目标已有不同的显示路径，请明确选择冲突处理方式。</string>
+    <plurals name="sumh_maps_import_conflicts">
+        <item quantity="other">%1$d 个目标已有不同的显示路径，请明确选择冲突处理方式。</item>
+    </plurals>
     <string name="sumh_maps_import_keep">冲突项全部保留已有路径</string>
     <string name="sumh_maps_import_use">冲突项全部使用导入路径</string>
     <string name="sumh_maps_import_review">审阅变更</string>

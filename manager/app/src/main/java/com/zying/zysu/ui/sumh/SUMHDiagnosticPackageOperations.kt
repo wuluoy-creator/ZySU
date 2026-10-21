@@ -23,7 +23,7 @@ import java.util.UUID
 private val diagnosticPackageCheckpointCoordinator = Mutex()
 
 /** Activity-owned jobs; background completion survives navigation and rotation. */
-internal class SUMHDiagnosticPackageOperations(private val savedState: SavedStateHandle = SavedStateHandle()) : ViewModel() {
+internal class SUMHDiagnosticPackageOperations(private val savedState: SavedStateHandle) : ViewModel() {
     private val restored = restoreDiagnosticPackageDraft(savedState)
     var loaded by mutableStateOf(false); private set
     var busy by mutableStateOf(false); private set

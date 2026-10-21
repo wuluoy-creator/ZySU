@@ -1,6 +1,5 @@
 package com.zying.zysu.ui.sumh
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -14,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.YukiAlertDialog
@@ -54,11 +54,11 @@ import java.io.File
     LaunchedEffect(operation.loaded, operation.busy, pendingImportUri, pendingExportUri) {
         if (operation.loaded && !operation.busy) {
             pendingImportUri?.let { value ->
-                if (operation.stage(importFingerprint) { requireNotNull(context.contentResolver.openInputStream(Uri.parse(value))) }) pendingImportUri = null
+                if (operation.stage(importFingerprint) { requireNotNull(context.contentResolver.openInputStream(value.toUri())) }) pendingImportUri = null
             }
             val token = exportToken
             if (!operation.busy && token != null) pendingExportUri?.let { value ->
-                if (operation.writeExport(token) { requireNotNull(context.contentResolver.openOutputStream(Uri.parse(value), "wt")) }) {
+                if (operation.writeExport(token) { requireNotNull(context.contentResolver.openOutputStream(value.toUri(), "wt")) }) {
                     pendingExportUri = null; exportToken = null
                 }
             }

@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">ไม่พบความขัดแย้งในการเมานต์</string>
     <string name="sumh_overlay_xattr">ซ่อนแอตทริบิวต์ส่วนขยายของ OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">ซ่อนเครื่องหมาย OverlayFS ในมุมมองเสมือน</string>
-    <string name="sumh_retry_apply">ลองใช้อีกครั้ง</string>
     <string name="sumh_rule_save">ใช้การแก้ไข</string>
     <string name="sumh_rule_user">กฎของผู้ใช้</string>
     <string name="sumh_saved_applied">บันทึกและใช้กับเคอร์เนลแล้ว</string>

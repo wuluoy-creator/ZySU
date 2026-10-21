@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -129,6 +130,7 @@ internal class HideDefinitionOperations : ViewModel() {
     change: HideDefinitionChange = SUMHManager::changeHideDefinition,
     operation: HideDefinitionOperations = viewModel(), tracker: SUMHOperationTracker? = null) {
     val context = LocalContext.current
+    val clipboardLabel = stringResource(R.string.sumh_user_hide_title)
     val drafts = rememberSUMHEditorDrafts()
     var transferring by remember { mutableStateOf(false) }
     val sample = operation.sample
@@ -172,7 +174,7 @@ internal class HideDefinitionOperations : ViewModel() {
     }
     fun copy(rows: List<HideDefinition>) {
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(
-            ClipData.newPlainText(context.getString(R.string.sumh_user_hide_title), rows.joinToString("\n") { it.path }))
+            ClipData.newPlainText(clipboardLabel, rows.joinToString("\n") { it.path }))
     }
     Column(Modifier.fillMaxSize()) {
         if (tracker != null) SUMHOperationHistory(tracker, !operation.working && !transferring)
@@ -267,7 +269,7 @@ internal class HideDefinitionOperations : ViewModel() {
     groupAction?.let { reviewed ->
         val members = reviewed.sample.rows.filter { it.id in reviewed.ids }
         YukiAlertDialog(onDismissRequest = { groupAction = null }, title = { Text(stringResource(hideActionLabel(reviewed.action))) },
-            text = { Column { Text(stringResource(R.string.sumh_definitions_group_scope, members.size));
+            text = { Column { Text(pluralStringResource(R.plurals.sumh_definitions_group_scope, members.size, members.size));
                 if (!reviewed.isCurrent(sample)) Text(stringResource(R.string.sumh_definitions_confirmation_changed), color = MaterialTheme.colorScheme.error)
                 LazyColumn(Modifier.heightIn(max = 280.dp)) { items(members, key = { it.id }) { Text(it.path) } } } },
             confirmButton = { TextButton(enabled = canRuntime && reviewed.isCurrent(sample) && members.isNotEmpty(), onClick = {

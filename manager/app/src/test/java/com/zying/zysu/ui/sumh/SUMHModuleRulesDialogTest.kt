@@ -20,6 +20,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowLooper
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -31,7 +32,14 @@ class SUMHModuleRulesDialogTest {
     @After fun resetFontScale() { RuntimeEnvironment.setFontScale(1f) }
     private fun text(id: Int) = compose.activity.getString(id)
     private fun pathField() = compose.onNode(hasSetTextAction() and hasText(text(R.string.sumh_absolute_path)))
-    private fun expand() = compose.onNodeWithText(text(R.string.sumh_module_rules_title)).performScrollTo().performClick()
+    private fun expand() {
+        val drafts = SUMHEditorDrafts.forDirectory(File(compose.activity.noBackupFilesDir, "sumh-drafts"))
+        // Loading and the initial draft's LaunchedEffect must both finish before
+        // the expansion control accepts a click. Drive the real IO continuation.
+        compose.waitUntil(5000) { ShadowLooper.idleMainLooper(); drafts.loaded && "module:module" in drafts.snapshot }
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.sumh_module_rules_title)).performScrollTo().assertIsEnabled().performClick()
+    }
     private fun confirm() = compose.onNodeWithText(text(android.R.string.ok))
 
     @Test fun failedSaveRetainsLiteralHideDraftAcrossStateRestoration() {

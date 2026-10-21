@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">マウントの競合はありません</string>
     <string name="sumh_overlay_xattr">OverlayFS の拡張属性を隠す</string>
     <string name="sumh_overlay_xattr_desc">仮想ビューで OverlayFS マーカーを隠す</string>
-    <string name="sumh_retry_apply">適用を再試行</string>
     <string name="sumh_rule_save">編集を適用</string>
     <string name="sumh_rule_user">ユーザーのルール</string>
     <string name="sumh_saved_applied">保存してカーネルに適用しました</string>

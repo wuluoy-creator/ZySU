@@ -30,6 +30,8 @@ int main(int argc, char** argv) {
         std::cout << "SKIP: kernel/security policy lacks pidfd transport support\n";
         return 0;
     }
+    if (!observed.at("ok").b)
+        std::cerr << "Initial POSIX preview response: " << json::dump(observed) << '\n';
     assert(observed.at("ok").b);
     assert(json::parse(observed.at("stdout").s).at("unicode").s == "预览");
     setenv("SUMH_TEST_TIMEOUT", "1", 1);

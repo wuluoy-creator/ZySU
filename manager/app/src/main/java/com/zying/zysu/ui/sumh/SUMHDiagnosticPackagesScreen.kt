@@ -17,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -259,7 +260,7 @@ internal fun SUMHDiagnosticPackagesContent(
 @Composable private fun PackageMetadata(item: SUMHDiagnosticPackageItem) {
     SelectionContainer { Text(item.id, fontFamily = FontFamily.Monospace) }
     SUMHDiagnosticScenario.entries.firstOrNull { it.wireName == item.scenario }?.let { Text(stringResource(it.label()), style = MaterialTheme.typography.labelLarge) }
-    Text(stringResource(R.string.sumh_packages_metadata,
+    Text(pluralStringResource(R.plurals.sumh_packages_metadata, item.byteCount,
         stringResource(if (item.privacyPolicy == "redacted") R.string.sumh_packages_policy_redacted else R.string.sumh_packages_policy_identifiers),
         stringResource(diagnosticStatusLabel(item.diagnosticStatus)), item.byteCount), style = MaterialTheme.typography.bodyMedium)
 }

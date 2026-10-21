@@ -136,7 +136,7 @@ internal fun ModulePage(navigator: DestinationsNavigator) {
     val snackBarHost = rememberSnackbarController()
     val scope = rememberCoroutineScope()
     val confirmDialog = rememberConfirmDialog()
-    var lastClickTime by remember { mutableStateOf(0L) }
+    var lastClickTime by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         viewModel.initializeCache(context)

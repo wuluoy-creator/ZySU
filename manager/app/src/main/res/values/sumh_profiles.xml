@@ -1,102 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="sumh_profiles_title">Configuration profiles</string>
-    <string name="sumh_profiles_intro">Save and compare settings, modules, user hiding and managed Maps. Profiles remain inactive and do not back up module files.</string>
-    <string name="sumh_profiles_load">Read profile library</string>
-    <string name="sumh_profiles_idle">Read the library to view available profiles.</string>
-    <string name="sumh_profiles_loading">Working…</string>
-    <string name="sumh_profiles_unsupported">This controller does not support the Manager profile workflow.</string>
-    <string name="sumh_profiles_unknown">Profile support could not be confirmed. Read the library again.</string>
-    <string name="sumh_profiles_stale">Showing the previous read. The current library state is unknown.</string>
-    <string name="sumh_profiles_failure">Could not complete this step: %1$s</string>
-    <string name="sumh_profiles_library">Saved profiles</string>
-    <string name="sumh_profiles_empty">No profiles have been saved.</string>
-    <string name="sumh_profiles_count">%1$d of 16 profile slots used</string>
-    <string name="sumh_profiles_inactive">Inactive profile</string>
-    <string name="sumh_profiles_id">Profile ID</string>
-    <string name="sumh_profiles_revision">Profile revision</string>
-    <string name="sumh_profiles_bank_revision">Library revision</string>
-    <string name="sumh_profiles_open">Open profile</string>
-    <string name="sumh_profiles_details">Profile details</string>
-    <string name="sumh_profiles_show_details">Show saved content</string>
-    <string name="sumh_profiles_hide_details">Hide saved content</string>
-    <string name="sumh_profiles_name">Name</string>
-    <string name="sumh_profiles_name_hint">Required; up to 128 UTF-8 bytes.</string>
-    <string name="sumh_profiles_note">Note</string>
-    <string name="sumh_profiles_note_hint">Optional; up to 1024 UTF-8 bytes.</string>
-    <string name="sumh_profiles_id_hint">A stable identity, separate from the display name.</string>
-    <string name="sumh_profiles_capture_title">Save current configuration</string>
-    <string name="sumh_profiles_capture">Save as inactive profile</string>
-    <string name="sumh_profiles_capture_scope">Captures all four resources from saved configuration. This does not verify the running state.</string>
-    <string name="sumh_profiles_import_title">Import a profile</string>
-    <string name="sumh_profiles_choose_file">Choose JSON file</string>
-    <string name="sumh_profiles_import_hint">Select a complete profile document, up to 8 MiB. Import keeps its configured enabled values without activating the profile.</string>
-    <string name="sumh_profiles_import_ready">Imported document ready for comparison</string>
-    <string name="sumh_profiles_import_preview">Preview imported configuration</string>
-    <string name="sumh_profiles_import">Save imported profile</string>
-    <string name="sumh_profiles_discard_import">Discard imported draft</string>
-    <string name="sumh_profiles_import_replace_title">Replace the imported draft?</string>
-    <string name="sumh_profiles_import_replace_body">Choosing another file replaces this draft after the new file is read successfully.</string>
-    <string name="sumh_profiles_compare_title">Compare with saved configuration</string>
-    <string name="sumh_profiles_compare_scope">Select resources to compare. This does not change the resources saved by capture or import.</string>
-    <string name="sumh_profiles_settings">Settings</string>
-    <string name="sumh_profiles_modules">Modules</string>
-    <string name="sumh_profiles_user_hide">User hiding</string>
-    <string name="sumh_profiles_maps">Managed Maps</string>
-    <string name="sumh_profiles_compare">Compare selected resources</string>
-    <string name="sumh_profiles_select_resource">Select at least one resource.</string>
-    <string name="sumh_profiles_diff_title">Configuration differences</string>
-    <string name="sumh_profiles_diff_scope">This compares saved definitions only. Module availability, kernel capabilities, ownership and running state have not been evaluated. Activation and restoration are unavailable.</string>
-    <string name="sumh_profiles_preview_stale">The selection or draft changed. Run the comparison again.</string>
-    <string name="sumh_profiles_before">Current saved configuration</string>
-    <string name="sumh_profiles_after">Profile configuration</string>
-    <string name="sumh_profiles_added">Added</string>
-    <string name="sumh_profiles_removed">Removed</string>
-    <string name="sumh_profiles_changed">Changed</string>
-    <string name="sumh_profiles_unchanged">Unchanged: %1$d</string>
-    <string name="sumh_profiles_no_changes">No configuration differences in the selected resources.</string>
-    <string name="sumh_profiles_conflicts">Identity conflicts</string>
-    <string name="sumh_profiles_clone">Duplicate</string>
-    <string name="sumh_profiles_rename">Edit name and note</string>
-    <string name="sumh_profiles_remove">Delete profile</string>
-    <string name="sumh_profiles_export">Export JSON</string>
-    <string name="sumh_profiles_export_hint">Exports the complete selected profile as an inactive configuration document.</string>
-    <string name="sumh_profiles_frozen_export">Prepared export copy</string>
-    <string name="sumh_profiles_frozen_export_hint">Save this exact prepared document again. Its ID and revision are shown below; selecting another profile does not change this copy.</string>
-    <string name="sumh_profiles_retry_export">Save prepared copy</string>
-    <string name="sumh_profiles_confirm_capture">Save this inactive profile?</string>
-    <string name="sumh_profiles_confirm_import">Save the imported profile?</string>
-    <string name="sumh_profiles_confirm_clone">Duplicate this profile?</string>
-    <string name="sumh_profiles_confirm_rename">Save the new name and note?</string>
-    <string name="sumh_profiles_confirm_remove">Delete this profile?</string>
-    <string name="sumh_profiles_save_scope">Only the profile library changes. Current settings, mounts, hiding and Maps remain as they are.</string>
-    <string name="sumh_profiles_remove_scope">Deletes only this library entry. It does not undo the current configuration or kernel rules. Export first if you need a copy.</string>
-    <string name="sumh_profiles_confirm">Confirm</string>
-    <string name="sumh_profiles_cancel">Cancel</string>
-    <string name="sumh_profiles_pending_title">Previous request needs review</string>
-    <string name="sumh_profiles_pending_scope">The request will not be repeated. Query the current library to see whether the target exists and what it contains; this does not prove the outcome of the previous request.</string>
-    <string name="sumh_profiles_observe">Query current target state</string>
-    <string name="sumh_profiles_acknowledge">Acknowledge this observation</string>
-    <string name="sumh_profiles_observation">Current observation</string>
-    <string name="sumh_profiles_result">Last response</string>
-    <string name="sumh_profiles_saved">The inactive profile library was updated.</string>
-    <string name="sumh_profiles_not_saved">The profile was not saved.</string>
-    <string name="sumh_profiles_result_unknown">The result is unknown. Query the current target before starting another change.</string>
-    <string name="sumh_profiles_export_saved">JSON file saved.</string>
-    <string name="sumh_profiles_export_failed">Could not save the JSON file. The profile remains available.</string>
-    <string name="sumh_profiles_export_lost">The file picker session was lost. Save the prepared copy again after it loads.</string>
-    <string name="sumh_profiles_bytes">%1$d bytes</string>
-    <string name="sumh_profiles_expand">Show details</string>
-    <string name="sumh_profiles_collapse">Hide details</string>
-    <string name="sumh_profiles_new_id">Generate a new ID</string>
-    <string name="sumh_profiles_import_metadata">The name and note from the imported file are preserved.</string>
-    <string name="sumh_profiles_observed_present">The target currently exists. This is a current observation, not a receipt for the earlier request.</string>
-    <string name="sumh_profiles_observed_missing">The target is currently absent. This does not prove the earlier deletion succeeded.</string>
-    <string name="sumh_profiles_form_invalid">Check the ID, name and note: %1$s</string>
-    <string name="sumh_profiles_status_detail">%1$s · %2$s</string>
-    <string name="sumh_profiles_ready">Library read. Refresh explicitly to check for changes.</string>
-    <string name="sumh_profiles_discard_scope">Only the imported draft is removed from this app. The profile library and current configuration do not change.</string>
-    <string name="sumh_profiles_reload_draft">Reload stored draft</string>
-    <string name="sumh_profiles_draft_reload_hint">The stored draft could not be confirmed. Your displayed draft is retained. Reload it before making further draft changes.</string>
-    <string name="sumh_profiles_draft_reload_scope">Read this app’s stored draft and replace the displayed imported document and comparison resource selection. Failed reads keep the displayed draft. This does not query or change the profile library or current configuration.</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These SUMH strings currently support English and Simplified Chinese; other incomplete locales use Android English fallback. -->
+    <string name="sumh_profiles_title" tools:ignore="MissingTranslation">Configuration profiles</string>
+    <string name="sumh_profiles_intro" tools:ignore="MissingTranslation">Save and compare settings, modules, user hiding and managed Maps. Profiles remain inactive and do not back up module files.</string>
+    <string name="sumh_profiles_load" tools:ignore="MissingTranslation">Read profile library</string>
+    <string name="sumh_profiles_idle" tools:ignore="MissingTranslation">Read the library to view available profiles.</string>
+    <string name="sumh_profiles_loading" tools:ignore="MissingTranslation">Working…</string>
+    <string name="sumh_profiles_unsupported" tools:ignore="MissingTranslation">This controller does not support the Manager profile workflow.</string>
+    <string name="sumh_profiles_unknown" tools:ignore="MissingTranslation">Profile support could not be confirmed. Read the library again.</string>
+    <string name="sumh_profiles_stale" tools:ignore="MissingTranslation">Showing the previous read. The current library state is unknown.</string>
+    <string name="sumh_profiles_failure" tools:ignore="MissingTranslation">Could not complete this step: %1$s</string>
+    <string name="sumh_profiles_library" tools:ignore="MissingTranslation">Saved profiles</string>
+    <string name="sumh_profiles_empty" tools:ignore="MissingTranslation">No profiles have been saved.</string>
+    <string name="sumh_profiles_count" tools:ignore="MissingTranslation">%1$d of 16 profile slots used</string>
+    <string name="sumh_profiles_inactive" tools:ignore="MissingTranslation">Inactive profile</string>
+    <string name="sumh_profiles_id" tools:ignore="MissingTranslation">Profile ID</string>
+    <string name="sumh_profiles_revision" tools:ignore="MissingTranslation">Profile revision</string>
+    <string name="sumh_profiles_open" tools:ignore="MissingTranslation">Open profile</string>
+    <string name="sumh_profiles_details" tools:ignore="MissingTranslation">Profile details</string>
+    <string name="sumh_profiles_show_details" tools:ignore="MissingTranslation">Show saved content</string>
+    <string name="sumh_profiles_hide_details" tools:ignore="MissingTranslation">Hide saved content</string>
+    <string name="sumh_profiles_name" tools:ignore="MissingTranslation">Name</string>
+    <string name="sumh_profiles_name_hint" tools:ignore="MissingTranslation">Required; up to 128 UTF-8 bytes.</string>
+    <string name="sumh_profiles_note" tools:ignore="MissingTranslation">Note</string>
+    <string name="sumh_profiles_note_hint" tools:ignore="MissingTranslation">Optional; up to 1024 UTF-8 bytes.</string>
+    <string name="sumh_profiles_id_hint" tools:ignore="MissingTranslation">A stable identity, separate from the display name.</string>
+    <string name="sumh_profiles_capture_title" tools:ignore="MissingTranslation">Save current configuration</string>
+    <string name="sumh_profiles_capture" tools:ignore="MissingTranslation">Save as inactive profile</string>
+    <string name="sumh_profiles_capture_scope" tools:ignore="MissingTranslation">Captures all four resources from saved configuration. This does not verify the running state.</string>
+    <string name="sumh_profiles_import_title" tools:ignore="MissingTranslation">Import a profile</string>
+    <string name="sumh_profiles_choose_file" tools:ignore="MissingTranslation">Choose JSON file</string>
+    <string name="sumh_profiles_import_hint" tools:ignore="MissingTranslation">Select a complete profile document, up to 8 MiB. Import keeps its configured enabled values without activating the profile.</string>
+    <string name="sumh_profiles_import_ready" tools:ignore="MissingTranslation">Imported document ready for comparison</string>
+    <string name="sumh_profiles_import_preview" tools:ignore="MissingTranslation">Preview imported configuration</string>
+    <string name="sumh_profiles_import" tools:ignore="MissingTranslation">Save imported profile</string>
+    <string name="sumh_profiles_discard_import" tools:ignore="MissingTranslation">Discard imported draft</string>
+    <string name="sumh_profiles_import_replace_title" tools:ignore="MissingTranslation">Replace the imported draft?</string>
+    <string name="sumh_profiles_import_replace_body" tools:ignore="MissingTranslation">Choosing another file replaces this draft after the new file is read successfully.</string>
+    <string name="sumh_profiles_compare_title" tools:ignore="MissingTranslation">Compare with saved configuration</string>
+    <string name="sumh_profiles_compare_scope" tools:ignore="MissingTranslation">Select resources to compare. This does not change the resources saved by capture or import.</string>
+    <string name="sumh_profiles_settings" tools:ignore="MissingTranslation">Settings</string>
+    <string name="sumh_profiles_modules" tools:ignore="MissingTranslation">Modules</string>
+    <string name="sumh_profiles_user_hide" tools:ignore="MissingTranslation">User hiding</string>
+    <string name="sumh_profiles_maps" tools:ignore="MissingTranslation">Managed Maps</string>
+    <string name="sumh_profiles_compare" tools:ignore="MissingTranslation">Compare selected resources</string>
+    <string name="sumh_profiles_select_resource" tools:ignore="MissingTranslation">Select at least one resource.</string>
+    <string name="sumh_profiles_diff_title" tools:ignore="MissingTranslation">Configuration differences</string>
+    <string name="sumh_profiles_diff_scope" tools:ignore="MissingTranslation">This compares saved definitions only. Module availability, kernel capabilities, ownership and running state have not been evaluated. Activation and restoration are unavailable.</string>
+    <string name="sumh_profiles_preview_stale" tools:ignore="MissingTranslation">The selection or draft changed. Run the comparison again.</string>
+    <string name="sumh_profiles_before" tools:ignore="MissingTranslation">Current saved configuration</string>
+    <string name="sumh_profiles_after" tools:ignore="MissingTranslation">Profile configuration</string>
+    <string name="sumh_profiles_added" tools:ignore="MissingTranslation">Added</string>
+    <string name="sumh_profiles_removed" tools:ignore="MissingTranslation">Removed</string>
+    <string name="sumh_profiles_changed" tools:ignore="MissingTranslation">Changed</string>
+    <string name="sumh_profiles_unchanged" tools:ignore="MissingTranslation">Unchanged: %1$d</string>
+    <string name="sumh_profiles_conflicts" tools:ignore="MissingTranslation">Identity conflicts</string>
+    <string name="sumh_profiles_clone" tools:ignore="MissingTranslation">Duplicate</string>
+    <string name="sumh_profiles_rename" tools:ignore="MissingTranslation">Edit name and note</string>
+    <string name="sumh_profiles_remove" tools:ignore="MissingTranslation">Delete profile</string>
+    <string name="sumh_profiles_export" tools:ignore="MissingTranslation">Export JSON</string>
+    <string name="sumh_profiles_export_hint" tools:ignore="MissingTranslation">Exports the complete selected profile as an inactive configuration document.</string>
+    <string name="sumh_profiles_frozen_export" tools:ignore="MissingTranslation">Prepared export copy</string>
+    <string name="sumh_profiles_frozen_export_hint" tools:ignore="MissingTranslation">Save this exact prepared document again. Its ID and revision are shown below; selecting another profile does not change this copy.</string>
+    <string name="sumh_profiles_retry_export" tools:ignore="MissingTranslation">Save prepared copy</string>
+    <string name="sumh_profiles_confirm_capture" tools:ignore="MissingTranslation">Save this inactive profile?</string>
+    <string name="sumh_profiles_confirm_import" tools:ignore="MissingTranslation">Save the imported profile?</string>
+    <string name="sumh_profiles_confirm_clone" tools:ignore="MissingTranslation">Duplicate this profile?</string>
+    <string name="sumh_profiles_confirm_rename" tools:ignore="MissingTranslation">Save the new name and note?</string>
+    <string name="sumh_profiles_confirm_remove" tools:ignore="MissingTranslation">Delete this profile?</string>
+    <string name="sumh_profiles_save_scope" tools:ignore="MissingTranslation">Only the profile library changes. Current settings, mounts, hiding and Maps remain as they are.</string>
+    <string name="sumh_profiles_remove_scope" tools:ignore="MissingTranslation">Deletes only this library entry. It does not undo the current configuration or kernel rules. Export first if you need a copy.</string>
+    <string name="sumh_profiles_confirm" tools:ignore="MissingTranslation">Confirm</string>
+    <string name="sumh_profiles_cancel" tools:ignore="MissingTranslation">Cancel</string>
+    <string name="sumh_profiles_pending_title" tools:ignore="MissingTranslation">Previous request needs review</string>
+    <string name="sumh_profiles_pending_scope" tools:ignore="MissingTranslation">The request will not be repeated. Query the current library to see whether the target exists and what it contains; this does not prove the outcome of the previous request.</string>
+    <string name="sumh_profiles_observe" tools:ignore="MissingTranslation">Query current target state</string>
+    <string name="sumh_profiles_acknowledge" tools:ignore="MissingTranslation">Acknowledge this observation</string>
+    <string name="sumh_profiles_observation" tools:ignore="MissingTranslation">Current observation</string>
+    <string name="sumh_profiles_result" tools:ignore="MissingTranslation">Last response</string>
+    <string name="sumh_profiles_saved" tools:ignore="MissingTranslation">The inactive profile library was updated.</string>
+    <string name="sumh_profiles_result_unknown" tools:ignore="MissingTranslation">The result is unknown. Query the current target before starting another change.</string>
+    <string name="sumh_profiles_export_saved" tools:ignore="MissingTranslation">JSON file saved.</string>
+    <string name="sumh_profiles_export_failed" tools:ignore="MissingTranslation">Could not save the JSON file. The profile remains available.</string>
+    <string name="sumh_profiles_expand" tools:ignore="MissingTranslation">Show details</string>
+    <string name="sumh_profiles_collapse" tools:ignore="MissingTranslation">Hide details</string>
+    <string name="sumh_profiles_new_id" tools:ignore="MissingTranslation">Generate a new ID</string>
+    <string name="sumh_profiles_import_metadata" tools:ignore="MissingTranslation">The name and note from the imported file are preserved.</string>
+    <string name="sumh_profiles_observed_present" tools:ignore="MissingTranslation">The target currently exists. This is a current observation, not a receipt for the earlier request.</string>
+    <string name="sumh_profiles_observed_missing" tools:ignore="MissingTranslation">The target is currently absent. This does not prove the earlier deletion succeeded.</string>
+    <string name="sumh_profiles_form_invalid" tools:ignore="MissingTranslation">Check the ID, name and note: %1$s</string>
+    <string name="sumh_profiles_status_detail" tools:ignore="MissingTranslation">%1$s · %2$s</string>
+    <string name="sumh_profiles_ready" tools:ignore="MissingTranslation">Library read. Refresh explicitly to check for changes.</string>
+    <string name="sumh_profiles_discard_scope" tools:ignore="MissingTranslation">Only the imported draft is removed from this app. The profile library and current configuration do not change.</string>
+    <string name="sumh_profiles_reload_draft" tools:ignore="MissingTranslation">Reload stored draft</string>
+    <string name="sumh_profiles_draft_reload_hint" tools:ignore="MissingTranslation">The stored draft could not be confirmed. Your displayed draft is retained. Reload it before making further draft changes.</string>
+    <string name="sumh_profiles_draft_reload_scope" tools:ignore="MissingTranslation">Read this app’s stored draft and replace the displayed imported document and comparison resource selection. Failed reads keep the displayed draft. This does not query or change the profile library or current configuration.</string>
 </resources>

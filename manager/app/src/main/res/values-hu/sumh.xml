@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Nincs csatolási ütközés</string>
     <string name="sumh_overlay_xattr">OverlayFS kiterjesztett attribútumok elrejtése</string>
     <string name="sumh_overlay_xattr_desc">Az OverlayFS jelöléseinek elrejtése a virtuális nézetben</string>
-    <string name="sumh_retry_apply">Alkalmazás újrapróbálása</string>
     <string name="sumh_rule_maps_spoof">Az ino/dev/pathname hamisítása a /proc/pid/maps fájlban</string>
     <string name="sumh_rule_mount_hide">Az overlay csatolások elrejtése a /proc/mounts elől</string>
     <string name="sumh_rule_save">Módosítások alkalmazása</string>

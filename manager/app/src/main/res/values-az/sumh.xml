@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Qoşma ziddiyyəti tapılmadı</string>
     <string name="sumh_overlay_xattr">OverlayFS genişləndirilmiş atributlarını gizlət</string>
     <string name="sumh_overlay_xattr_desc">Virtual görünüşdə OverlayFS işarələrini gizlədir</string>
-    <string name="sumh_retry_apply">Tətbiqi yenidən sına</string>
     <string name="sumh_rule_maps_spoof">/proc/pid/maps içində ino/dev/pathname saxtalaşdır</string>
     <string name="sumh_rule_mount_hide">Overlay bağlamalarını /proc/mounts-dan gizlət</string>
     <string name="sumh_rule_save">Dəyişiklikləri tətbiq et</string>

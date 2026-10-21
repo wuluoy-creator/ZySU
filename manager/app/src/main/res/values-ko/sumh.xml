@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">마운트 충돌이 없습니다</string>
     <string name="sumh_overlay_xattr">OverlayFS 확장 속성 숨기기</string>
     <string name="sumh_overlay_xattr_desc">가상 보기에서 OverlayFS 표시 숨기기</string>
-    <string name="sumh_retry_apply">적용 재시도</string>
     <string name="sumh_rule_save">편집 내용 적용</string>
     <string name="sumh_rule_user">사용자 규칙</string>
     <string name="sumh_saved_applied">저장하고 커널에 적용했습니다</string>

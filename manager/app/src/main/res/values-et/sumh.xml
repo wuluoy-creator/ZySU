@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Haakimiskonflikte ei leitud</string>
     <string name="sumh_overlay_xattr">Peida OverlayFS-i laiendatud atribuudid</string>
     <string name="sumh_overlay_xattr_desc">Peida OverlayFS-i märgised virtuaalvaates</string>
-    <string name="sumh_retry_apply">Proovi uuesti rakendada</string>
     <string name="sumh_rule_maps_spoof">Võltsi ino/dev/pathname failis /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Peida overlay-haakimised /proc/mounts eest</string>
     <string name="sumh_rule_save">Rakenda muudatused</string>

@@ -237,7 +237,7 @@ internal fun MapsSpoofControls(
     var sDev by rememberSaveable { mutableStateOf("0") }
     var path by rememberSaveable { mutableStateOf("") }
     var submitted by rememberSaveable { mutableStateOf(false) }
-    var editedFields by rememberSaveable { mutableStateOf(0) }
+    var editedFields by rememberSaveable { mutableIntStateOf(0) }
     var draftLimit by remember { mutableStateOf(false) }
 
     if (showClearConfirm) {

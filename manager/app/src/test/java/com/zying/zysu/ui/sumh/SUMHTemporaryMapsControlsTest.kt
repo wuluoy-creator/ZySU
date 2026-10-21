@@ -92,7 +92,7 @@ class SUMHTemporaryMapsControlsTest {
         val owner = SUMHTemporaryMapsOperations(SavedStateHandle()); val service = SUMHTemporaryMapsUiFixtures.Service()
         service.pageReader = { SUMHTemporaryMapsUiFixtures.page(end = false) }
         show(owner, service); load(owner, service)
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_temporary_maps_partial, 1)).assertExists()
+        compose.onNodeWithText(compose.activity.resources.getQuantityString(R.plurals.sumh_temporary_maps_partial, 1, 1)).assertExists()
         assertTrue(service.removes.isEmpty())
         go("temporary-maps-select:18446744073709551615:0").performClick()
         compose.onNodeWithTag("temporary-maps-remove").assertIsEnabled()

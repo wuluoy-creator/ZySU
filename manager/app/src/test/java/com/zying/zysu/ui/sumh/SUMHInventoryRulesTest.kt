@@ -133,7 +133,7 @@ class SUMHInventoryRulesTest {
         compose.onNodeWithTag("inventory_list").performScrollToNode(hasTestTag("inventory_inject:1"))
         compose.onNodeWithTag("inventory_inject:1").performClick()
         compose.onNode(hasText("2fff80") and hasAnyAncestor(isDialog())).assertExists()
-        compose.onNode(hasText(compose.activity.getString(R.string.sumh_inventory_hex, 3)) and hasAnyAncestor(isDialog())).assertExists()
+        compose.onNode(hasText(compose.activity.resources.getQuantityString(R.plurals.sumh_inventory_hex, 3, 3)) and hasAnyAncestor(isDialog())).assertExists()
         compose.onNodeWithText(text(R.string.sumh_inventory_copy_utf8)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.sumh_inventory_copy_hex)).performScrollTo().performClick()
         assertEquals("2fff80", clipboard())

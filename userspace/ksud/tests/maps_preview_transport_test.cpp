@@ -126,6 +126,8 @@ int spawn_count, ack_count, wait_count, clock_count, receives;
 int spawn_error, socket_error, duplicate_error, action_error, recv_error, send_error;
 int wait_error, pidfd_error, child_status, clock_error_at, sleep_error;
 int recv_interrupts, send_interrupts, wait_interrupts, socket_type, bind_error;
+int eof_flags;
+std::size_t eof_control;
 bool initial_ready, dead, blocked, no_reply, guard_bound, automatic_ack, child_mode, extra_on_exit;
 bool discovery;
 bool partition_save;
@@ -167,6 +169,8 @@ void reset() {
     spawn_error = socket_error = duplicate_error = action_error = recv_error = send_error = 0;
     wait_error = pidfd_error = child_status = clock_error_at = sleep_error = 0;
     recv_interrupts = send_interrupts = wait_interrupts = bind_error = 0;
+    eof_flags = 0;
+    eof_control = 0;
     initial_ready = automatic_ack = true;
     dead = blocked = no_reply = guard_bound = child_mode = extra_on_exit = false;
     discovery = false;
@@ -456,6 +460,8 @@ int sendmsg(int socket, const msghdr* message, int flags) {
 }
 int recvmsg(int, msghdr* message, int flags) {
     assert(flags == (MSG_DONTWAIT | MSG_CMSG_CLOEXEC));
+    // Linux echoes this input flag in msg_flags, including a zero-byte EOF.
+    message->msg_flags = flags & MSG_CMSG_CLOEXEC;
     ++receives;
     if (recv_interrupts) {
         --recv_interrupts;
@@ -467,7 +473,8 @@ int recvmsg(int, msghdr* message, int flags) {
         return -1;
     }
     if (incoming.empty()) {
-        message->msg_controllen = 0;
+        message->msg_controllen = eof_control;
+        message->msg_flags |= eof_flags;
         if (dead)
             return 0;
         errno = EAGAIN;
@@ -481,7 +488,7 @@ int recvmsg(int, msghdr* message, int flags) {
     std::memcpy(message->msg_iov->iov_base, header, sizeof(header));
     std::memcpy(static_cast<char*>(message->msg_iov->iov_base) + sizeof(header), wire.body.data(),
                 std::min(wire.body.size(), message->msg_iov->iov_len - sizeof(header)));
-    message->msg_flags = wire.flags;
+    message->msg_flags |= wire.flags;
     if (wire.fd >= 0) {
         auto* control = static_cast<cmsghdr*>(message->msg_control);
         control->cmsg_len = CMSG_LEN(sizeof(int) * (wire.second_fd >= 0 ? 2 : 1));
@@ -586,6 +593,23 @@ int main() {
     reset();
     expect(0);
     assert(model::spawn_count == 1 && model::ack_count == 1 && !api::pending.active);
+    // Ignore only the echoed CLOEXEC bit: truncated/unknown EOF flags still reject.
+    for (const int flags : {0, MSG_TRUNC, MSG_CTRUNC, 1 << 20}) {
+        reset();
+        model::dead = true;
+        model::eof_flags = flags;
+        api::Frame frame;
+        int descriptor = -1;
+        assert(api::receive(10, frame, descriptor) == (flags ? -1 : -2));
+        assert(descriptor == -1 && (!flags || errno == EPROTO));
+    }
+    reset();
+    model::dead = true;
+    model::eof_control = CMSG_SPACE(0);
+    api::Frame malformed_eof;
+    int eof_descriptor = -1;
+    assert(api::receive(10, malformed_eof, eof_descriptor) == -1);
+    assert(eof_descriptor == -1 && errno == EPROTO);
     reset();
     model::discovery = true;
     assert(json::parse(api::request("/ksud", 80, api::Service::PartitionDiscovery)).at("ok").b);

@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Prijungimo konfliktų nerasta</string>
     <string name="sumh_overlay_xattr">Slėpti išplėstinius OverlayFS atributus</string>
     <string name="sumh_overlay_xattr_desc">Slėpti OverlayFS žymenis virtualiajame rodinyje</string>
-    <string name="sumh_retry_apply">Bandyti pritaikyti dar kartą</string>
     <string name="sumh_rule_maps_spoof">Klastoti ino/dev/pathname faile /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Slėpti overlay prijungimus nuo /proc/mounts</string>
     <string name="sumh_rule_save">Pritaikyti pakeitimus</string>

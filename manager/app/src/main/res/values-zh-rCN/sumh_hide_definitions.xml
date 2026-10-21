@@ -16,7 +16,9 @@
     <string name="sumh_definitions_disable_group">停用整组</string>
     <string name="sumh_definitions_incomplete">定义尚未完整核对。请刷新后再修改，保留显示的条目可能已过期。</string>
     <string name="sumh_definitions_no_managed">受管所有权不可用或未知。仍可编辑名称、备注和分组，运行变更暂不可用。</string>
-    <string name="sumh_definitions_group_scope">将修改此精确分组的全部 %1$d 条定义，包括被搜索或筛选隐藏的条目。各条运行变更可能部分失败。</string>
+    <plurals name="sumh_definitions_group_scope">
+        <item quantity="other">将修改此精确分组的全部 %1$d 条定义，包括被搜索或筛选隐藏的条目。各条运行变更可能部分失败。</item>
+    </plurals>
     <string name="sumh_definitions_bound">已注册 · 已绑定</string>
     <string name="sumh_definitions_pending">已注册 · 等待绑定</string>
     <string name="sumh_definitions_binding_error">已注册 · 绑定错误</string>

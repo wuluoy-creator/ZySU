@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Нису пронађени сукоби монтирања</string>
     <string name="sumh_overlay_xattr">Сакриј проширене атрибуте OverlayFS-а</string>
     <string name="sumh_overlay_xattr_desc">Скрива ознаке OverlayFS-а у виртуалном приказу</string>
-    <string name="sumh_retry_apply">Понови примену</string>
     <string name="sumh_rule_maps_spoof">Спооф /proc/pid/maps ино/dev/pathname</string>
     <string name="sumh_rule_mount_hide">Сакриј преклопне носаче из /proc/mounts</string>
     <string name="sumh_rule_save">Примени измене</string>

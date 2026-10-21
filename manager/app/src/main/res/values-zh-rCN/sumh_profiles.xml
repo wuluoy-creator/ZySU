@@ -15,7 +15,6 @@
     <string name="sumh_profiles_inactive">未启用方案</string>
     <string name="sumh_profiles_id">方案 ID</string>
     <string name="sumh_profiles_revision">方案版本标识</string>
-    <string name="sumh_profiles_bank_revision">方案库版本标识</string>
     <string name="sumh_profiles_open">查看方案</string>
     <string name="sumh_profiles_details">方案详情</string>
     <string name="sumh_profiles_show_details">显示保存内容</string>
@@ -54,7 +53,6 @@
     <string name="sumh_profiles_removed">移除</string>
     <string name="sumh_profiles_changed">变更</string>
     <string name="sumh_profiles_unchanged">未变更：%1$d</string>
-    <string name="sumh_profiles_no_changes">所选资源没有配置差异。</string>
     <string name="sumh_profiles_conflicts">身份冲突</string>
     <string name="sumh_profiles_clone">复制方案</string>
     <string name="sumh_profiles_rename">修改名称与备注</string>
@@ -80,12 +78,9 @@
     <string name="sumh_profiles_observation">当前观察</string>
     <string name="sumh_profiles_result">最近一次响应</string>
     <string name="sumh_profiles_saved">未启用方案库已更新。</string>
-    <string name="sumh_profiles_not_saved">方案未保存。</string>
     <string name="sumh_profiles_result_unknown">结果未知，请查询目标当前状态后再开始其他变更。</string>
     <string name="sumh_profiles_export_saved">JSON 文件已保存。</string>
     <string name="sumh_profiles_export_failed">未能保存 JSON 文件，方案仍保留。</string>
-    <string name="sumh_profiles_export_lost">文件选择会话已丢失，请在副本加载后再次保存。</string>
-    <string name="sumh_profiles_bytes">%1$d 字节</string>
     <string name="sumh_profiles_expand">显示详情</string>
     <string name="sumh_profiles_collapse">收起详情</string>
     <string name="sumh_profiles_new_id">生成新 ID</string>

@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">মাউন্টের কোনো দ্বন্দ্ব পাওয়া যায়নি</string>
     <string name="sumh_overlay_xattr">OverlayFS-এর বর্ধিত অ্যাট্রিবিউট লুকান</string>
     <string name="sumh_overlay_xattr_desc">ভার্চুয়াল ভিউতে OverlayFS-এর চিহ্ন লুকান</string>
-    <string name="sumh_retry_apply">আবার প্রয়োগের চেষ্টা করুন</string>
     <string name="sumh_rule_save">সম্পাদনা প্রয়োগ করুন</string>
     <string name="sumh_rule_user">ব্যবহারকারীর নিয়ম</string>
     <string name="sumh_saved_applied">সংরক্ষণ করে কার্নেলে প্রয়োগ করা হয়েছে</string>

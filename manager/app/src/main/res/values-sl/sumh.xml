@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Ni sporov pri priklopih</string>
     <string name="sumh_overlay_xattr">Skrij razširjene atribute OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Skrij oznake OverlayFS v navideznem pogledu</string>
-    <string name="sumh_retry_apply">Znova poskusi uporabiti</string>
     <string name="sumh_rule_maps_spoof">Ponaredi ino/dev/pathname v /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Skrij priklope overlay iz /proc/mounts</string>
     <string name="sumh_rule_save">Uporabi spremembe</string>

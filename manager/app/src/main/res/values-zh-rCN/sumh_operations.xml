@@ -3,7 +3,6 @@
     <string name="sumh_saved_configuration">配置已保存</string>
     <string name="sumh_saved_runtime_pending">已保存。SUMH 暂不可用，请在内核可用后应用这些设置。</string>
     <string name="sumh_saved_applied_reboot">已保存并应用到内核，挂载设置将在重启后生效。</string>
-    <string name="sumh_runtime_apply_pending">保存的设置尚待应用到内核，请在 SUMH 可用后重试。</string>
     <string name="sumh_operations_title">操作历史（%1$d）</string>
     <string name="sumh_operations_storage_error">无法确认操作跟踪记录。请打开历史查看错误，再决定是否重新提交。</string>
     <string name="sumh_operations_hint">修改前先登记操作 ID。恢复只查询该 ID，不会重新提交修改或继续批量队列。本地最多保留 16 条记录；容量满时可替换已收到成功结果的记录，未确定的记录需要手动处理。执行操作需要 SUMHP 服务已经运行。</string>

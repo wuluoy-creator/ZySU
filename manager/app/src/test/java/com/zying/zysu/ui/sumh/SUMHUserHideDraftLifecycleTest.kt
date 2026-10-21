@@ -81,7 +81,9 @@ class SUMHUserHideDraftLifecycleTest {
             drafts = operation.drafts(directory)
             UserHideRulesScreen(true, rememberSnackbarController(), {}, true, loadRules = { emptyList() })
         } }
-        compose.waitUntil(5000) { drafts.loaded }
+        // The process-owned store resumes real IO on Android's main looper,
+        // outside the Compose test clock used by rememberCoroutineScope.
+        compose.waitUntil(5000) { ShadowLooper.idleMainLooper(); drafts.loaded }
         compose.runOnIdle {
             repeat(200) { assertTrue(drafts.update("/data/$it", "/" + "x".repeat(4000))) }
             assertTrue(drafts.finishBulk("/data/retry ", listOf("/data/retry ")))

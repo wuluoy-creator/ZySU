@@ -13,8 +13,12 @@
     <string name="sumh_temporary_maps_supported">支持</string>
     <string name="sumh_temporary_maps_not_supported">不支持</string>
     <string name="sumh_temporary_maps_not_known">尚不明确</string>
-    <string name="sumh_temporary_maps_complete">已读取全部 %1$d 条临时规则</string>
-    <string name="sumh_temporary_maps_partial">已读取 %1$d 条临时规则 · 列表未完整</string>
+    <plurals name="sumh_temporary_maps_complete">
+        <item quantity="other">已读取全部 %1$d 条临时规则</item>
+    </plurals>
+    <plurals name="sumh_temporary_maps_partial">
+        <item quantity="other">已读取 %1$d 条临时规则 · 列表未完整</item>
+    </plurals>
     <string name="sumh_temporary_maps_empty">本次查询时没有已登记的临时规则。</string>
     <string name="sumh_temporary_maps_reading">正在读取支持情况和第一页…</string>
     <string name="sumh_temporary_maps_reading_next">正在读取下一页…</string>

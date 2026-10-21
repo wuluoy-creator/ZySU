@@ -20,6 +20,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowLooper
 import java.io.File
 import kotlin.test.*
 
@@ -30,7 +31,13 @@ class SUMHPartitionsDialogTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     @After fun resetFontScale() { RuntimeEnvironment.setFontScale(1f) }
     private val f = SUMHPartitionsFixtures
-    private fun discover() = compose.onNodeWithTag("partitions_discover").performScrollTo().performClick()
+    private fun discover() {
+        // Draft storage runs on IO; Compose idleness alone does not finish its
+        // Android Handler continuation or make the discovery action available.
+        compose.waitUntil(5000) { ShadowLooper.idleMainLooper(); drafts().loaded }
+        compose.waitForIdle()
+        compose.onNodeWithTag("partitions_discover").performScrollTo().assertIsEnabled().performClick()
+    }
     private fun select(name: String = "extra") = compose.onNodeWithTag("partition_$name").performScrollTo().performClick()
     private fun review() = compose.onNodeWithTag("partitions_review").performScrollTo().performClick()
     private fun save() = compose.onNodeWithTag("partitions_save")

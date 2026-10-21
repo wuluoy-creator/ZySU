@@ -1,43 +1,50 @@
-<resources>
-    <string name="sumh_inventory_title">Registered runtime definitions</string>
-    <string name="sumh_inventory_not_loaded">Not loaded. Read the collection explicitly when needed.</string>
-    <string name="sumh_inventory_loading">Reading a consistent collection…</string>
-    <string name="sumh_inventory_cancelling">Cancellation requested. Waiting for the current controller request to return; no further pages will be requested.</string>
-    <string name="sumh_inventory_complete">The supported categories understood by this Manager were read completely and verified at the end of the scan.</string>
-    <string name="sumh_inventory_partial">Partial collection. Do not treat these records as the complete current set.</string>
-    <string name="sumh_inventory_cancelled">Read cancelled. Any displayed records are incomplete.</string>
-    <string name="sumh_inventory_stale">The kernel collection changed during the read. Displayed records are stale and incomplete.</string>
-    <string name="sumh_inventory_unsupported">Structured inventory is not supported by this controller or kernel. An empty fallback is not proof of an empty collection.</string>
-    <string name="sumh_inventory_unavailable">The structured collection cannot currently be read.</string>
-    <string name="sumh_inventory_failed">The read failed or returned invalid data. Displayed records are incomplete.</string>
-    <string name="sumh_inventory_scope">Registered definitions only. This does not verify file contents, binding health, application visibility, module ownership or the winning backend. Unsupported categories remain unknown.</string>
-    <string name="sumh_inventory_budget">Manual read limit: 1,024 records, 4 MiB of responses and 30 seconds. Cancellation and time limits are checked between controller requests; an in-flight request may take longer.</string>
-    <string name="sumh_inventory_progress">Read %1$d records · %2$d requests · %3$d categories reached their end</string>
-    <string name="sumh_inventory_load">Read / refresh collection</string>
-    <string name="sumh_inventory_legacy">Legacy list · incomplete</string>
-    <string name="sumh_inventory_back">Back to structured inventory</string>
-    <string name="sumh_inventory_unsupported_categories">Not supported, not confirmed empty: %1$s</string>
-    <string name="sumh_inventory_legacy_raw">Raw legacy fallback · always incomplete</string>
-    <string name="sumh_inventory_raw_limit">Preview is shortened. Copy hexadecimal bytes to retain the entire available fallback; the fallback itself is not a complete inventory.</string>
-    <string name="sumh_inventory_legacy_error">Legacy fallback could not be read (errno %1$d).</string>
-    <string name="sumh_inventory_search">Search exact text, hex bytes or runtime ID</string>
-    <string name="sumh_inventory_empty">No definitions in the completely read categories. This says nothing about unsupported categories or feature switches.</string>
-    <string name="sumh_inventory_hex">Hexadecimal bytes · %1$d bytes · no UTF-8 substitution</string>
-    <string name="sumh_inventory_utf8">UTF-8 · %1$d bytes · quoted with JSON escapes</string>
-    <string name="sumh_inventory_copy_utf8">Copy exact UTF-8 value</string>
-    <string name="sumh_inventory_copy_hex">Copy exact bytes as hex</string>
-    <string name="sumh_inventory_hide_scope">Registration only; see User hidden paths for independently sampled binding health. This is not a visibility result.</string>
-    <string name="sumh_inventory_identity_scope">These IDs belong to this runtime collection. Ordinals are page positions; no inventory ID grants deletion authority.</string>
-    <string name="sumh_inventory_storage_flag">Legacy storage_managed flag: %1$s. This does not establish managed ownership.</string>
-    <string name="sumh_inventory_legacy_hide">Legacy hidden definition</string>
-    <string name="sumh_inventory_temporary_maps">Temporary numeric Maps rule</string>
-    <string name="sumh_inventory_inject">Internal injection bookkeeping</string>
-    <string name="sumh_inventory_unattributed">Owner: unattributed; not inferred from the path</string>
-    <string name="sumh_inventory_owner_hide">Owner: user hidden-path collection</string>
-    <string name="sumh_inventory_owner_maps">Owner: managed Maps collection</string>
-    <string name="sumh_inventory_spoofed_path">Reported Maps pathname</string>
-    <string name="sumh_inventory_budget_reached">A collection limit was reached. No automatic restart was attempted.</string>
-    <string name="sumh_inventory_no_schema">The controller does not advertise this query format. The legacy list remains available.</string>
-    <string name="sumh_inventory_future_schema">Update the Manager to read the newer inventory format.</string>
-    <string name="sumh_inventory_future_categories">The kernel advertises additional categories this Manager cannot read. They were not treated as empty.</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These SUMH strings currently support English and Simplified Chinese; other incomplete locales use Android English fallback. -->
+    <string name="sumh_inventory_title" tools:ignore="MissingTranslation">Registered runtime definitions</string>
+    <string name="sumh_inventory_not_loaded" tools:ignore="MissingTranslation">Not loaded. Read the collection explicitly when needed.</string>
+    <string name="sumh_inventory_loading" tools:ignore="MissingTranslation">Reading a consistent collection…</string>
+    <string name="sumh_inventory_cancelling" tools:ignore="MissingTranslation">Cancellation requested. Waiting for the current controller request to return; no further pages will be requested.</string>
+    <string name="sumh_inventory_complete" tools:ignore="MissingTranslation">The supported categories understood by this Manager were read completely and verified at the end of the scan.</string>
+    <string name="sumh_inventory_partial" tools:ignore="MissingTranslation">Partial collection. Do not treat these records as the complete current set.</string>
+    <string name="sumh_inventory_cancelled" tools:ignore="MissingTranslation">Read cancelled. Any displayed records are incomplete.</string>
+    <string name="sumh_inventory_stale" tools:ignore="MissingTranslation">The kernel collection changed during the read. Displayed records are stale and incomplete.</string>
+    <string name="sumh_inventory_unsupported" tools:ignore="MissingTranslation">Structured inventory is not supported by this controller or kernel. An empty fallback is not proof of an empty collection.</string>
+    <string name="sumh_inventory_unavailable" tools:ignore="MissingTranslation">The structured collection cannot currently be read.</string>
+    <string name="sumh_inventory_failed" tools:ignore="MissingTranslation">The read failed or returned invalid data. Displayed records are incomplete.</string>
+    <string name="sumh_inventory_scope" tools:ignore="MissingTranslation">Registered definitions only. This does not verify file contents, binding health, application visibility, module ownership or the winning backend. Unsupported categories remain unknown.</string>
+    <string name="sumh_inventory_budget" tools:ignore="MissingTranslation">Manual read limit: 1,024 records, 4 MiB of responses and 30 seconds. Cancellation and time limits are checked between controller requests; an in-flight request may take longer.</string>
+    <string name="sumh_inventory_progress" tools:ignore="MissingTranslation">Records read: %1$d · requests: %2$d · categories completed: %3$d</string>
+    <string name="sumh_inventory_load" tools:ignore="MissingTranslation">Read / refresh collection</string>
+    <string name="sumh_inventory_legacy" tools:ignore="MissingTranslation">Legacy list · incomplete</string>
+    <string name="sumh_inventory_back" tools:ignore="MissingTranslation">Back to structured inventory</string>
+    <string name="sumh_inventory_unsupported_categories" tools:ignore="MissingTranslation">Not supported, not confirmed empty: %1$s</string>
+    <string name="sumh_inventory_legacy_raw" tools:ignore="MissingTranslation">Raw legacy fallback · always incomplete</string>
+    <string name="sumh_inventory_raw_limit" tools:ignore="MissingTranslation">Preview is shortened. Copy hexadecimal bytes to retain the entire available fallback; the fallback itself is not a complete inventory.</string>
+    <string name="sumh_inventory_legacy_error" tools:ignore="MissingTranslation">Legacy fallback could not be read (errno %1$d).</string>
+    <string name="sumh_inventory_search" tools:ignore="MissingTranslation">Search exact text, hex bytes or runtime ID</string>
+    <string name="sumh_inventory_empty" tools:ignore="MissingTranslation">No definitions in the completely read categories. This says nothing about unsupported categories or feature switches.</string>
+    <plurals name="sumh_inventory_hex" tools:ignore="MissingTranslation">
+        <item quantity="one">Hexadecimal bytes · %1$d byte · no UTF-8 substitution</item>
+        <item quantity="other">Hexadecimal bytes · %1$d bytes · no UTF-8 substitution</item>
+    </plurals>
+    <plurals name="sumh_inventory_utf8" tools:ignore="MissingTranslation">
+        <item quantity="one">UTF-8 · %1$d byte · quoted with JSON escapes</item>
+        <item quantity="other">UTF-8 · %1$d bytes · quoted with JSON escapes</item>
+    </plurals>
+    <string name="sumh_inventory_copy_utf8" tools:ignore="MissingTranslation">Copy exact UTF-8 value</string>
+    <string name="sumh_inventory_copy_hex" tools:ignore="MissingTranslation">Copy exact bytes as hex</string>
+    <string name="sumh_inventory_hide_scope" tools:ignore="MissingTranslation">Registration only; see User hidden paths for independently sampled binding health. This is not a visibility result.</string>
+    <string name="sumh_inventory_identity_scope" tools:ignore="MissingTranslation">These IDs belong to this runtime collection. Ordinals are page positions; no inventory ID grants deletion authority.</string>
+    <string name="sumh_inventory_storage_flag" tools:ignore="MissingTranslation">Legacy storage_managed flag: %1$s. This does not establish managed ownership.</string>
+    <string name="sumh_inventory_legacy_hide" tools:ignore="MissingTranslation">Legacy hidden definition</string>
+    <string name="sumh_inventory_temporary_maps" tools:ignore="MissingTranslation">Temporary numeric Maps rule</string>
+    <string name="sumh_inventory_inject" tools:ignore="MissingTranslation">Internal injection bookkeeping</string>
+    <string name="sumh_inventory_unattributed" tools:ignore="MissingTranslation">Owner: unattributed; not inferred from the path</string>
+    <string name="sumh_inventory_owner_hide" tools:ignore="MissingTranslation">Owner: user hidden-path collection</string>
+    <string name="sumh_inventory_owner_maps" tools:ignore="MissingTranslation">Owner: managed Maps collection</string>
+    <string name="sumh_inventory_spoofed_path" tools:ignore="MissingTranslation">Reported Maps pathname</string>
+    <string name="sumh_inventory_budget_reached" tools:ignore="MissingTranslation">A collection limit was reached. No automatic restart was attempted.</string>
+    <string name="sumh_inventory_no_schema" tools:ignore="MissingTranslation">The controller does not advertise this query format. The legacy list remains available.</string>
+    <string name="sumh_inventory_future_schema" tools:ignore="MissingTranslation">Update the Manager to read the newer inventory format.</string>
+    <string name="sumh_inventory_future_categories" tools:ignore="MissingTranslation">The kernel advertises additional categories this Manager cannot read. They were not treated as empty.</string>
 </resources>

@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -180,7 +181,7 @@ internal fun SUMHInventoryView(
 }
 
 @Composable private fun InventoryBytes(bytes: SUMHInventoryBytes, preview: Boolean = false) {
-    Text(stringResource(if (bytes.utf8 == null) R.string.sumh_inventory_hex else R.string.sumh_inventory_utf8, bytes.size),
+    Text(pluralStringResource(if (bytes.utf8 == null) R.plurals.sumh_inventory_hex else R.plurals.sumh_inventory_utf8, bytes.size, bytes.size),
         style = MaterialTheme.typography.labelSmall)
     val display = bytes.display()
     SelectionContainer { Text(if (preview && display.length > 4096) display.take(4096) + "…" else display,

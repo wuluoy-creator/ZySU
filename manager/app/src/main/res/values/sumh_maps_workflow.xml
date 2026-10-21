@@ -1,72 +1,76 @@
-<resources>
-    <string name="sumh_maps_import">Import definitions</string>
-    <string name="sumh_maps_export">Export selected definitions</string>
-    <string name="sumh_maps_transfer_scope">Only managed target and reported path definitions are exchanged. Feature switches, temporary rules and runtime inode identities are excluded. Import remains a draft until you review and save it; Save uses the normal configuration save/apply flow.</string>
-    <string name="sumh_maps_import_file">Choose JSON file</string>
-    <string name="sumh_maps_import_json">Versioned definitions JSON</string>
-    <string name="sumh_maps_import_invalid">The document could not be accepted. Your existing definitions and input are retained.</string>
-    <string name="sumh_maps_import_external">Saved definitions changed while this draft was open. Review against the latest definitions before saving.</string>
-    <string name="sumh_maps_import_rebase">Keep input and review latest definitions</string>
-    <string name="sumh_maps_import_merge">Merge into saved definitions</string>
-    <string name="sumh_maps_import_replace">Replace entire saved collection</string>
-    <string name="sumh_maps_import_replace_scope">Replacement removes saved targets absent from this document. Removed rows are included in the review.</string>
-    <string name="sumh_maps_import_conflicts">%1$d targets already have a different reported path. Choose how to resolve these conflicts.</string>
-    <string name="sumh_maps_import_keep">Keep all saved conflicting paths</string>
-    <string name="sumh_maps_import_use">Use all imported conflicting paths</string>
-    <string name="sumh_maps_import_review">Review changes</string>
-    <string name="sumh_maps_import_diff">Add %1$d · change %2$d · remove %3$d</string>
-    <string name="sumh_maps_import_resolve">Resolve target conflicts before saving.</string>
-    <string name="sumh_maps_diff_added">Added</string>
-    <string name="sumh_maps_diff_changed">Changed</string>
-    <string name="sumh_maps_diff_removed">Removed</string>
-    <string name="sumh_maps_diff_conflict">Unresolved target conflict</string>
-    <string name="sumh_maps_diff_previous">Previous reported path: %1$s</string>
-    <string name="sumh_maps_export_all">Select all</string>
-    <string name="sumh_maps_export_none">Select none</string>
-    <string name="sumh_maps_export_copy">Copy selected JSON</string>
-    <string name="sumh_maps_export_copied">Selected definitions copied as versioned JSON.</string>
-    <string name="sumh_maps_preview">Preview saved Maps paths</string>
-    <string name="sumh_maps_preview_read">Read / refresh preview</string>
-    <string name="sumh_maps_preview_scope">Manual read only: no save or apply. Samples current path identities and managed registration in the init mount namespace. Temporary rules, file contents and application visibility are outside this comparison. Applying later can encounter changes.</string>
-    <string name="sumh_maps_preview_loading">Reading a new preview… Previous results are not current.</string>
-    <string name="sumh_maps_preview_not_loaded">Not read yet. Start a preview when needed.</string>
-    <string name="sumh_maps_preview_failed">Preview failed. No empty collection or successful application is inferred.</string>
-    <string name="sumh_maps_preview_complete">The preview observation completed. This does not confirm successful application.</string>
-    <string name="sumh_maps_preview_partial">Partial preview. Some facts could not be established.</string>
-    <string name="sumh_maps_preview_stale">Configuration, boot or history changed during the preview. Read again before relying on it.</string>
-    <string name="sumh_maps_preview_unknown">Current comparison is unknown.</string>
-    <string name="sumh_maps_preview_saved_valid">Saved definitions were read.</string>
-    <string name="sumh_maps_preview_saved_missing">No saved configuration file was found.</string>
-    <string name="sumh_maps_preview_saved_changed">Saved definitions changed during the read.</string>
-    <string name="sumh_maps_preview_saved_unknown">Saved definitions could not be read reliably.</string>
-    <string name="sumh_maps_preview_disabled">Maps is saved as disabled. Path identities are shown for inspection; the expected managed runtime set is empty.</string>
-    <string name="sumh_maps_preview_set_matches">Managed registration matches the sampled saved configuration.</string>
-    <string name="sumh_maps_preview_set_drift">Managed registration differs from the sampled saved configuration.</string>
-    <string name="sumh_maps_preview_set_unknown">Managed registration could not be compared completely.</string>
-    <string name="sumh_maps_preview_inventory_incomplete">The managed runtime inventory is incomplete or unavailable.</string>
-    <string name="sumh_maps_preview_no_submission">No readable kernel-acknowledged submission receipt is available. Current samples are not used to invent history.</string>
-    <string name="sumh_maps_preview_history_scope">Last acknowledged submission is historical evidence of the exact submitted identities. It does not establish current state, file contents or visibility.</string>
-    <string name="sumh_maps_preview_pending">The latest attempt has no recorded kernel acknowledgement; its outcome is unknown. Inspect the preview before choosing an explicit new action. The unknown action is not automatically replayed.</string>
-    <string name="sumh_maps_preview_local_change">Saved Maps definitions or the feature switch changed after this read started. These sampled facts are stale; refresh manually before comparing.</string>
-    <string name="sumh_maps_preview_rejected">The latest recorded attempt was rejected. An older acknowledged receipt remains historical.</string>
-    <string name="sumh_maps_preview_history_other_boot">The acknowledged receipt belongs to a different boot.</string>
-    <string name="sumh_maps_preview_history_clear">The last acknowledged payload was an empty managed collection.</string>
-    <string name="sumh_maps_preview_history_unstable">Submission history changed or was not checked for stability. Historical identities are shown without a current-versus-submitted equality claim.</string>
-    <string name="sumh_maps_preview_collision">Multiple saved targets resolve to the same file identity.</string>
-    <string name="sumh_maps_preview_row_unstable">This path sample was not confirmed stable.</string>
-    <string name="sumh_maps_preview_row_matches">Current tuple matches managed registration.</string>
-    <string name="sumh_maps_preview_row_missing">Current target identity is absent from managed registration.</string>
-    <string name="sumh_maps_preview_row_different">Managed registration contains a different reported tuple.</string>
-    <string name="sumh_maps_preview_row_unknown">This row cannot be compared with registration.</string>
-    <string name="sumh_maps_preview_submitted_identity">Last acknowledged identities for this saved target</string>
-    <string name="sumh_maps_preview_identity_same">Current numeric identities equal the historical submitted tuple.</string>
-    <string name="sumh_maps_preview_identity_changed">Current identities or reported path differ from the historical submitted tuple.</string>
-    <string name="sumh_maps_preview_no_row_submission">No acknowledged entry for this target is available in the retained receipt.</string>
-    <string name="sumh_maps_preview_no_definitions">No saved managed path definitions were found. This is not proof that runtime or temporary rules are empty.</string>
-    <string name="sumh_maps_preview_regular">Regular file identity resolved</string>
-    <string name="sumh_maps_preview_path_missing">File is missing</string>
-    <string name="sumh_maps_preview_path_type">Path is not a regular file</string>
-    <string name="sumh_maps_preview_path_unrepresentable">File identity cannot be represented by this interface</string>
-    <string name="sumh_maps_preview_path_error">Path lookup failed</string>
-    <string name="sumh_maps_preview_path_unknown">Path identity is unknown</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These SUMH strings currently support English and Simplified Chinese; other incomplete locales use Android English fallback. -->
+    <string name="sumh_maps_import" tools:ignore="MissingTranslation">Import definitions</string>
+    <string name="sumh_maps_export" tools:ignore="MissingTranslation">Export selected definitions</string>
+    <string name="sumh_maps_transfer_scope" tools:ignore="MissingTranslation">Only managed target and reported path definitions are exchanged. Feature switches, temporary rules and runtime inode identities are excluded. Import remains a draft until you review and save it; Save uses the normal configuration save/apply flow.</string>
+    <string name="sumh_maps_import_file" tools:ignore="MissingTranslation">Choose JSON file</string>
+    <string name="sumh_maps_import_json" tools:ignore="MissingTranslation">Versioned definitions JSON</string>
+    <string name="sumh_maps_import_invalid" tools:ignore="MissingTranslation">The document could not be accepted. Your existing definitions and input are retained.</string>
+    <string name="sumh_maps_import_external" tools:ignore="MissingTranslation">Saved definitions changed while this draft was open. Review against the latest definitions before saving.</string>
+    <string name="sumh_maps_import_rebase" tools:ignore="MissingTranslation">Keep input and review latest definitions</string>
+    <string name="sumh_maps_import_merge" tools:ignore="MissingTranslation">Merge into saved definitions</string>
+    <string name="sumh_maps_import_replace" tools:ignore="MissingTranslation">Replace entire saved collection</string>
+    <string name="sumh_maps_import_replace_scope" tools:ignore="MissingTranslation">Replacement removes saved targets absent from this document. Removed rows are included in the review.</string>
+    <plurals name="sumh_maps_import_conflicts" tools:ignore="MissingTranslation">
+        <item quantity="one">%1$d target already has a different reported path. Choose how to resolve this conflict.</item>
+        <item quantity="other">%1$d targets already have a different reported path. Choose how to resolve these conflicts.</item>
+    </plurals>
+    <string name="sumh_maps_import_keep" tools:ignore="MissingTranslation">Keep all saved conflicting paths</string>
+    <string name="sumh_maps_import_use" tools:ignore="MissingTranslation">Use all imported conflicting paths</string>
+    <string name="sumh_maps_import_review" tools:ignore="MissingTranslation">Review changes</string>
+    <string name="sumh_maps_import_diff" tools:ignore="MissingTranslation">Add %1$d · change %2$d · remove %3$d</string>
+    <string name="sumh_maps_import_resolve" tools:ignore="MissingTranslation">Resolve target conflicts before saving.</string>
+    <string name="sumh_maps_diff_added" tools:ignore="MissingTranslation">Added</string>
+    <string name="sumh_maps_diff_changed" tools:ignore="MissingTranslation">Changed</string>
+    <string name="sumh_maps_diff_removed" tools:ignore="MissingTranslation">Removed</string>
+    <string name="sumh_maps_diff_conflict" tools:ignore="MissingTranslation">Unresolved target conflict</string>
+    <string name="sumh_maps_diff_previous" tools:ignore="MissingTranslation">Previous reported path: %1$s</string>
+    <string name="sumh_maps_export_all" tools:ignore="MissingTranslation">Select all</string>
+    <string name="sumh_maps_export_none" tools:ignore="MissingTranslation">Select none</string>
+    <string name="sumh_maps_export_copy" tools:ignore="MissingTranslation">Copy selected JSON</string>
+    <string name="sumh_maps_export_copied" tools:ignore="MissingTranslation">Selected definitions copied as versioned JSON.</string>
+    <string name="sumh_maps_preview" tools:ignore="MissingTranslation">Preview saved Maps paths</string>
+    <string name="sumh_maps_preview_read" tools:ignore="MissingTranslation">Read / refresh preview</string>
+    <string name="sumh_maps_preview_scope" tools:ignore="MissingTranslation">Manual read only: no save or apply. Samples current path identities and managed registration in the init mount namespace. Temporary rules, file contents and application visibility are outside this comparison. Applying later can encounter changes.</string>
+    <string name="sumh_maps_preview_loading" tools:ignore="MissingTranslation">Reading a new preview… Previous results are not current.</string>
+    <string name="sumh_maps_preview_not_loaded" tools:ignore="MissingTranslation">Not read yet. Start a preview when needed.</string>
+    <string name="sumh_maps_preview_failed" tools:ignore="MissingTranslation">Preview failed. No empty collection or successful application is inferred.</string>
+    <string name="sumh_maps_preview_complete" tools:ignore="MissingTranslation">The preview observation completed. This does not confirm successful application.</string>
+    <string name="sumh_maps_preview_partial" tools:ignore="MissingTranslation">Partial preview. Some facts could not be established.</string>
+    <string name="sumh_maps_preview_stale" tools:ignore="MissingTranslation">Configuration, boot or history changed during the preview. Read again before relying on it.</string>
+    <string name="sumh_maps_preview_unknown" tools:ignore="MissingTranslation">Current comparison is unknown.</string>
+    <string name="sumh_maps_preview_saved_valid" tools:ignore="MissingTranslation">Saved definitions were read.</string>
+    <string name="sumh_maps_preview_saved_missing" tools:ignore="MissingTranslation">No saved configuration file was found.</string>
+    <string name="sumh_maps_preview_saved_changed" tools:ignore="MissingTranslation">Saved definitions changed during the read.</string>
+    <string name="sumh_maps_preview_saved_unknown" tools:ignore="MissingTranslation">Saved definitions could not be read reliably.</string>
+    <string name="sumh_maps_preview_disabled" tools:ignore="MissingTranslation">Maps is saved as disabled. Path identities are shown for inspection; the expected managed runtime set is empty.</string>
+    <string name="sumh_maps_preview_set_matches" tools:ignore="MissingTranslation">Managed registration matches the sampled saved configuration.</string>
+    <string name="sumh_maps_preview_set_drift" tools:ignore="MissingTranslation">Managed registration differs from the sampled saved configuration.</string>
+    <string name="sumh_maps_preview_set_unknown" tools:ignore="MissingTranslation">Managed registration could not be compared completely.</string>
+    <string name="sumh_maps_preview_inventory_incomplete" tools:ignore="MissingTranslation">The managed runtime inventory is incomplete or unavailable.</string>
+    <string name="sumh_maps_preview_no_submission" tools:ignore="MissingTranslation">No readable kernel-acknowledged submission receipt is available. Current samples are not used to invent history.</string>
+    <string name="sumh_maps_preview_history_scope" tools:ignore="MissingTranslation">Last acknowledged submission is historical evidence of the exact submitted identities. It does not establish current state, file contents or visibility.</string>
+    <string name="sumh_maps_preview_pending" tools:ignore="MissingTranslation">The latest attempt has no recorded kernel acknowledgement; its outcome is unknown. Inspect the preview before choosing an explicit new action. The unknown action is not automatically replayed.</string>
+    <string name="sumh_maps_preview_local_change" tools:ignore="MissingTranslation">Saved Maps definitions or the feature switch changed after this read started. These sampled facts are stale; refresh manually before comparing.</string>
+    <string name="sumh_maps_preview_rejected" tools:ignore="MissingTranslation">The latest recorded attempt was rejected. An older acknowledged receipt remains historical.</string>
+    <string name="sumh_maps_preview_history_other_boot" tools:ignore="MissingTranslation">The acknowledged receipt belongs to a different boot.</string>
+    <string name="sumh_maps_preview_history_clear" tools:ignore="MissingTranslation">The last acknowledged payload was an empty managed collection.</string>
+    <string name="sumh_maps_preview_history_unstable" tools:ignore="MissingTranslation">Submission history changed or was not checked for stability. Historical identities are shown without a current-versus-submitted equality claim.</string>
+    <string name="sumh_maps_preview_collision" tools:ignore="MissingTranslation">Multiple saved targets resolve to the same file identity.</string>
+    <string name="sumh_maps_preview_row_unstable" tools:ignore="MissingTranslation">This path sample was not confirmed stable.</string>
+    <string name="sumh_maps_preview_row_matches" tools:ignore="MissingTranslation">Current tuple matches managed registration.</string>
+    <string name="sumh_maps_preview_row_missing" tools:ignore="MissingTranslation">Current target identity is absent from managed registration.</string>
+    <string name="sumh_maps_preview_row_different" tools:ignore="MissingTranslation">Managed registration contains a different reported tuple.</string>
+    <string name="sumh_maps_preview_row_unknown" tools:ignore="MissingTranslation">This row cannot be compared with registration.</string>
+    <string name="sumh_maps_preview_submitted_identity" tools:ignore="MissingTranslation">Last acknowledged identities for this saved target</string>
+    <string name="sumh_maps_preview_identity_same" tools:ignore="MissingTranslation">Current numeric identities equal the historical submitted tuple.</string>
+    <string name="sumh_maps_preview_identity_changed" tools:ignore="MissingTranslation">Current identities or reported path differ from the historical submitted tuple.</string>
+    <string name="sumh_maps_preview_no_row_submission" tools:ignore="MissingTranslation">No acknowledged entry for this target is available in the retained receipt.</string>
+    <string name="sumh_maps_preview_no_definitions" tools:ignore="MissingTranslation">No saved managed path definitions were found. This is not proof that runtime or temporary rules are empty.</string>
+    <string name="sumh_maps_preview_regular" tools:ignore="MissingTranslation">Regular file identity resolved</string>
+    <string name="sumh_maps_preview_path_missing" tools:ignore="MissingTranslation">File is missing</string>
+    <string name="sumh_maps_preview_path_type" tools:ignore="MissingTranslation">Path is not a regular file</string>
+    <string name="sumh_maps_preview_path_unrepresentable" tools:ignore="MissingTranslation">File identity cannot be represented by this interface</string>
+    <string name="sumh_maps_preview_path_error" tools:ignore="MissingTranslation">Path lookup failed</string>
+    <string name="sumh_maps_preview_path_unknown" tools:ignore="MissingTranslation">Path identity is unknown</string>
 </resources>

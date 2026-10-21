@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">لم يُعثر على تعارضات في التركيب</string>
     <string name="sumh_overlay_xattr">إخفاء سمات OverlayFS الموسعة</string>
     <string name="sumh_overlay_xattr_desc">إخفاء علامات OverlayFS في العرض الافتراضي</string>
-    <string name="sumh_retry_apply">إعادة محاولة التطبيق</string>
     <string name="sumh_rule_maps_spoof">تزييف ino/dev/pathname في /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">إخفاء عمليات تركيب overlay من /proc/mounts</string>
     <string name="sumh_rule_save">تطبيق التعديلات</string>

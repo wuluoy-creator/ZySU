@@ -121,7 +121,6 @@
     <string name="sumh_no_conflicts">未发现挂载冲突</string>
     <string name="sumh_overlay_xattr">隐藏 OverlayFS 扩展属性</string>
     <string name="sumh_overlay_xattr_desc">在虚拟视图中隐藏 OverlayFS 标记</string>
-    <string name="sumh_retry_apply">重试应用</string>
     <string name="sumh_rule_maps_spoof">伪装 /proc/pid/maps 的 ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">从 /proc/mounts 隐藏 overlay 挂载</string>
     <string name="sumh_rule_save">应用编辑</string>

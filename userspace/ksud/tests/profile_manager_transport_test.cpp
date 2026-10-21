@@ -134,6 +134,8 @@ int spawn_error, action_fail, action_calls, duplicate_fail, duplicate_calls, rec
     send_blocks;
 int wait_error, pidfd_error, fsync_error, write_error, child_status, socket_error, bind_error;
 int partial_read, partial_write, clock_error, clock_calls, stat_error;
+int eof_flags;
+std::size_t eof_control;
 bool child_mode, ready, no_reply, live, dead, child_guard, guard_bound, auto_eof, snapshot_change,
     invalid_guard;
 std::string received_input;
@@ -174,6 +176,8 @@ void reset() {
     wait_error = pidfd_error = fsync_error = write_error = child_status = socket_error =
         bind_error = 0;
     partial_read = partial_write = clock_error = clock_calls = stat_error = 0;
+    eof_flags = 0;
+    eof_control = 0;
     child_mode = no_reply = live = dead = child_guard = guard_bound = snapshot_change =
         invalid_guard = false;
     ready = auto_eof = true;
@@ -337,13 +341,15 @@ int posix_spawn(pid_t* pid, const char* path, posix_spawn_file_actions_t*, void*
 }
 std::int64_t recvmsg(int, msghdr* message, int flags) {
     check(flags == (MSG_DONTWAIT | MSG_CMSG_CLOEXEC));
+    // Linux echoes this input flag in msg_flags, including a zero-byte EOF.
+    message->msg_flags = flags & MSG_CMSG_CLOEXEC;
     if (recv_error) {
         errno = recv_error;
         return -1;
     }
     if (incoming.empty()) {
-        message->msg_controllen = 0;
-        message->msg_flags = 0;
+        message->msg_controllen = eof_control;
+        message->msg_flags |= eof_flags;
         if (auto_eof && !no_reply) {
             if (!child_mode && !live) {
                 dead = true;
@@ -363,7 +369,7 @@ std::int64_t recvmsg(int, msghdr* message, int flags) {
     std::memcpy(message->msg_iov[0].iov_base, header, sizeof(header));
     std::memcpy(static_cast<char*>(message->msg_iov[0].iov_base) + sizeof(header), wire.body.data(),
                 wire.body.size());
-    message->msg_flags = wire.flags;
+    message->msg_flags |= wire.flags;
     if (wire.fd >= 0) {
         const int fds[] = {wire.fd, wire.second_fd};
         const std::size_t count = wire.second_fd >= 0 ? 2 : 1;
@@ -522,6 +528,21 @@ int main() {
     check(out.at("complete").b && out.at("bytes").n == files[51].size());
     check(received_input == files[50] && ack_count == 1 && spawn_count == 1 && poll_count == 0 &&
           !transport::pending.active);
+    // Ignore only the echoed CLOEXEC bit: truncated/unknown EOF flags still reject.
+    for (const int flags : {0, MSG_TRUNC, MSG_CTRUNC, 1 << 20}) {
+        clean();
+        eof_flags = flags;
+        transport::Frame frame;
+        int descriptor = -1;
+        check(transport::receive(10, frame, descriptor) == (flags ? -1 : -2));
+        check(descriptor == -1 && (!flags || errno == EPROTO));
+    }
+    clean();
+    eof_control = CMSG_SPACE(0);
+    transport::Frame malformed_eof;
+    int eof_descriptor = -1;
+    check(transport::receive(10, malformed_eof, eof_descriptor) == -1);
+    check(eof_descriptor == -1 && errno == EPROTO);
     clean();
     files[50] = std::string(8 * 1024 * 1024 + 4096, 'i');
     const auto large = "{\"data\":\"" + std::string(24 * 1024 * 1024 - 11, 'x') + "\"}";

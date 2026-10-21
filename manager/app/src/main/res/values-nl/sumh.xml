@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Geen koppelconflicten gevonden</string>
     <string name="sumh_overlay_xattr">Uitgebreide OverlayFS-attributen verbergen</string>
     <string name="sumh_overlay_xattr_desc">OverlayFS-markeringen in de virtuele weergave verbergen</string>
-    <string name="sumh_retry_apply">Opnieuw toepassen</string>
     <string name="sumh_rule_maps_spoof">Vervals ino/dev/pathname in /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Verberg overlay-koppelingen voor /proc/mounts</string>
     <string name="sumh_rule_save">Wijzigingen toepassen</string>

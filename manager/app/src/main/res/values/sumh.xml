@@ -121,7 +121,6 @@
     <string name="sumh_no_conflicts">No mount conflicts found</string>
     <string name="sumh_overlay_xattr">Hide OverlayFS xattrs</string>
     <string name="sumh_overlay_xattr_desc">Hide OverlayFS marks from the virtual view</string>
-    <string name="sumh_retry_apply">Retry applying</string>
     <string name="sumh_rule_maps_spoof">Spoof /proc/pid/maps ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">Hide overlay mounts from /proc/mounts</string>
     <string name="sumh_rule_save">Apply edit</string>

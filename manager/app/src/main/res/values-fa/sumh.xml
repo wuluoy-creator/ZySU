@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">تداخلی در اتصال‌ها پیدا نشد</string>
     <string name="sumh_overlay_xattr">پنهان کردن ویژگی‌های گسترش‌یافته OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">پنهان کردن نشانگرهای OverlayFS در نمای مجازی</string>
-    <string name="sumh_retry_apply">تلاش دوباره برای اعمال</string>
     <string name="sumh_rule_maps_spoof">‏/proc/pid/maps ino/dev/pathname را جعل کن</string>
     <string name="sumh_rule_mount_hide">مانت‌های overlay را از /proc/mounts پنهان کن</string>
     <string name="sumh_rule_save">اعمال ویرایش‌ها</string>

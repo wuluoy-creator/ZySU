@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Nisu pronađeni sukobi montiranja</string>
     <string name="sumh_overlay_xattr">Sakrij proširene atribute OverlayFS-a</string>
     <string name="sumh_overlay_xattr_desc">Skriva oznake OverlayFS-a u virtualnom prikazu</string>
-    <string name="sumh_retry_apply">Ponovi primjenu</string>
     <string name="sumh_rule_maps_spoof">Lažiraj ino/dev/pathname u /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Sakrij overlay montiranja od /proc/mounts</string>
     <string name="sumh_rule_save">Primijeni izmjene</string>

@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Bağlama çakışması bulunamadı</string>
     <string name="sumh_overlay_xattr">OverlayFS genişletilmiş özniteliklerini gizle</string>
     <string name="sumh_overlay_xattr_desc">Sanal görünümde OverlayFS işaretlerini gizler</string>
-    <string name="sumh_retry_apply">Uygulamayı yeniden dene</string>
     <string name="sumh_rule_maps_spoof">/proc/pid/maps içinde ino/dev/pathname sahtele</string>
     <string name="sumh_rule_mount_hide">Overlay bağlamalarını /proc/mounts\'tan gizle</string>
     <string name="sumh_rule_save">Düzenlemeleri uygula</string>

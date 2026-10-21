@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -135,7 +136,7 @@ internal fun MapsImportDialog(rules: List<MapsPathRule>, enabled: Boolean, onRul
             }
             if (draft.mode == SUMHMapsImportMode.Replace) Text(stringResource(R.string.sumh_maps_import_replace_scope))
             if (review?.conflicts?.isNotEmpty() == true) {
-                Text(stringResource(R.string.sumh_maps_import_conflicts, review.conflicts.size))
+                Text(pluralStringResource(R.plurals.sumh_maps_import_conflicts, review.conflicts.size, review.conflicts.size))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (choice in listOf(SUMHMapsConflictChoice.KeepSaved, SUMHMapsConflictChoice.UseImported)) FilterChip(
                         selected = draft.choice == choice, onClick = { change { it.copy(choice = choice) }; reviewed = null },

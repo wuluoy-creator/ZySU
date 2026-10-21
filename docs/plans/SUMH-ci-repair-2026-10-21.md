@@ -27,3 +27,25 @@
 - 原生格式检查 504 个文件通过。工作流检查没有被跳过或降级。
 
 原始失败日志、下载的测试报告、修正验证保存在本机 `out/ci-repair-*`；原生完整构建记录为 `out/prepush-ksud-evidence-ci1/` 与 `out/prepush-jni-evidence-ci1/`。GitHub 复验结果须按修复提交 SHA 核对，真实设备、namespace／SELinux 和掉电恢复仍需单独验收。
+
+## 第二轮：真实 Linux 运行与 Manager 后续门禁
+
+提交 `cec4e24738c872a727252be2542bb7c905f43e5a` 的远端复验消除了首轮 GCC 编译错误，并通过格式、clang-tidy、独立用户态回归及四个 KMI 模块构建，但暴露了此前未到达的运行与 Lint 问题：
+
+- [SUMH 回归](https://github.com/wuluoy-creator/ZySU/actions/runs/39530278014) 的 Linux 主机测试在真实进程通信首个请求失败。Linux `recvmsg` 会在输出 `msg_flags` 保留 `MSG_CMSG_CLOEXEC`，Maps 和 Profile 传输原先要求 EOF 的标志全部为零，因此将正常结束误判为 `EPROTO`。两处仅允许该回传标志，同时要求零字节、无描述符、无控制数据；截断、未知标志及异常 ancillary 数据继续拒绝。
+- 两个传输模型补入 Linux 的标志回传行为，均先证明旧实现失败，再通过修正；各补 5 个 EOF 边界场景。真实 POSIX 测试仍保留，并在首个请求失败时输出错误 envelope，方便定位。
+- 同一 SUMH 工作流的 797 项 Manager 测试有 6 项等待错误，涉及模块规则展开、分区发现和旧隐藏草稿的首次加载。测试现在明确等待真实 IO 的主线程续体与草稿就绪，再断言按钮可用并单次点击；保留原有超时及业务断言。
+- [Build Manager](https://github.com/wuluoy-creator/ZySU/actions/runs/39530278090) 的单元测试通过，后续 debug/release Lint 各报告 709 项错误，尚未生成可交付的最终 APK。这与 SUMH 专项工作流的测试结果分别记录，不能混为一次通过。
+
+Lint 修正沿用现有仓库约定：新增 SUMH 文案保持英语与已有简体中文，尚未翻译的其他语言（包括新增文案的繁体中文）使用 Android 英语回退；仅对应资源声明 `MissingTranslation` 例外并核对简中键与格式参数，没有关闭项目级检查或修改 `warningsAsErrors`。实际计数文案改用复数资源，多项统计改为独立计数标签，确认无引用的资源及其翻译一并移除。
+
+两个工作流 ViewModel 的 `SavedStateHandle` 改由生命周期工厂注入，移除生产代码调用测试专用默认构造器的路径；直接构造的测试显式传入测试 handle，并增加真实 Activity 工厂构建与旋转保留验证。其他修正包括配置感知的剪贴板标题、Compose 原始数值状态和 URI 扩展调用。
+
+第二轮本机传输验证记录位于 `out/ci-repair-transport-eof-a3/`，含实际生产模型、CLI、Linux 交叉编译与 clang-tidy；旧实现失败记录为 `out/ci-repair-transport-eof-before-*.log`。交叉编译不代表 Linux 执行通过，最终仍须核对后续修复 SHA 的完整 GitHub 工作流。
+
+第二轮提交前验证：
+
+- 默认 clang-tidy 开启的 ARM64 `ksud` 与 JNI 构建通过，`ksud` 加固检查通过，原嵌入载荷未改动。记录为 `out/prepush-ksud-evidence-ci3/` 与 `out/prepush-jni-evidence-ci3/`。
+- SUMH 专项 798 项、Build Manager 完整过滤集 831 项均为 0 失败／错误，各有 3 项既有 Windows 符号链接权限跳过；两种过滤集分别执行并保留记录。debug/release Lint 均通过。记录为 `out/ci-repair-manager-round2-validation/`。
+- 191 个资源 XML 解析通过，保留的 668 个英语／简中资源键及格式参数一致；8 个真实复数资源和 4 个多项计数标签完成转换，11 个无引用资源的 63 处定义移除。
+- `out/ci-repair-round2-precommit-evidence.json` 核对原生构建、Manager 两组测试及 Lint 的源码哈希与最终工作区一致，`git diff --check` 通过。以上仍是本机证据，远端工作流及真实设备验收分别记录。

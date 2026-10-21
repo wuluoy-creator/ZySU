@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="sumh_logs_follow_latest">Follow latest entries</string>
-    <string name="sumh_logs_following">Following latest</string>
-    <string name="sumh_logs_paused">Reading position paused</string>
-    <string name="sumh_logs_manual_refresh">Refresh to read new entries. Scrolling pauses following.</string>
-    <string name="sumh_logs_loading">Reading logs… Previous entries may still be shown.</string>
-    <string name="sumh_logs_read_failed">Could not refresh logs. Any entries shown are from the last successful read. %1$s</string>
-    <string name="sumh_logs_processing">Updating the log view…</string>
-    <string name="sumh_logs_line_count">%1$d / %2$d lines in this snapshot</string>
-    <string name="sumh_logs_empty">No log entries in this snapshot</string>
-    <string name="sumh_logs_no_matches">No lines match these filters</string>
-    <string name="sumh_logs_level_unknown">Unclassified</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These SUMH strings currently support English and Simplified Chinese; other incomplete locales use Android English fallback. -->
+    <string name="sumh_logs_follow_latest" tools:ignore="MissingTranslation">Follow latest entries</string>
+    <string name="sumh_logs_following" tools:ignore="MissingTranslation">Following latest</string>
+    <string name="sumh_logs_paused" tools:ignore="MissingTranslation">Reading position paused</string>
+    <string name="sumh_logs_manual_refresh" tools:ignore="MissingTranslation">Refresh to read new entries. Scrolling pauses following.</string>
+    <string name="sumh_logs_loading" tools:ignore="MissingTranslation">Reading logs… Previous entries may still be shown.</string>
+    <string name="sumh_logs_read_failed" tools:ignore="MissingTranslation">Could not refresh logs. Any entries shown are from the last successful read. %1$s</string>
+    <string name="sumh_logs_processing" tools:ignore="MissingTranslation">Updating the log view…</string>
+    <string name="sumh_logs_line_count" tools:ignore="MissingTranslation">Snapshot lines · shown: %1$d · total: %2$d</string>
+    <string name="sumh_logs_empty" tools:ignore="MissingTranslation">No log entries in this snapshot</string>
+    <string name="sumh_logs_no_matches" tools:ignore="MissingTranslation">No lines match these filters</string>
+    <string name="sumh_logs_level_unknown" tools:ignore="MissingTranslation">Unclassified</string>
 </resources>

@@ -76,7 +76,7 @@ class SUMHProfileWorkflowTest {
     private data class Environment(val operations: SUMHProfileOperations, val service: Service, val store: Store, val directory: File)
     private fun environment(): Environment {
         val directory = File(temporary.root, "profiles-${System.nanoTime()}"); val store = Store(directory); val service = Service(store)
-        return Environment(SUMHProfileOperations(), service, store, directory).also { it.operations.load(directory, service, store); await(it.operations) }
+        return Environment(SUMHProfileOperations(SavedStateHandle()), service, store, directory).also { it.operations.load(directory, service, store); await(it.operations) }
     }
     private fun await(operations: SUMHProfileOperations) = runBlocking {
         withTimeout(10_000) { while (operations.busy) delay(5) }
@@ -115,7 +115,7 @@ class SUMHProfileWorkflowTest {
         val env = environment(); val op = env.operations; refresh(env); env.service.mutateFailure = true
         op.updateForm(SUMHProfileForm("created", "Name")); assertTrue(op.capture()); await(op)
         assertTrue(op.result!!.unknown); assertNotNull(op.pending)
-        val restored = SUMHProfileOperations(); restored.load(env.directory, env.service, env.store); await(restored)
+        val restored = SUMHProfileOperations(SavedStateHandle()); restored.load(env.directory, env.service, env.store); await(restored)
         assertEquals(op.pending, restored.pending); assertEquals(1, env.service.calls.count { it.action == "capture" })
         assertTrue(restored.refresh()); await(restored); assertTrue(restored.observePending()); await(restored)
         assertEquals("missing", restored.pendingObservation?.status); assertFalse(restored.pendingObservation!!.saved)
@@ -130,7 +130,7 @@ class SUMHProfileWorkflowTest {
     }
     @Test fun corruptCheckpointBlocksAllWritesWithoutPretendingEmpty() {
         val env = environment(); env.store.corrupt = true
-        val restored = SUMHProfileOperations(); restored.load(env.directory, env.service, env.store); await(restored)
+        val restored = SUMHProfileOperations(SavedStateHandle()); restored.load(env.directory, env.service, env.store); await(restored)
         assertTrue(restored.refresh()); await(restored); restored.updateForm(SUMHProfileForm("new", "Name"))
         assertFalse(restored.capture()); assertEquals("profile_storage_unavailable", restored.error)
         assertTrue(env.service.calls.none { it.action in SUMH_PROFILE_MUTATIONS })

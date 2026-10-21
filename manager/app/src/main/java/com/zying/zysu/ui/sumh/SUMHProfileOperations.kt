@@ -16,7 +16,7 @@ import java.io.OutputStream
 private val profileCheckpointCoordinator = Mutex()
 
 /** Activity owned. Only a caller-known recovery hint is persisted; no automatic request replay. */
-internal class SUMHProfileOperations(private val savedState: SavedStateHandle = SavedStateHandle()) : ViewModel() {
+internal class SUMHProfileOperations(private val savedState: SavedStateHandle) : ViewModel() {
     var loaded by mutableStateOf(false); private set
     var busy by mutableStateOf(false); private set
     var capabilities by mutableStateOf(SUMHProfileCapabilities()); private set

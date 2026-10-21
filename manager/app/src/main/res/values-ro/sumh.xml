@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Nu s-au găsit conflicte de montare</string>
     <string name="sumh_overlay_xattr">Ascunde atributele extinse OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Ascunde marcajele OverlayFS în vizualizarea virtuală</string>
-    <string name="sumh_retry_apply">Reîncearcă aplicarea</string>
     <string name="sumh_rule_maps_spoof">Falsifică ino/dev/pathname în /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Ascunde montările overlay din /proc/mounts</string>
     <string name="sumh_rule_save">Aplică modificările</string>

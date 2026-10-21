@@ -1,41 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="sumh_hide_transfer_title">Import hide definitions</string>
-    <string name="sumh_hide_transfer_scope">Import first saves a private inactive draft. Merge preserves unrelated definitions. Existing enabled states are kept; new definitions stay disabled by default. Application is per item, not atomic. Paths are compared literally; aliases and application visibility are not verified.</string>
-    <string name="sumh_hide_transfer_file">Choose JSON file</string>
-    <string name="sumh_hide_transfer_text">Paste JSON text</string>
-    <string name="sumh_hide_transfer_size">Draft: %1$d UTF-8 bytes</string>
-    <string name="sumh_hide_transfer_enabled">Preserve imported enabled states (may enable or disable existing rules)</string>
-    <string name="sumh_hide_transfer_progress">Submitted in this group: %1$d</string>
-    <string name="sumh_hide_transfer_review">Read current definitions and preview</string>
-    <string name="sumh_hide_transfer_diff">New %1$d · changed %2$d · enabled %3$d · disabled %4$d · skipped %5$d · unchanged %6$d</string>
-    <string name="sumh_hide_transfer_group">Next group: %1$d changes; %2$d more require a new preview. Each group stops at 30 seconds before starting another item.</string>
-    <string name="sumh_hide_transfer_review_again">Preview again after changing the draft, choices, configuration or boot.</string>
-    <string name="sumh_hide_transfer_unresolved">Resolve all conflicts before applying.</string>
-    <string name="sumh_hide_transfer_result">Confirmed %1$d of %2$d attempted; %3$d not attempted.</string>
-    <string name="sumh_hide_transfer_retained">The original draft and choices are retained. After interruption, query operation history and preview again; nothing resumes automatically.</string>
-    <string name="sumh_hide_transfer_apply">Apply next group</string>
-    <string name="sumh_hide_transfer_saved">Saved definition</string>
-    <string name="sumh_hide_transfer_imported">Imported definition</string>
-    <string name="sumh_hide_transfer_effective">Planned definition</string>
-    <string name="sumh_hide_transfer_choose">Default inclusion / choose action</string>
-    <string name="sumh_hide_transfer_keep">Keep saved definition</string>
-    <string name="sumh_hide_transfer_use">Use imported values</string>
-    <string name="sumh_hide_transfer_local_id">Use imported values with local ID</string>
-    <string name="sumh_hide_transfer_new_id">Create a new stable ID</string>
-    <string name="sumh_hide_transfer_skip">Skip this definition</string>
-    <string name="sumh_hide_transfer_new">New definition</string>
-    <string name="sumh_hide_transfer_same">Identical definition</string>
-    <string name="sumh_hide_transfer_changed">Changed values: choose explicitly</string>
-    <string name="sumh_hide_transfer_path_collision">Same path, different ID</string>
-    <string name="sumh_hide_transfer_id_collision">Same ID, different path</string>
-    <string name="sumh_hide_transfer_cross_collision">ID and path refer to different saved rules: skip only</string>
-    <string name="sumh_hide_transfer_open">Import / review definitions</string>
-    <string name="sumh_hide_transfer_export_all">Export all definitions</string>
-    <string name="sumh_hide_transfer_export_selected">Export selected (%1$d)</string>
-    <string name="sumh_hide_transfer_export_done">Export completed</string>
-    <string name="sumh_hide_transfer_export_failed">Export failed; the destination may contain an incomplete file.</string>
-    <string name="sumh_hide_transfer_text_hint">Paste up to 64 KiB. Use a file for larger documents. Saving text only replaces the private draft after validation.</string>
-    <string name="sumh_hide_transfer_stage">Validate and save draft</string>
-    <string name="sumh_hide_transfer_export_info">Snapshot: %1$d definitions · %2$s</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These SUMH strings currently support English and Simplified Chinese; other incomplete locales use Android English fallback. -->
+    <string name="sumh_hide_transfer_title" tools:ignore="MissingTranslation">Import hide definitions</string>
+    <string name="sumh_hide_transfer_scope" tools:ignore="MissingTranslation">Import first saves a private inactive draft. Merge preserves unrelated definitions. Existing enabled states are kept; new definitions stay disabled by default. Application is per item, not atomic. Paths are compared literally; aliases and application visibility are not verified.</string>
+    <string name="sumh_hide_transfer_file" tools:ignore="MissingTranslation">Choose JSON file</string>
+    <string name="sumh_hide_transfer_text" tools:ignore="MissingTranslation">Paste JSON text</string>
+    <string name="sumh_hide_transfer_size" tools:ignore="MissingTranslation">Draft: %1$d UTF-8 bytes</string>
+    <string name="sumh_hide_transfer_enabled" tools:ignore="MissingTranslation">Preserve imported enabled states (may enable or disable existing rules)</string>
+    <string name="sumh_hide_transfer_progress" tools:ignore="MissingTranslation">Submitted in this group: %1$d</string>
+    <string name="sumh_hide_transfer_review" tools:ignore="MissingTranslation">Read current definitions and preview</string>
+    <string name="sumh_hide_transfer_diff" tools:ignore="MissingTranslation">New %1$d · changed %2$d · enabled %3$d · disabled %4$d · skipped %5$d · unchanged %6$d</string>
+    <string name="sumh_hide_transfer_group" tools:ignore="MissingTranslation">Next group — changes: %1$d; remaining for a new preview: %2$d. Each group stops at 30 seconds before starting another item.</string>
+    <string name="sumh_hide_transfer_review_again" tools:ignore="MissingTranslation">Preview again after changing the draft, choices, configuration or boot.</string>
+    <string name="sumh_hide_transfer_unresolved" tools:ignore="MissingTranslation">Resolve all conflicts before applying.</string>
+    <string name="sumh_hide_transfer_result" tools:ignore="MissingTranslation">Confirmed: %1$d; attempted: %2$d; not attempted: %3$d.</string>
+    <string name="sumh_hide_transfer_retained" tools:ignore="MissingTranslation">The original draft and choices are retained. After interruption, query operation history and preview again; nothing resumes automatically.</string>
+    <string name="sumh_hide_transfer_apply" tools:ignore="MissingTranslation">Apply next group</string>
+    <string name="sumh_hide_transfer_saved" tools:ignore="MissingTranslation">Saved definition</string>
+    <string name="sumh_hide_transfer_imported" tools:ignore="MissingTranslation">Imported definition</string>
+    <string name="sumh_hide_transfer_effective" tools:ignore="MissingTranslation">Planned definition</string>
+    <string name="sumh_hide_transfer_choose" tools:ignore="MissingTranslation">Default inclusion / choose action</string>
+    <string name="sumh_hide_transfer_keep" tools:ignore="MissingTranslation">Keep saved definition</string>
+    <string name="sumh_hide_transfer_use" tools:ignore="MissingTranslation">Use imported values</string>
+    <string name="sumh_hide_transfer_local_id" tools:ignore="MissingTranslation">Use imported values with local ID</string>
+    <string name="sumh_hide_transfer_new_id" tools:ignore="MissingTranslation">Create a new stable ID</string>
+    <string name="sumh_hide_transfer_skip" tools:ignore="MissingTranslation">Skip this definition</string>
+    <string name="sumh_hide_transfer_new" tools:ignore="MissingTranslation">New definition</string>
+    <string name="sumh_hide_transfer_same" tools:ignore="MissingTranslation">Identical definition</string>
+    <string name="sumh_hide_transfer_changed" tools:ignore="MissingTranslation">Changed values: choose explicitly</string>
+    <string name="sumh_hide_transfer_path_collision" tools:ignore="MissingTranslation">Same path, different ID</string>
+    <string name="sumh_hide_transfer_id_collision" tools:ignore="MissingTranslation">Same ID, different path</string>
+    <string name="sumh_hide_transfer_cross_collision" tools:ignore="MissingTranslation">ID and path refer to different saved rules: skip only</string>
+    <string name="sumh_hide_transfer_open" tools:ignore="MissingTranslation">Import / review definitions</string>
+    <string name="sumh_hide_transfer_export_all" tools:ignore="MissingTranslation">Export all definitions</string>
+    <string name="sumh_hide_transfer_export_selected" tools:ignore="MissingTranslation">Export selected (%1$d)</string>
+    <string name="sumh_hide_transfer_export_done" tools:ignore="MissingTranslation">Export completed</string>
+    <string name="sumh_hide_transfer_text_hint" tools:ignore="MissingTranslation">Paste up to 64 KiB. Use a file for larger documents. Saving text only replaces the private draft after validation.</string>
+    <string name="sumh_hide_transfer_stage" tools:ignore="MissingTranslation">Validate and save draft</string>
 </resources>

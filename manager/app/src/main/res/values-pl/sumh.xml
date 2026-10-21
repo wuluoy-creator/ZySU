@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Nie znaleziono konfliktów montowania</string>
     <string name="sumh_overlay_xattr">Ukrywaj rozszerzone atrybuty OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Ukrywaj znaczniki OverlayFS w widoku wirtualnym</string>
-    <string name="sumh_retry_apply">Spróbuj zastosować ponownie</string>
     <string name="sumh_rule_maps_spoof">Fałszuj ino/dev/pathname w /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Ukryj montowania overlay przed /proc/mounts</string>
     <string name="sumh_rule_save">Zastosuj zmiany</string>

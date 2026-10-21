@@ -3,7 +3,6 @@
     <string name="sumh_saved_configuration">Configuration saved</string>
     <string name="sumh_saved_runtime_pending">Saved. SUMH is unavailable; apply these settings when the kernel is available.</string>
     <string name="sumh_saved_applied_reboot">Saved and applied to the kernel. Mount settings take effect after reboot.</string>
-    <string name="sumh_runtime_apply_pending">Saved settings still need to be applied to the kernel. Retry when SUMH is available.</string>
     <string name="sumh_operations_title">Operation history (%1$d)</string>
     <string name="sumh_operations_storage_error">Operation tracking could not be confirmed. Open history to review the error before submitting again.</string>
     <string name="sumh_operations_hint">Changes reserve an ID before execution. Recovery only queries that ID; it never resubmits a change or resumes a batch. Up to 16 local entries are kept. Successful received entries may be replaced when full; unresolved entries require your review. Execution requires the SUMHP service to be running.</string>

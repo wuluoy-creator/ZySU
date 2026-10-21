@@ -28,7 +28,9 @@
     <string name="sumh_packages_capacity">最多 8 份，每份 96 KiB；不会自动删除旧包。</string>
     <string name="sumh_packages_preview">预览完整诊断包</string>
     <string name="sumh_packages_preview_title">检查已保存的内容</string>
-    <string name="sumh_packages_metadata">%1$s · %2$s · %3$d 字节</string>
+    <plurals name="sumh_packages_metadata">
+        <item quantity="other">%1$s · %2$s · %3$d 字节</item>
+    </plurals>
     <string name="sumh_packages_policy_redacted">身份已替换</string>
     <string name="sumh_packages_policy_identifiers">包含身份信息</string>
     <string name="sumh_packages_complete">有限范围内证据已取得</string>
@@ -61,5 +63,4 @@
     <string name="sumh_packages_unknown">结果未知。请查询已保存的包 ID，不要自动重复变更。</string>
     <string name="sumh_packages_failure_reason">原因：%1$s</string>
     <string name="sumh_packages_revision">内容版本：%1$s</string>
-    <string name="sumh_packages_storage_error">无法确认本地操作检查点。已禁用新变更，以保留现有记录。</string>
 </resources>

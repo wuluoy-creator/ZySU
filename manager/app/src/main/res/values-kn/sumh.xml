@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">ಮೌಂಟ್ ಸಂಘರ್ಷಗಳು ಕಂಡುಬಂದಿಲ್ಲ</string>
     <string name="sumh_overlay_xattr">OverlayFS ವಿಸ್ತೃತ ಗುಣಲಕ್ಷಣಗಳನ್ನು ಮರೆಮಾಡಿ</string>
     <string name="sumh_overlay_xattr_desc">ವರ್ಚುವಲ್ ನೋಟದಲ್ಲಿ OverlayFS ಗುರುತುಗಳನ್ನು ಮರೆಮಾಡಿ</string>
-    <string name="sumh_retry_apply">ಮತ್ತೆ ಅನ್ವಯಿಸಲು ಪ್ರಯತ್ನಿಸಿ</string>
     <string name="sumh_rule_save">ಸಂಪಾದನೆಗಳನ್ನು ಅನ್ವಯಿಸಿ</string>
     <string name="sumh_rule_user">ಬಳಕೆದಾರ ನಿಯಮಗಳು</string>
     <string name="sumh_saved_applied">ಉಳಿಸಿ ಕರ್ನಲ್‌ಗೆ ಅನ್ವಯಿಸಲಾಗಿದೆ</string>

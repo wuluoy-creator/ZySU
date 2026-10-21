@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">మౌంట్ వైరుధ్యాలు కనబడలేదు</string>
     <string name="sumh_overlay_xattr">OverlayFS విస్తరించిన లక్షణాలను దాచండి</string>
     <string name="sumh_overlay_xattr_desc">వర్చువల్ వీక్షణలో OverlayFS గుర్తులను దాచండి</string>
-    <string name="sumh_retry_apply">మళ్లీ వర్తింపజేయండి</string>
     <string name="sumh_rule_save">సవరణలను వర్తింపజేయండి</string>
     <string name="sumh_rule_user">వినియోగదారు నియమాలు</string>
     <string name="sumh_saved_applied">సేవ్ చేసి కెర్నల్‌కు వర్తింపజేయబడింది</string>

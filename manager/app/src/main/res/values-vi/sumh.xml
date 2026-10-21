@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">Không phát hiện xung đột gắn kết</string>
     <string name="sumh_overlay_xattr">Ẩn thuộc tính mở rộng của OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Ẩn dấu hiệu OverlayFS trong khung nhìn ảo</string>
-    <string name="sumh_retry_apply">Thử áp dụng lại</string>
     <string name="sumh_rule_save">Áp dụng chỉnh sửa</string>
     <string name="sumh_rule_user">Quy tắc người dùng</string>
     <string name="sumh_saved_applied">Đã lưu và áp dụng vào nhân</string>

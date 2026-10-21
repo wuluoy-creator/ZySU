@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">לא נמצאו התנגשויות עיגון</string>
     <string name="sumh_overlay_xattr">הסתרת מאפיינים מורחבים של OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">הסתרת סימוני OverlayFS בתצוגה הווירטואלית</string>
-    <string name="sumh_retry_apply">ניסיון החלה נוסף</string>
     <string name="sumh_rule_maps_spoof">זייף /proc/pid/maps ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">הסתר עיגוני overlay מ-/proc/mounts</string>
     <string name="sumh_rule_save">החלת השינויים</string>

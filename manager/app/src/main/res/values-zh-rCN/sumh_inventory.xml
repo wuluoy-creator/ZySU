@@ -12,7 +12,7 @@
     <string name="sumh_inventory_failed">读取失败或返回数据无效，已显示记录不完整。</string>
     <string name="sumh_inventory_scope">仅枚举已登记定义，不验证文件内容、绑定健康、应用视图、模块归属或最终后端。不支持的类别保持未知。</string>
     <string name="sumh_inventory_budget">每次手动读取最多 1,024 条记录、4 MiB 响应及 30 秒。在控制器请求之间检查取消和时限，当前进行中的请求可能延长等待。</string>
-    <string name="sumh_inventory_progress">已读 %1$d 条 · %2$d 次请求 · %3$d 类已到末页</string>
+    <string name="sumh_inventory_progress">已读记录：%1$d · 请求次数：%2$d · 已到末页类别：%3$d</string>
     <string name="sumh_inventory_load">读取／刷新集合</string>
     <string name="sumh_inventory_legacy">旧版列表 · 不完整</string>
     <string name="sumh_inventory_back">返回结构化集合</string>
@@ -22,8 +22,12 @@
     <string name="sumh_inventory_legacy_error">读取旧版兼容结果失败（错误码 %1$d）。</string>
     <string name="sumh_inventory_search">搜索原始文本、十六进制或运行 ID</string>
     <string name="sumh_inventory_empty">已完整读取的类别中没有登记定义；不代表未支持类别为空，也不代表功能开关关闭。</string>
-    <string name="sumh_inventory_hex">十六进制 · %1$d 字节 · 未用替换字符解码</string>
-    <string name="sumh_inventory_utf8">UTF-8 · %1$d 字节 · 引号内采用 JSON 转义</string>
+    <plurals name="sumh_inventory_hex">
+        <item quantity="other">十六进制 · %1$d 字节 · 未用替换字符解码</item>
+    </plurals>
+    <plurals name="sumh_inventory_utf8">
+        <item quantity="other">UTF-8 · %1$d 字节 · 引号内采用 JSON 转义</item>
+    </plurals>
     <string name="sumh_inventory_copy_utf8">复制精确 UTF-8 值</string>
     <string name="sumh_inventory_copy_hex">复制精确字节的十六进制</string>
     <string name="sumh_inventory_hide_scope">仅表示已登记；独立采样的绑定健康请查看用户隐藏页，不能据此判断实际可见性。</string>

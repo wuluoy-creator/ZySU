@@ -248,7 +248,9 @@ int receive(int socket, Frame& frame, int& descriptor) {
                 descriptor = fd;
         }
     }
-    if (!count && descriptor < 0 && !message.msg_flags)
+    // Linux may echo MSG_CMSG_CLOEXEC even for EOF; it is not a payload flag.
+    if (!count && descriptor < 0 && message.msg_controllen == 0 &&
+        (message.msg_flags & ~MSG_CMSG_CLOEXEC) == 0)
         return -2;
     invalid = invalid || frame.header.magic_value != magic || frame.header.size > chunk_limit ||
               frame.header.error > 4095 ||

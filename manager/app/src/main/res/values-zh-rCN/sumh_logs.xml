@@ -7,7 +7,7 @@
     <string name="sumh_logs_loading">正在读取日志… 当前可能仍显示上次读取的内容。</string>
     <string name="sumh_logs_read_failed">日志刷新失败，若有内容则来自上次成功读取。%1$s</string>
     <string name="sumh_logs_processing">正在更新日志视图…</string>
-    <string name="sumh_logs_line_count">本次快照显示 %1$d / %2$d 行</string>
+    <string name="sumh_logs_line_count">快照行数 · 已显示：%1$d · 总计：%2$d</string>
     <string name="sumh_logs_empty">本次快照没有日志</string>
     <string name="sumh_logs_no_matches">没有符合筛选条件的日志行</string>
     <string name="sumh_logs_level_unknown">未分类</string>

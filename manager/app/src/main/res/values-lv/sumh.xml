@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Montēšanas konflikti nav atrasti</string>
     <string name="sumh_overlay_xattr">Slēpt OverlayFS paplašinātos atribūtus</string>
     <string name="sumh_overlay_xattr_desc">Slēpt OverlayFS marķierus virtuālajā skatā</string>
-    <string name="sumh_retry_apply">Mēģināt piemērot vēlreiz</string>
     <string name="sumh_rule_maps_spoof">Viltot ino/dev/pathname failā /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Slēpt overlay montējumus no /proc/mounts</string>
     <string name="sumh_rule_save">Piemērot izmaiņas</string>

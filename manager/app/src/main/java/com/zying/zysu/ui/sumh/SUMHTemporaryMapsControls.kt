@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
@@ -130,8 +131,8 @@ internal fun TemporaryMapsDialog(
                     }
                     item("count") {
                         operations.snapshot?.let { snapshot ->
-                            Text(stringResource(if (snapshot.complete) R.string.sumh_temporary_maps_complete
-                                else R.string.sumh_temporary_maps_partial, snapshot.rows.size),
+                            Text(pluralStringResource(if (snapshot.complete) R.plurals.sumh_temporary_maps_complete
+                                else R.plurals.sumh_temporary_maps_partial, snapshot.rows.size, snapshot.rows.size),
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                             if (snapshot.complete && snapshot.rows.isEmpty() && operations.fresh)
                                 Text(stringResource(R.string.sumh_temporary_maps_empty))

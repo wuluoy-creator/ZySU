@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">Tiada konflik lekapan ditemui</string>
     <string name="sumh_overlay_xattr">Sembunyikan atribut lanjutan OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Sembunyikan penanda OverlayFS dalam paparan maya</string>
-    <string name="sumh_retry_apply">Cuba gunakan semula</string>
     <string name="sumh_rule_save">Gunakan suntingan</string>
     <string name="sumh_rule_user">Peraturan pengguna</string>
     <string name="sumh_saved_applied">Disimpan dan digunakan pada kernel</string>

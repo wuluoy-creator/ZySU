@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">कोणतेही माउंट संघर्ष आढळले नाहीत</string>
     <string name="sumh_overlay_xattr">OverlayFS चे विस्तारित गुणधर्म लपवा</string>
     <string name="sumh_overlay_xattr_desc">आभासी दृश्यातील OverlayFS चिन्हे लपवा</string>
-    <string name="sumh_retry_apply">पुन्हा लागू करा</string>
     <string name="sumh_rule_save">बदल लागू करा</string>
     <string name="sumh_rule_user">वापरकर्त्याचे नियम</string>
     <string name="sumh_saved_applied">जतन केले आणि कर्नलवर लागू केले</string>

@@ -1,81 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="sumh_temporary_maps_open">Manage temporary Maps rules</string>
-    <string name="sumh_temporary_maps_title">Temporary Maps rules</string>
-    <string name="sumh_temporary_maps_description">Inspect temporary numeric rules separately from saved path definitions. Only remove a rule whose origin you can identify. Removing an override may reveal a managed rule with the same identity.</string>
-    <string name="sumh_temporary_maps_start">Refresh to read the current temporary rules. Opening this view does not query or change rules.</string>
-    <string name="sumh_temporary_maps_refresh">Refresh rules</string>
-    <string name="sumh_temporary_maps_next">Read next page</string>
-    <string name="sumh_temporary_maps_close">Close</string>
-    <string name="sumh_temporary_maps_back">Back to list</string>
-    <string name="sumh_temporary_maps_inventory_support">Read rules: %1$s</string>
-    <string name="sumh_temporary_maps_delete_support">Remove one rule: %1$s</string>
-    <string name="sumh_temporary_maps_supported">Supported</string>
-    <string name="sumh_temporary_maps_not_supported">Not supported</string>
-    <string name="sumh_temporary_maps_not_known">Not known</string>
-    <string name="sumh_temporary_maps_complete">All %1$d temporary rules read</string>
-    <string name="sumh_temporary_maps_partial">%1$d temporary rules read · list incomplete</string>
-    <string name="sumh_temporary_maps_empty">No temporary rules were registered at this observation.</string>
-    <string name="sumh_temporary_maps_reading">Reading capabilities and the first page…</string>
-    <string name="sumh_temporary_maps_reading_next">Reading the next page…</string>
-    <string name="sumh_temporary_maps_removing">Removing the selected rule once. You may close this view and return for the result.</string>
-    <string name="sumh_temporary_maps_unsupported">This kernel cannot list temporary rules. No rule was changed.</string>
-    <string name="sumh_temporary_maps_support_unknown">Support could not be determined. Refresh to check again.</string>
-    <string name="sumh_temporary_maps_read_failed">The rules could not be read completely. Refresh before choosing a rule.</string>
-    <string name="sumh_temporary_maps_stale">The rules changed while reading. Refresh to start a new observation.</string>
-    <string name="sumh_temporary_maps_changed">Controls changed while this view was open. Refresh before choosing a rule.</string>
-    <string name="sumh_temporary_maps_query_required">Refresh to check the current rules. A previous action may have completed; it will not be repeated automatically.</string>
-    <string name="sumh_temporary_maps_observed">These are registered rules from the latest observation. They do not verify what an app sees.</string>
-    <string name="sumh_temporary_maps_historical">The rows below are historical and cannot be used for another deletion until refreshed.</string>
-    <string name="sumh_temporary_maps_target">Exact target identity</string>
-    <string name="sumh_temporary_maps_replacement">Identity shown in Maps</string>
-    <string name="sumh_temporary_maps_tuple">Inode: %1$s\nDevice: %2$s</string>
-    <string name="sumh_temporary_maps_path">Path shown in Maps</string>
-    <string name="sumh_temporary_maps_hex">Path bytes (hex)</string>
-    <string name="sumh_temporary_maps_review">Review inode %1$s, device %2$s</string>
-    <string name="sumh_temporary_maps_confirm_title">Remove this temporary rule?</string>
-    <string name="sumh_temporary_maps_confirm">Only this exact temporary identity will be removed. Other temporary and managed rules remain. An already open Maps stream may keep its previous view.</string>
-    <string name="sumh_temporary_maps_delete">Remove selected rule</string>
-    <string name="sumh_temporary_maps_deleted">The kernel confirmed removal. Refresh to observe the current rules.</string>
-    <string name="sumh_temporary_maps_not_applied">This request was not applied. Refresh the rules before making another request.</string>
-    <string name="sumh_temporary_maps_remove_stale">The rules changed after your observation, so removal was rejected. Refresh and review the identity again.</string>
-    <string name="sumh_temporary_maps_remove_absent">This temporary identity was absent when the request was checked. Refresh to see the current rules; absence does not identify which action removed it.</string>
-    <string name="sumh_temporary_maps_remove_unsupported">This kernel does not support removing one temporary rule. Refresh to check its current capabilities.</string>
-    <string name="sumh_temporary_maps_remove_permission">Permission to remove this rule was denied. Check root authorization, then refresh before making another request.</string>
-    <string name="sumh_temporary_maps_remove_memory">The kernel could not reserve memory for the updated list. The request was rejected; refresh before making another request.</string>
-    <string name="sumh_temporary_maps_remove_stopped">The rule service stopped before removal. Refresh to check whether it is available again.</string>
-    <string name="sumh_temporary_maps_unknown">The outcome is unknown. Query this operation in local history, then refresh the rules before deciding what to do next. The request will not be repeated automatically.</string>
-    <string name="sumh_temporary_maps_tracking_support">Operation tracking: %1$s</string>
-    <string name="sumh_temporary_maps_tracking_update">Update the controller to enable tracked removal. You can still inspect the rules.</string>
-    <string name="sumh_temporary_maps_tracking_unknown">Tracking support is not confirmed. Refresh before selecting a rule for removal.</string>
-    <string name="sumh_temporary_maps_history_title">Local removal history (%1$d)</string>
-    <string name="sumh_temporary_maps_history_expanded">Expanded</string>
-    <string name="sumh_temporary_maps_history_collapsed">Collapsed</string>
-    <string name="sumh_temporary_maps_history_hint">Local history keeps operation IDs and receipts. Querying an operation never repeats removal or refreshes the current rules. History may be incomplete if a receipt was not retained.</string>
-    <string name="sumh_temporary_maps_history_load">Reload local history</string>
-    <string name="sumh_temporary_maps_history_empty">No local removal records.</string>
-    <string name="sumh_temporary_maps_history_loading">Reading local operation records…</string>
-    <string name="sumh_temporary_maps_history_querying">Querying this operation without repeating removal…</string>
-    <string name="sumh_temporary_maps_history_forgetting">Removing the local association…</string>
-    <string name="sumh_temporary_maps_history_error">History could not be loaded, saved or queried completely. A write may already have replaced the local checkpoint. Reload local history or query the operation again without repeating removal.</string>
-    <string name="sumh_temporary_maps_history_entry_error">A response or local checkpoint could not be confirmed. Query this operation; do not infer success from the current rule list.</string>
-    <string name="sumh_temporary_maps_operation_id">Operation ID</string>
-    <string name="sumh_temporary_maps_received_heading">Response received for this removal</string>
-    <string name="sumh_temporary_maps_recovered_heading">Retained receipt from manual query</string>
-    <string name="sumh_temporary_maps_history_deleted">A valid receipt confirms that the kernel acknowledged this removal at that time. Current rules and app views require a new observation.</string>
-    <string name="sumh_temporary_maps_history_not_applied">A valid receipt says this request was not applied.</string>
-    <string name="sumh_temporary_maps_history_unconfirmed">No confirmed typed result is available here. A completed command or an absent rule alone does not prove removal.</string>
-    <string name="sumh_temporary_maps_binding">Original boot: %1$s\nInstance: %2$s\nGeneration: %3$s\nRequest revision: %4$s</string>
-    <string name="sumh_temporary_maps_history_query">Query this operation</string>
-    <string name="sumh_temporary_maps_command_finished">Command history: finished. Check the typed receipt for the removal outcome.</string>
-    <string name="sumh_temporary_maps_query_not_retained">This operation is no longer retained in command history.</string>
-    <string name="sumh_temporary_maps_query_wait_timeout">The wait ended without a finished command record.</string>
-    <string name="sumh_temporary_maps_query_unavailable">This query could not establish a matching historical result.</string>
-    <string name="sumh_temporary_maps_query_receipt">A matching resource receipt was retained.</string>
-    <string name="sumh_temporary_maps_query_not_finished">The operation has no finished record yet.</string>
-    <string name="sumh_temporary_maps_query_no_receipt">The command finished, but its resource receipt is unavailable.</string>
-    <string name="sumh_temporary_maps_query_boot">Boot observed by the latest query: %1$s</string>
-    <string name="sumh_temporary_maps_history_wait">Wait up to 5 seconds</string>
-    <string name="sumh_temporary_maps_forget">Forget local record</string>
-    <string name="sumh_temporary_maps_forget_hint">Remove only this device’s local association and receipts. This does not cancel an operation, remove server history, restore a rule or change current rules. Copy the operation ID first if you need it later.</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These SUMH strings currently support English and Simplified Chinese; other incomplete locales use Android English fallback. -->
+    <string name="sumh_temporary_maps_open" tools:ignore="MissingTranslation">Manage temporary Maps rules</string>
+    <string name="sumh_temporary_maps_title" tools:ignore="MissingTranslation">Temporary Maps rules</string>
+    <string name="sumh_temporary_maps_description" tools:ignore="MissingTranslation">Inspect temporary numeric rules separately from saved path definitions. Only remove a rule whose origin you can identify. Removing an override may reveal a managed rule with the same identity.</string>
+    <string name="sumh_temporary_maps_start" tools:ignore="MissingTranslation">Refresh to read the current temporary rules. Opening this view does not query or change rules.</string>
+    <string name="sumh_temporary_maps_refresh" tools:ignore="MissingTranslation">Refresh rules</string>
+    <string name="sumh_temporary_maps_next" tools:ignore="MissingTranslation">Read next page</string>
+    <string name="sumh_temporary_maps_close" tools:ignore="MissingTranslation">Close</string>
+    <string name="sumh_temporary_maps_back" tools:ignore="MissingTranslation">Back to list</string>
+    <string name="sumh_temporary_maps_inventory_support" tools:ignore="MissingTranslation">Read rules: %1$s</string>
+    <string name="sumh_temporary_maps_delete_support" tools:ignore="MissingTranslation">Remove one rule: %1$s</string>
+    <string name="sumh_temporary_maps_supported" tools:ignore="MissingTranslation">Supported</string>
+    <string name="sumh_temporary_maps_not_supported" tools:ignore="MissingTranslation">Not supported</string>
+    <string name="sumh_temporary_maps_not_known" tools:ignore="MissingTranslation">Not known</string>
+    <plurals name="sumh_temporary_maps_complete" tools:ignore="MissingTranslation">
+        <item quantity="one">The %1$d temporary rule has been read</item>
+        <item quantity="other">All %1$d temporary rules read</item>
+    </plurals>
+    <plurals name="sumh_temporary_maps_partial" tools:ignore="MissingTranslation">
+        <item quantity="one">%1$d temporary rule read · list incomplete</item>
+        <item quantity="other">%1$d temporary rules read · list incomplete</item>
+    </plurals>
+    <string name="sumh_temporary_maps_empty" tools:ignore="MissingTranslation">No temporary rules were registered at this observation.</string>
+    <string name="sumh_temporary_maps_reading" tools:ignore="MissingTranslation">Reading capabilities and the first page…</string>
+    <string name="sumh_temporary_maps_reading_next" tools:ignore="MissingTranslation">Reading the next page…</string>
+    <string name="sumh_temporary_maps_removing" tools:ignore="MissingTranslation">Removing the selected rule once. You may close this view and return for the result.</string>
+    <string name="sumh_temporary_maps_unsupported" tools:ignore="MissingTranslation">This kernel cannot list temporary rules. No rule was changed.</string>
+    <string name="sumh_temporary_maps_support_unknown" tools:ignore="MissingTranslation">Support could not be determined. Refresh to check again.</string>
+    <string name="sumh_temporary_maps_read_failed" tools:ignore="MissingTranslation">The rules could not be read completely. Refresh before choosing a rule.</string>
+    <string name="sumh_temporary_maps_stale" tools:ignore="MissingTranslation">The rules changed while reading. Refresh to start a new observation.</string>
+    <string name="sumh_temporary_maps_changed" tools:ignore="MissingTranslation">Controls changed while this view was open. Refresh before choosing a rule.</string>
+    <string name="sumh_temporary_maps_query_required" tools:ignore="MissingTranslation">Refresh to check the current rules. A previous action may have completed; it will not be repeated automatically.</string>
+    <string name="sumh_temporary_maps_observed" tools:ignore="MissingTranslation">These are registered rules from the latest observation. They do not verify what an app sees.</string>
+    <string name="sumh_temporary_maps_historical" tools:ignore="MissingTranslation">The rows below are historical and cannot be used for another deletion until refreshed.</string>
+    <string name="sumh_temporary_maps_target" tools:ignore="MissingTranslation">Exact target identity</string>
+    <string name="sumh_temporary_maps_replacement" tools:ignore="MissingTranslation">Identity shown in Maps</string>
+    <string name="sumh_temporary_maps_tuple" tools:ignore="MissingTranslation">Inode: %1$s\nDevice: %2$s</string>
+    <string name="sumh_temporary_maps_path" tools:ignore="MissingTranslation">Path shown in Maps</string>
+    <string name="sumh_temporary_maps_hex" tools:ignore="MissingTranslation">Path bytes (hex)</string>
+    <string name="sumh_temporary_maps_review" tools:ignore="MissingTranslation">Review inode %1$s, device %2$s</string>
+    <string name="sumh_temporary_maps_confirm_title" tools:ignore="MissingTranslation">Remove this temporary rule?</string>
+    <string name="sumh_temporary_maps_confirm" tools:ignore="MissingTranslation">Only this exact temporary identity will be removed. Other temporary and managed rules remain. An already open Maps stream may keep its previous view.</string>
+    <string name="sumh_temporary_maps_delete" tools:ignore="MissingTranslation">Remove selected rule</string>
+    <string name="sumh_temporary_maps_deleted" tools:ignore="MissingTranslation">The kernel confirmed removal. Refresh to observe the current rules.</string>
+    <string name="sumh_temporary_maps_not_applied" tools:ignore="MissingTranslation">This request was not applied. Refresh the rules before making another request.</string>
+    <string name="sumh_temporary_maps_remove_stale" tools:ignore="MissingTranslation">The rules changed after your observation, so removal was rejected. Refresh and review the identity again.</string>
+    <string name="sumh_temporary_maps_remove_absent" tools:ignore="MissingTranslation">This temporary identity was absent when the request was checked. Refresh to see the current rules; absence does not identify which action removed it.</string>
+    <string name="sumh_temporary_maps_remove_unsupported" tools:ignore="MissingTranslation">This kernel does not support removing one temporary rule. Refresh to check its current capabilities.</string>
+    <string name="sumh_temporary_maps_remove_permission" tools:ignore="MissingTranslation">Permission to remove this rule was denied. Check root authorization, then refresh before making another request.</string>
+    <string name="sumh_temporary_maps_remove_memory" tools:ignore="MissingTranslation">The kernel could not reserve memory for the updated list. The request was rejected; refresh before making another request.</string>
+    <string name="sumh_temporary_maps_remove_stopped" tools:ignore="MissingTranslation">The rule service stopped before removal. Refresh to check whether it is available again.</string>
+    <string name="sumh_temporary_maps_unknown" tools:ignore="MissingTranslation">The outcome is unknown. Query this operation in local history, then refresh the rules before deciding what to do next. The request will not be repeated automatically.</string>
+    <string name="sumh_temporary_maps_tracking_support" tools:ignore="MissingTranslation">Operation tracking: %1$s</string>
+    <string name="sumh_temporary_maps_tracking_update" tools:ignore="MissingTranslation">Update the controller to enable tracked removal. You can still inspect the rules.</string>
+    <string name="sumh_temporary_maps_tracking_unknown" tools:ignore="MissingTranslation">Tracking support is not confirmed. Refresh before selecting a rule for removal.</string>
+    <string name="sumh_temporary_maps_history_title" tools:ignore="MissingTranslation">Local removal history (%1$d)</string>
+    <string name="sumh_temporary_maps_history_expanded" tools:ignore="MissingTranslation">Expanded</string>
+    <string name="sumh_temporary_maps_history_collapsed" tools:ignore="MissingTranslation">Collapsed</string>
+    <string name="sumh_temporary_maps_history_hint" tools:ignore="MissingTranslation">Local history keeps operation IDs and receipts. Querying an operation never repeats removal or refreshes the current rules. History may be incomplete if a receipt was not retained.</string>
+    <string name="sumh_temporary_maps_history_load" tools:ignore="MissingTranslation">Reload local history</string>
+    <string name="sumh_temporary_maps_history_empty" tools:ignore="MissingTranslation">No local removal records.</string>
+    <string name="sumh_temporary_maps_history_loading" tools:ignore="MissingTranslation">Reading local operation records…</string>
+    <string name="sumh_temporary_maps_history_querying" tools:ignore="MissingTranslation">Querying this operation without repeating removal…</string>
+    <string name="sumh_temporary_maps_history_forgetting" tools:ignore="MissingTranslation">Removing the local association…</string>
+    <string name="sumh_temporary_maps_history_error" tools:ignore="MissingTranslation">History could not be loaded, saved or queried completely. A write may already have replaced the local checkpoint. Reload local history or query the operation again without repeating removal.</string>
+    <string name="sumh_temporary_maps_history_entry_error" tools:ignore="MissingTranslation">A response or local checkpoint could not be confirmed. Query this operation; do not infer success from the current rule list.</string>
+    <string name="sumh_temporary_maps_operation_id" tools:ignore="MissingTranslation">Operation ID</string>
+    <string name="sumh_temporary_maps_received_heading" tools:ignore="MissingTranslation">Response received for this removal</string>
+    <string name="sumh_temporary_maps_recovered_heading" tools:ignore="MissingTranslation">Retained receipt from manual query</string>
+    <string name="sumh_temporary_maps_history_deleted" tools:ignore="MissingTranslation">A valid receipt confirms that the kernel acknowledged this removal at that time. Current rules and app views require a new observation.</string>
+    <string name="sumh_temporary_maps_history_not_applied" tools:ignore="MissingTranslation">A valid receipt says this request was not applied.</string>
+    <string name="sumh_temporary_maps_history_unconfirmed" tools:ignore="MissingTranslation">No confirmed typed result is available here. A completed command or an absent rule alone does not prove removal.</string>
+    <string name="sumh_temporary_maps_binding" tools:ignore="MissingTranslation">Original boot: %1$s\nInstance: %2$s\nGeneration: %3$s\nRequest revision: %4$s</string>
+    <string name="sumh_temporary_maps_history_query" tools:ignore="MissingTranslation">Query this operation</string>
+    <string name="sumh_temporary_maps_command_finished" tools:ignore="MissingTranslation">Command history: finished. Check the typed receipt for the removal outcome.</string>
+    <string name="sumh_temporary_maps_query_not_retained" tools:ignore="MissingTranslation">This operation is no longer retained in command history.</string>
+    <string name="sumh_temporary_maps_query_wait_timeout" tools:ignore="MissingTranslation">The wait ended without a finished command record.</string>
+    <string name="sumh_temporary_maps_query_unavailable" tools:ignore="MissingTranslation">This query could not establish a matching historical result.</string>
+    <string name="sumh_temporary_maps_query_receipt" tools:ignore="MissingTranslation">A matching resource receipt was retained.</string>
+    <string name="sumh_temporary_maps_query_not_finished" tools:ignore="MissingTranslation">The operation has no finished record yet.</string>
+    <string name="sumh_temporary_maps_query_no_receipt" tools:ignore="MissingTranslation">The command finished, but its resource receipt is unavailable.</string>
+    <string name="sumh_temporary_maps_query_boot" tools:ignore="MissingTranslation">Boot observed by the latest query: %1$s</string>
+    <string name="sumh_temporary_maps_history_wait" tools:ignore="MissingTranslation">Wait up to 5 seconds</string>
+    <string name="sumh_temporary_maps_forget" tools:ignore="MissingTranslation">Forget local record</string>
+    <string name="sumh_temporary_maps_forget_hint" tools:ignore="MissingTranslation">Remove only this device’s local association and receipts. This does not cancel an operation, remove server history, restore a rule or change current rules. Copy the operation ID first if you need it later.</string>
 </resources>

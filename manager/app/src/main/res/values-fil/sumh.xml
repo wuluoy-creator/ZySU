@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">Walang natagpuang salungatan sa mount</string>
     <string name="sumh_overlay_xattr">Itago ang mga pinalawak na attribute ng OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Itago ang mga palatandaan ng OverlayFS sa virtual na view</string>
-    <string name="sumh_retry_apply">Subukang ilapat muli</string>
     <string name="sumh_rule_save">Ilapat ang mga pag-edit</string>
     <string name="sumh_rule_user">Mga panuntunan ng user</string>
     <string name="sumh_saved_applied">Na-save at nailapat sa kernel</string>

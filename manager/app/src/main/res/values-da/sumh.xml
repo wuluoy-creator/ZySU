@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Ingen monteringskonflikter fundet</string>
     <string name="sumh_overlay_xattr">Skjul udvidede OverlayFS-attributter</string>
     <string name="sumh_overlay_xattr_desc">Skjul OverlayFS-markører i den virtuelle visning</string>
-    <string name="sumh_retry_apply">Prøv at anvende igen</string>
     <string name="sumh_rule_maps_spoof">Forfalsk /proc/pid/maps ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">Skjul overlay-monteringer fra /proc/mounts</string>
     <string name="sumh_rule_save">Anvend ændringer</string>

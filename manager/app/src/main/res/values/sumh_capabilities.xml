@@ -1,88 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="sumh_capabilities_title">Capabilities and scope</string>
-    <string name="sumh_capabilities_intro">Read saved settings, kernel controls and backend capabilities. These are separate root/controller samples, not a measurement of what an application sees.</string>
-    <string name="sumh_capabilities_idle">No sample yet. Read explicitly to inspect the current state.</string>
-    <string name="sumh_capabilities_read">Read capabilities</string>
-    <string name="sumh_capabilities_loading">Reading. Previous values are historical while this request is running.</string>
-    <string name="sumh_capabilities_fresh">Read completed. Sections were sampled separately, not atomically.</string>
-    <string name="sumh_capabilities_partial">Some sections are unknown or unavailable. Check each section’s source and reason.</string>
-    <string name="sumh_capabilities_retained">Some displayed values are retained from earlier reads. Their original boot and sample times remain attached.</string>
-    <string name="sumh_capabilities_failed">The read failed. Any earlier values shown below are historical.</string>
-    <string name="sumh_capabilities_navigation_only">These actions open the existing settings or diagnostics. They do not apply, retry or reset anything here.</string>
-    <string name="sumh_capabilities_configure">Open configuration</string>
-    <string name="sumh_capabilities_diagnostics">Open diagnostics</string>
-    <string name="sumh_capabilities_backend_settings">Open backend settings</string>
-    <string name="sumh_capabilities_modules">Open modules and planning</string>
-    <string name="sumh_capabilities_identity">Sample identity</string>
-    <string name="sumh_capabilities_boot">Boot: %1$s</string>
-    <string name="sumh_capabilities_interval">Sample time since boot (ms): %1$s–%2$s</string>
-    <string name="sumh_capabilities_generation">Control instance: %1$s · generation: %2$s</string>
-    <string name="sumh_capabilities_protocol">Controller protocol status: %1$d · kernel protocol: %2$d</string>
-    <string name="sumh_capabilities_bits">Advertised capability bits: %1$s</string>
-    <string name="sumh_capabilities_generation_scope">The generation covers kernel control changes. It does not establish rule inventory, module ownership or application visibility.</string>
-    <string name="sumh_capabilities_backend_title">Backends and mounting owner</string>
-    <string name="sumh_capabilities_saved_backend">Saved global backend preference: %1$s</string>
-    <string name="sumh_capabilities_backend_item">%1$s: %2$s</string>
-    <string name="sumh_capabilities_backend_available">Capability available</string>
-    <string name="sumh_capabilities_backend_unavailable">Capability unavailable</string>
-    <string name="sumh_capabilities_backend_unknown">Capability unknown</string>
-    <string name="sumh_capabilities_backend_limit">Registration and compiled strategy availability do not prove a successful mount. The actual backend and external mounting owner were not collected.</string>
-    <string name="sumh_capabilities_owner_unknown">External mounting owner: unknown</string>
-    <string name="sumh_capabilities_build_title">Kernel identity and displayed strings</string>
-    <string name="sumh_capabilities_build_current">Current initial-UTS strings</string>
-    <string name="sumh_capabilities_build_original">Original strings reported by the kernel</string>
-    <string name="sumh_capabilities_build_kmi">KMI label inferred from the original release: %1$s</string>
-    <string name="sumh_capabilities_build_limit">This label is not an ABI compatibility check. Changing displayed strings does not change the kernel ABI. Existing cloned UTS namespaces may keep different strings.</string>
-    <string name="sumh_capabilities_build_consistency">Build sample consistency: %1$s</string>
-    <string name="sumh_capabilities_build_stage">Saved activation stage: %1$s</string>
-    <string name="sumh_capabilities_support">Supported: %1$s</string>
-    <string name="sumh_capabilities_saved">Saved setting: %1$s</string>
-    <string name="sumh_capabilities_configured">Kernel configured flag: %1$s</string>
-    <string name="sumh_capabilities_active">Kernel machinery active: %1$s</string>
-    <string name="sumh_capabilities_degraded">Configured, but the required kernel machinery is not active.</string>
-    <string name="sumh_capabilities_setter_error">Last control setter errno: %1$d</string>
-    <string name="sumh_capabilities_matches">Sampled flags agree. This does not verify an applied revision or application view.</string>
-    <string name="sumh_capabilities_drift">Saved and sampled runtime flags differ.</string>
-    <string name="sumh_capabilities_unknown">Unknown</string>
-    <string name="sumh_capabilities_unsupported">Unsupported</string>
-    <string name="sumh_capabilities_deferred">Deferred</string>
-    <string name="sumh_capabilities_on">On</string>
-    <string name="sumh_capabilities_off">Off</string>
-    <string name="sumh_capabilities_yes">Yes</string>
-    <string name="sumh_capabilities_no">No</string>
-    <string name="sumh_capabilities_historical">Historical values — read again before drawing a current-state conclusion.</string>
-    <string name="sumh_capabilities_details">Scope and source</string>
-    <string name="sumh_capabilities_less">Hide details</string>
-    <string name="sumh_capabilities_phase_control">Activation: explicit control application; machinery readiness is reported separately.</string>
-    <string name="sumh_capabilities_phase_modules">Activation: module planning or reboot. Saving settings alone does not recompile active mappings.</string>
-    <string name="sumh_capabilities_phase_hide">Activation: registration and later binding events. Registered definitions do not prove invisibility.</string>
-    <string name="sumh_capabilities_phase_maps">Activation: explicit managed Maps application. File replacement can require reapplication.</string>
-    <string name="sumh_capabilities_phase_build">Activation: the saved boot stage or an explicitly supported application step.</string>
-    <string name="sumh_capabilities_phase_unknown">Activation stage: unknown</string>
-    <string name="sumh_capabilities_policy_label">Policy description — not an observed application result</string>
-    <string name="sumh_capabilities_observers_unmeasured">Ordinary, authorized, root, isolated, shared-UID and work-profile process views have not been measured by this read.</string>
-    <string name="sumh_capabilities_scope_modules">Module content uses VIEW or SPOOF according to UID and unmount policy. Isolated/app-zygote targets use SPOOF; non-app UIDs usually use VIEW. A root result cannot verify an ordinary app’s view.</string>
-    <string name="sumh_capabilities_scope_stealth">Stealth filters relevant /dev directory entries for SPOOF targets when enabled. It is not the policy used by every hidden path.</string>
-    <string name="sumh_capabilities_scope_hide">User HIDE exempts root, authorized apps and the resolver process. Some storage services also have parent exemptions. This differs from module visibility policy.</string>
-    <string name="sumh_capabilities_scope_mount">Filtered mount information applies to isolated targets and non-authorized apps. Privileged/system/authorized tools can retain topology; this is separate from module content visibility.</string>
-    <string name="sumh_capabilities_scope_maps">Explicit Maps rules apply to eligible SPOOF targets when enabled. They change Maps rendering and identity, not mapped file contents. Other proxy handling can also apply.</string>
-    <string name="sumh_capabilities_scope_statfs">Statfs handling uses mount-view policy and requires statfs and mount hiding to be configured, mount hiding available, and global SUMH enabled. Root/non-root alone is not enough to predict the result.</string>
-    <string name="sumh_capabilities_scope_build">Kernel Build modifies initial-UTS strings. It does not use per-application visibility policy and does not rewrite existing cloned UTS namespaces.</string>
-    <string name="sumh_capabilities_scope_debug">Kernel debug controls logging machinery. Its active flag is not evidence of any application’s file or mount view.</string>
-    <string name="sumh_capabilities_scope_xattr">Overlay attribute handling filters marked superblocks according to mount-view target policy. Its actual observer effect is not established by the six-control runtime sample.</string>
-    <string name="sumh_capabilities_scope_unknown">This read does not establish a process-specific observer policy for this feature.</string>
-    <string name="sumh_capabilities_source">Source: %1$s</string>
-    <string name="sumh_capabilities_reason">Reason: %1$s</string>
-    <string name="sumh_capabilities_section_status">Section: %1$s · %2$s · errno %3$d</string>
-    <string name="sumh_capabilities_section_known">Sample available</string>
-    <string name="sumh_capabilities_section_error">Read failed</string>
-    <string name="sumh_capabilities_revision">Saved config byte revision: %1$s</string>
-    <string name="sumh_capabilities_section_saved">Saved settings</string>
-    <string name="sumh_capabilities_section_runtime">Kernel controls</string>
-    <string name="sumh_capabilities_section_build">Kernel strings</string>
-    <string name="sumh_capabilities_section_backends">Backend capabilities</string>
-    <string name="sumh_capabilities_section_owner">Mounting owner</string>
-    <string name="sumh_capabilities_sources">Section sources and freshness</string>
-    <string name="sumh_capabilities_latest_attempt">Latest read attempt (separate from retained values)</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These SUMH strings currently support English and Simplified Chinese; other incomplete locales use Android English fallback. -->
+    <string name="sumh_capabilities_title" tools:ignore="MissingTranslation">Capabilities and scope</string>
+    <string name="sumh_capabilities_intro" tools:ignore="MissingTranslation">Read saved settings, kernel controls and backend capabilities. These are separate root/controller samples, not a measurement of what an application sees.</string>
+    <string name="sumh_capabilities_idle" tools:ignore="MissingTranslation">No sample yet. Read explicitly to inspect the current state.</string>
+    <string name="sumh_capabilities_read" tools:ignore="MissingTranslation">Read capabilities</string>
+    <string name="sumh_capabilities_loading" tools:ignore="MissingTranslation">Reading. Previous values are historical while this request is running.</string>
+    <string name="sumh_capabilities_fresh" tools:ignore="MissingTranslation">Read completed. Sections were sampled separately, not atomically.</string>
+    <string name="sumh_capabilities_partial" tools:ignore="MissingTranslation">Some sections are unknown or unavailable. Check each section’s source and reason.</string>
+    <string name="sumh_capabilities_retained" tools:ignore="MissingTranslation">Some displayed values are retained from earlier reads. Their original boot and sample times remain attached.</string>
+    <string name="sumh_capabilities_failed" tools:ignore="MissingTranslation">The read failed. Any earlier values shown below are historical.</string>
+    <string name="sumh_capabilities_navigation_only" tools:ignore="MissingTranslation">These actions open the existing settings or diagnostics. They do not apply, retry or reset anything here.</string>
+    <string name="sumh_capabilities_configure" tools:ignore="MissingTranslation">Open configuration</string>
+    <string name="sumh_capabilities_diagnostics" tools:ignore="MissingTranslation">Open diagnostics</string>
+    <string name="sumh_capabilities_backend_settings" tools:ignore="MissingTranslation">Open backend settings</string>
+    <string name="sumh_capabilities_modules" tools:ignore="MissingTranslation">Open modules and planning</string>
+    <string name="sumh_capabilities_identity" tools:ignore="MissingTranslation">Sample identity</string>
+    <string name="sumh_capabilities_boot" tools:ignore="MissingTranslation">Boot: %1$s</string>
+    <string name="sumh_capabilities_interval" tools:ignore="MissingTranslation">Sample time since boot (ms): %1$s–%2$s</string>
+    <string name="sumh_capabilities_generation" tools:ignore="MissingTranslation">Control instance: %1$s · generation: %2$s</string>
+    <string name="sumh_capabilities_protocol" tools:ignore="MissingTranslation">Controller protocol status: %1$d · kernel protocol: %2$d</string>
+    <string name="sumh_capabilities_bits" tools:ignore="MissingTranslation">Advertised capability bits: %1$s</string>
+    <string name="sumh_capabilities_generation_scope" tools:ignore="MissingTranslation">The generation covers kernel control changes. It does not establish rule inventory, module ownership or application visibility.</string>
+    <string name="sumh_capabilities_backend_title" tools:ignore="MissingTranslation">Backends and mounting owner</string>
+    <string name="sumh_capabilities_saved_backend" tools:ignore="MissingTranslation">Saved global backend preference: %1$s</string>
+    <string name="sumh_capabilities_backend_item" tools:ignore="MissingTranslation">%1$s: %2$s</string>
+    <string name="sumh_capabilities_backend_available" tools:ignore="MissingTranslation">Capability available</string>
+    <string name="sumh_capabilities_backend_unavailable" tools:ignore="MissingTranslation">Capability unavailable</string>
+    <string name="sumh_capabilities_backend_unknown" tools:ignore="MissingTranslation">Capability unknown</string>
+    <string name="sumh_capabilities_backend_limit" tools:ignore="MissingTranslation">Registration and compiled strategy availability do not prove a successful mount. The actual backend and external mounting owner were not collected.</string>
+    <string name="sumh_capabilities_owner_unknown" tools:ignore="MissingTranslation">External mounting owner: unknown</string>
+    <string name="sumh_capabilities_build_title" tools:ignore="MissingTranslation">Kernel identity and displayed strings</string>
+    <string name="sumh_capabilities_build_current" tools:ignore="MissingTranslation">Current initial-UTS strings</string>
+    <string name="sumh_capabilities_build_original" tools:ignore="MissingTranslation">Original strings reported by the kernel</string>
+    <string name="sumh_capabilities_build_kmi" tools:ignore="MissingTranslation">KMI label inferred from the original release: %1$s</string>
+    <string name="sumh_capabilities_build_limit" tools:ignore="MissingTranslation">This label is not an ABI compatibility check. Changing displayed strings does not change the kernel ABI. Existing cloned UTS namespaces may keep different strings.</string>
+    <string name="sumh_capabilities_build_consistency" tools:ignore="MissingTranslation">Build sample consistency: %1$s</string>
+    <string name="sumh_capabilities_build_stage" tools:ignore="MissingTranslation">Saved activation stage: %1$s</string>
+    <string name="sumh_capabilities_support" tools:ignore="MissingTranslation">Supported: %1$s</string>
+    <string name="sumh_capabilities_saved" tools:ignore="MissingTranslation">Saved setting: %1$s</string>
+    <string name="sumh_capabilities_configured" tools:ignore="MissingTranslation">Kernel configured flag: %1$s</string>
+    <string name="sumh_capabilities_active" tools:ignore="MissingTranslation">Kernel machinery active: %1$s</string>
+    <string name="sumh_capabilities_degraded" tools:ignore="MissingTranslation">Configured, but the required kernel machinery is not active.</string>
+    <string name="sumh_capabilities_setter_error" tools:ignore="MissingTranslation">Last control setter errno: %1$d</string>
+    <string name="sumh_capabilities_matches" tools:ignore="MissingTranslation">Sampled flags agree. This does not verify an applied revision or application view.</string>
+    <string name="sumh_capabilities_drift" tools:ignore="MissingTranslation">Saved and sampled runtime flags differ.</string>
+    <string name="sumh_capabilities_unknown" tools:ignore="MissingTranslation">Unknown</string>
+    <string name="sumh_capabilities_unsupported" tools:ignore="MissingTranslation">Unsupported</string>
+    <string name="sumh_capabilities_deferred" tools:ignore="MissingTranslation">Deferred</string>
+    <string name="sumh_capabilities_on" tools:ignore="MissingTranslation">On</string>
+    <string name="sumh_capabilities_off" tools:ignore="MissingTranslation">Off</string>
+    <string name="sumh_capabilities_yes" tools:ignore="MissingTranslation">Yes</string>
+    <string name="sumh_capabilities_no" tools:ignore="MissingTranslation">No</string>
+    <string name="sumh_capabilities_historical" tools:ignore="MissingTranslation">Historical values — read again before drawing a current-state conclusion.</string>
+    <string name="sumh_capabilities_details" tools:ignore="MissingTranslation">Scope and source</string>
+    <string name="sumh_capabilities_less" tools:ignore="MissingTranslation">Hide details</string>
+    <string name="sumh_capabilities_phase_control" tools:ignore="MissingTranslation">Activation: explicit control application; machinery readiness is reported separately.</string>
+    <string name="sumh_capabilities_phase_modules" tools:ignore="MissingTranslation">Activation: module planning or reboot. Saving settings alone does not recompile active mappings.</string>
+    <string name="sumh_capabilities_phase_hide" tools:ignore="MissingTranslation">Activation: registration and later binding events. Registered definitions do not prove invisibility.</string>
+    <string name="sumh_capabilities_phase_maps" tools:ignore="MissingTranslation">Activation: explicit managed Maps application. File replacement can require reapplication.</string>
+    <string name="sumh_capabilities_phase_build" tools:ignore="MissingTranslation">Activation: the saved boot stage or an explicitly supported application step.</string>
+    <string name="sumh_capabilities_phase_unknown" tools:ignore="MissingTranslation">Activation stage: unknown</string>
+    <string name="sumh_capabilities_policy_label" tools:ignore="MissingTranslation">Policy description — not an observed application result</string>
+    <string name="sumh_capabilities_observers_unmeasured" tools:ignore="MissingTranslation">Ordinary, authorized, root, isolated, shared-UID and work-profile process views have not been measured by this read.</string>
+    <string name="sumh_capabilities_scope_modules" tools:ignore="MissingTranslation">Module content uses VIEW or SPOOF according to UID and unmount policy. Isolated/app-zygote targets use SPOOF; non-app UIDs usually use VIEW. A root result cannot verify an ordinary app’s view.</string>
+    <string name="sumh_capabilities_scope_stealth" tools:ignore="MissingTranslation">Stealth filters relevant /dev directory entries for SPOOF targets when enabled. It is not the policy used by every hidden path.</string>
+    <string name="sumh_capabilities_scope_hide" tools:ignore="MissingTranslation">User HIDE exempts root, authorized apps and the resolver process. Some storage services also have parent exemptions. This differs from module visibility policy.</string>
+    <string name="sumh_capabilities_scope_mount" tools:ignore="MissingTranslation">Filtered mount information applies to isolated targets and non-authorized apps. Privileged/system/authorized tools can retain topology; this is separate from module content visibility.</string>
+    <string name="sumh_capabilities_scope_maps" tools:ignore="MissingTranslation">Explicit Maps rules apply to eligible SPOOF targets when enabled. They change Maps rendering and identity, not mapped file contents. Other proxy handling can also apply.</string>
+    <string name="sumh_capabilities_scope_statfs" tools:ignore="MissingTranslation">Statfs handling uses mount-view policy and requires statfs and mount hiding to be configured, mount hiding available, and global SUMH enabled. Root/non-root alone is not enough to predict the result.</string>
+    <string name="sumh_capabilities_scope_build" tools:ignore="MissingTranslation">Kernel Build modifies initial-UTS strings. It does not use per-application visibility policy and does not rewrite existing cloned UTS namespaces.</string>
+    <string name="sumh_capabilities_scope_debug" tools:ignore="MissingTranslation">Kernel debug controls logging machinery. Its active flag is not evidence of any application’s file or mount view.</string>
+    <string name="sumh_capabilities_scope_xattr" tools:ignore="MissingTranslation">Overlay attribute handling filters marked superblocks according to mount-view target policy. Its actual observer effect is not established by the six-control runtime sample.</string>
+    <string name="sumh_capabilities_scope_unknown" tools:ignore="MissingTranslation">This read does not establish a process-specific observer policy for this feature.</string>
+    <string name="sumh_capabilities_source" tools:ignore="MissingTranslation">Source: %1$s</string>
+    <string name="sumh_capabilities_reason" tools:ignore="MissingTranslation">Reason: %1$s</string>
+    <string name="sumh_capabilities_section_status" tools:ignore="MissingTranslation">Section: %1$s · %2$s · errno %3$d</string>
+    <string name="sumh_capabilities_section_known" tools:ignore="MissingTranslation">Sample available</string>
+    <string name="sumh_capabilities_section_error" tools:ignore="MissingTranslation">Read failed</string>
+    <string name="sumh_capabilities_revision" tools:ignore="MissingTranslation">Saved config byte revision: %1$s</string>
+    <string name="sumh_capabilities_section_saved" tools:ignore="MissingTranslation">Saved settings</string>
+    <string name="sumh_capabilities_section_runtime" tools:ignore="MissingTranslation">Kernel controls</string>
+    <string name="sumh_capabilities_section_build" tools:ignore="MissingTranslation">Kernel strings</string>
+    <string name="sumh_capabilities_section_backends" tools:ignore="MissingTranslation">Backend capabilities</string>
+    <string name="sumh_capabilities_section_owner" tools:ignore="MissingTranslation">Mounting owner</string>
+    <string name="sumh_capabilities_sources" tools:ignore="MissingTranslation">Section sources and freshness</string>
+    <string name="sumh_capabilities_latest_attempt" tools:ignore="MissingTranslation">Latest read attempt (separate from retained values)</string>
 </resources>

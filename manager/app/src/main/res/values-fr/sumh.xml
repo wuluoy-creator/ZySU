@@ -75,7 +75,6 @@
     <string name="sumh_no_conflicts">Aucun conflit de montage détecté</string>
     <string name="sumh_overlay_xattr">Masquer les attributs étendus d’OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Masquer les marqueurs OverlayFS dans la vue virtuelle</string>
-    <string name="sumh_retry_apply">Réessayer l’application</string>
     <string name="sumh_rule_maps_spoof">Usurper ino/dev/pathname dans /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Masquer les montages overlay de /proc/mounts</string>
     <string name="sumh_rule_save">Appliquer les modifications</string>

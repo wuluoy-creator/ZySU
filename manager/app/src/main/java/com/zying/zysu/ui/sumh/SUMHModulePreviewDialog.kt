@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.LineBreak
@@ -108,7 +109,8 @@ import com.zying.zysu.ui.sumh.util.*
                         item("frozen_input") {
                             Text(stringResource(R.string.sumh_module_preview_snapshot), style = MaterialTheme.typography.titleSmall)
                             Text(if (request.candidateMode == null) stringResource(R.string.sumh_module_preview_saved)
-                                else stringResource(R.string.sumh_module_preview_candidate_snapshot, request.candidateMode,
+                                else pluralStringResource(R.plurals.sumh_module_preview_candidate_snapshot,
+                                    request.candidateRules?.size ?: 0, request.candidateMode,
                                     request.candidateRules?.size ?: 0))
                         }
                         previewText("frozen_path", moduleTemplatePathLabel(request.explainPath), R.string.sumh_module_preview_requested_path)

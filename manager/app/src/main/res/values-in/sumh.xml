@@ -99,7 +99,6 @@
     <string name="sumh_no_conflicts">Tidak ditemukan konflik mount</string>
     <string name="sumh_overlay_xattr">Sembunyikan atribut tambahan OverlayFS</string>
     <string name="sumh_overlay_xattr_desc">Sembunyikan penanda OverlayFS dalam tampilan virtual</string>
-    <string name="sumh_retry_apply">Coba terapkan lagi</string>
     <string name="sumh_rule_save">Terapkan perubahan</string>
     <string name="sumh_rule_user">Aturan pengguna</string>
     <string name="sumh_saved_applied">Disimpan dan diterapkan ke kernel</string>
