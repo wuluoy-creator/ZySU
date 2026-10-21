@@ -25,6 +25,9 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.*
 
 @RunWith(RobolectricTestRunner::class)
@@ -45,6 +48,24 @@ class SUMHHideTransferWorkflowTest {
         compose.waitForIdle()
     }
     private fun idle(owner: SUMHHideTransferOperations) = until { !owner.busy }
+    private fun withStorageReadBlocked(block: () -> Unit) {
+        // A separate synthetic write holds the store's shared monitor through
+        // its existing sync hook, so the real load cannot complete early.
+        val directory = Files.createTempDirectory("sumh-hide-load-gate").toFile()
+        val held = CountDownLatch(1); val release = CountDownLatch(1)
+        val storage = SUMHHideTransferStorage(directory) {
+            held.countDown(); check(release.await(10, TimeUnit.SECONDS))
+        }
+        val executor = Executors.newSingleThreadExecutor()
+        val write = executor.submit<SUMHHideTransferDraft> { storage.saveDraft(SUMHHideTransferDraft(), null) }
+        try {
+            assertTrue(held.await(10, TimeUnit.SECONDS))
+            block()
+        } finally {
+            release.countDown()
+            try { write.get(10, TimeUnit.SECONDS) } finally { executor.shutdownNow() }
+        }
+    }
     private fun owner(): Pair<SUMHHideTransferOperations, SUMHHideTransferStorage> {
         val directory = Files.createTempDirectory("sumh-hide-workflow").toFile()
         val store = SUMHHideTransferStorage(directory) {}
@@ -136,13 +157,15 @@ class SUMHHideTransferWorkflowTest {
             if (pending && replacement.stage(null) { opened++; ByteArrayInputStream(document.toByteArray()) }) pending = false
         }
         compose.setContent { MaterialTheme { Text(replacement.busy.toString() + " " + replacement.loaded) } }
-        compose.runOnIdle {
-            deliver()
-            assertTrue(pending); assertEquals(0, opened); assertFalse(replacement.loaded)
-            replacement.load(directory, store)
-            assertTrue(replacement.busy)
-            deliver()
-            assertTrue(pending); assertEquals(0, opened)
+        withStorageReadBlocked {
+            compose.runOnIdle {
+                deliver()
+                assertTrue(pending); assertEquals(0, opened); assertFalse(replacement.loaded)
+                replacement.load(directory, store)
+                assertTrue(replacement.busy)
+                deliver()
+                assertTrue(pending); assertEquals(0, opened)
+            }
         }
         idle(replacement); assertTrue(replacement.loaded); assertTrue(pending)
         compose.runOnIdle { deliver() }; idle(replacement)
@@ -164,13 +187,15 @@ class SUMHHideTransferWorkflowTest {
             if (replacement.writeExport(token) { opened++; output }) pendingToken = null
         }
         compose.setContent { MaterialTheme { Text(replacement.busy.toString() + " " + replacement.loaded) } }
-        compose.runOnIdle {
-            deliver()
-            assertEquals(artifact.token, pendingToken); assertEquals(0, opened)
-            replacement.load(directory, store)
-            assertTrue(replacement.busy)
-            deliver()
-            assertEquals(artifact.token, pendingToken); assertEquals(0, opened)
+        withStorageReadBlocked {
+            compose.runOnIdle {
+                deliver()
+                assertEquals(artifact.token, pendingToken); assertEquals(0, opened)
+                replacement.load(directory, store)
+                assertTrue(replacement.busy)
+                deliver()
+                assertEquals(artifact.token, pendingToken); assertEquals(0, opened)
+            }
         }
         idle(replacement); assertTrue(replacement.loaded)
         compose.runOnIdle { deliver() }; idle(replacement)

@@ -64,3 +64,15 @@ Maps 测试统一等待共享 store 的 `loaded` 和对应草稿键，并推进 
 新回归先在旧实现上复现拒绝合法资源的问题，再验证修正；负例覆盖资源重复、`RES/` 别名、marker／载荷／assets 别名、穿越及证据包。244 项 CI Python 测试执行完成，0 失败、10 项环境条件跳过。使用上述真实中间 APK 和同次运行的 canonical ksud 在本机执行未签名重打包，载荷字节校验通过，482 个资源内容全部保持原样；没有本机签名或安装。证据位于 `out/ci-repair-round3-*`，独立只读复核记录为 `out/ci-repair-apk-round3-review.md`。
 
 第三轮提交前，5 个受影响测试类的 41 项定向测试、SUMH 专项 798 项、Build Manager 完整过滤集 831 项均为 0 失败／错误；两组完整过滤集各有 3 项既有 Windows 符号链接权限跳过。debug/release Lint 通过，运行期间输入稳定。记录分别为 `out/batch46-manager-ciRepairManagerRound3Targeted/` 和 `out/ci-repair-manager-round3-validation/`，提交前源码一致性核对为 `out/ci-repair-round3-precommit-evidence.json`。原嵌入载荷未变，未修改工作流或关闭检查。远端完整 Build Manager（含最终重打包、载荷校验和上传）仍须按修复提交 SHA 单独复验；上述本机记录不代替真机验收。
+
+## 第四轮：固定异步进行中状态的测试条件
+
+提交 `e2b42f548adab103423ad7e2903fbd5ed7f2012a` 的 [SUMH 回归](https://github.com/wuluoy-creator/ZySU/actions/runs/39537673290) 中，Linux 主机测试通过，上一轮修正的 Maps、模板和草稿生命周期用例也通过。798 项 Manager 测试仅 `SUMHModulePreviewWorkflowTest.exceptionClearsOldEvidenceAndDoesNotRetry` 失败：预期临时空结果，实际已经收到预期的 `transport_failed`，说明模拟调用完成得比断言更快，而不是错误返回丢失。
+
+该测试现在先确认旧结果存在，再用 `CompletableDeferred` 暂停第二次读取，明确验证进行中和旧结果已清除，释放后继续验证最终错误、未过期及仅调用两次。生产逻辑不变，原超时和业务断言保留。
+
+同类静态检查发现隐藏规则导入／导出各有一处未控制实际读取时长的进行中断言；这是源码检查发现的同类风险，不是本次 CI 中的新失败。两项测试复用存储现有同步回调，在独立合成存储中持锁，保证真实加载期间的回调拒绝条件；使用有界等待并在 `finally` 释放、回收线程，保留加载前／中／后的输入、冻结导出内容和只接受一次断言。没有新增生产测试接口、固定 sleep 或扩大现有超时。静态复核记录为 `out/ci-repair-manager-round4-transient-audit.md`。
+
+同一提交的 [Build Manager](https://github.com/wuluoy-creator/ZySU/actions/runs/39537673354) 已完成并成功：Manager 测试、Lint、APK 编译、四个 KMI、ksud／ksuinit、最终重打包和 canonical ksud 字节校验均通过，`Manager-arm64-v8a` 已上传。这确认第三轮 APK 校验修正通过了实际远端完整流程；第四轮继续收敛 SUMH 专项的单个测试时序失败，不修改产品代码。
+
+第四轮提交前验证：两类定向测试 21 项、SUMH 专项 798 项和 Build Manager 完整过滤集 831 项均为 0 失败／错误；定向测试无跳过，两组完整集各有 3 项既有 Windows 符号链接权限跳过。测试期间输入稳定，生产源码与工作流未改变。证据为 `out/batch46-manager-ciRepairManagerRound4Targeted/`、`out/ci-repair-manager-round4-validation/` 和 `out/ci-repair-round4-precommit-evidence.json`。新提交的远端工作流仍应单独核对，不能用前一提交的构建成功代替。

@@ -144,10 +144,18 @@ class SUMHModulePreviewWorkflowTest {
     @Test fun exceptionClearsOldEvidenceAndDoesNotRetry() {
         val owner = owner(); val input = context(); var calls = 0
         compose.runOnIdle { owner.attach("s", "example", input); owner.read("s", input, false) { calls++; SUMHModulePreviewResult(error = "old") } }
-        idle(owner)
+        idle(owner); assertEquals("old", owner.result?.error)
+        val failureGate = CompletableDeferred<Unit>()
         compose.runOnIdle {
-            owner.read("s", input, false) { calls++; throw IllegalStateException("transport_failed") }
+            assertTrue(owner.read("s", input, false) {
+                calls++; failureGate.await(); throw IllegalStateException("transport_failed")
+            })
+        }
+        until { calls == 2 }
+        compose.runOnIdle {
+            assertTrue(owner.busy)
             assertNull(owner.result)
+            failureGate.complete(Unit)
         }
         idle(owner); assertEquals(2, calls); assertEquals("transport_failed", owner.result?.error); assertFalse(owner.stale)
     }
