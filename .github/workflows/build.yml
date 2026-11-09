@@ -254,8 +254,16 @@ jobs:
         with:
           packages: platform-tools
 
+      - name: Setup Node.js for WebUI tests
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Test WebUI JavaScript interfaces
+        run: node --test ../js/tests/webui.test.mjs
+
       - name: Build with Gradle
-        run: ./gradlew :app:testDebugUnitTest --tests 'com.zying.zysu.update.*' --tests 'com.zying.zysu.superkey.*' --tests 'com.zying.zysu.ui.util.module.ShortcutMigrationTest' lintDebug lintRelease assembleRelease --build-cache --parallel --no-daemon -PABI=arm64-v8a
+        run: ./gradlew :app:testDebugUnitTest lintDebug lintRelease assembleRelease --build-cache --parallel --no-daemon -PABI=arm64-v8a
 
       - name: Upload lint reports on failure
         if: failure()

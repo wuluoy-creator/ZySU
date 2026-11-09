@@ -1,10 +1,11 @@
 #!/bin/sh
 # Run with: sh userspace/ksud/tests/installer_zip_error_test.sh
 
-BOOTMODE=true
-script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export BOOTMODE=true
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 work_dir=$(mktemp -d) || exit 1
 trap 'rm -rf "$work_dir"' 0
+# shellcheck source=/dev/null
 . "$script_dir/../assets/installer.sh"
 
 # Keep the production install_module and abort functions; replace device-only
@@ -51,13 +52,13 @@ run_case() {
   mkdir -p "$case_dir"
   if (
     TMPDIR="$case_dir/tmp"
-    NVBASE="$case_dir/data"
-    ZIPFILE="$case_dir/module.zip"
-    MODPATH=
-    SKIPMOUNT=false
-    PROPFILE=false
-    POSTFSDATA=false
-    LATESTARTSERVICE=false
+    export NVBASE="$case_dir/data"
+    export ZIPFILE="$case_dir/module.zip"
+    MODPATH=''
+    export SKIPMOUNT=false
+    export PROPFILE=false
+    export POSTFSDATA=false
+    export LATESTARTSERVICE=false
     install_module
   ) > "$case_dir/output" 2>&1; then
     actual_status=0
