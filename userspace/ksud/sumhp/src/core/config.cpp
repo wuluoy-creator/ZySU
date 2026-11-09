@@ -188,11 +188,10 @@ bool valid_kstat_digits(const std::string& value, bool allow_negative) {
     if (negative && (!allow_negative || value.size() == 1 || value[1] == '0'))
         return false;
     const std::size_t start = negative ? 1 : 0;
-    if ((!negative && value.size() > 1 && value.front() == '0') ||
-        std::any_of(value.begin() + start, value.end(),
-                    [](char digit) { return digit < '0' || digit > '9'; }))
+    if (!negative && value.size() > 1 && value.front() == '0')
         return false;
-    return true;
+    return std::all_of(value.begin() + start, value.end(),
+                       [](char digit) { return digit >= '0' && digit <= '9'; });
 }
 bool parse_kstat_unsigned(const std::string& value, std::uint64_t limit, std::uint64_t& result) {
     if (!valid_kstat_digits(value, false))
