@@ -68,13 +68,11 @@ dev_t sumh_vnode_visible_dev(const char *visible_path);
 u64 sumh_vnode_allocated(void);
 unsigned int sumh_vnode_live(void);
 
-extern bool sumh_stealth_enabled;
-
 extern int sumh_mount_hide_vfsmnt_registered;
 extern int sumh_mount_hide_mountinfo_registered;
 extern int sumh_proc_proxy_registered;
+/* Mutable state belongs only to optional features such as Maps. */
 extern int sumh_feature_enabled_mask;
-extern int sumh_mount_hide_mode;
 extern int sumh_fscap_kretprobe_registered;
 extern int sumh_fscaps_enabled;
 extern int sumh_device_sources_enabled;

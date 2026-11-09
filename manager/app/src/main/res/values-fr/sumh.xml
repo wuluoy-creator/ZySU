@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Rechercher dans les journaux</string>
     <string name="sumh_logs_actions">Actions sur les journaux</string>
     <string name="sumh_maps_spoof">Simulation des maps</string>
-    <string name="sumh_maps_spoof_desc">Remapper les chemins, numéros de périphérique et inode des zones mémoire mappées</string>
     <string name="sumh_mirror_path">Base de montage / chemin du miroir</string>
     <string name="sumh_mirror_path_desc">Laisser vide pour que SUMHP choisisse automatiquement le dossier.</string>
     <string name="sumh_mismatch_default">Non-concordance de protocole détectée. Veuillez mettre à jour le noyau ou le module.</string>
     <string name="sumh_mount_config">Configuration de montage</string>
     <string name="sumh_mount_filter">Filtrer les modes de montage</string>
     <string name="sumh_mount_hide">Masquage des montages</string>
-    <string name="sumh_mount_hide_desc">Masquer les entrées des modules dans la vue des montages</string>
     <string name="sumh_mount_mode">Mode de montage</string>
     <string name="sumh_mount_mode_auto">Automatique</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">Le nom ne peut pas être vide ni contenir d’espaces, de barres obliques inverses ou de caractères de contrôle.</string>
     <string name="sumh_no_conflicts">Aucun conflit de montage détecté</string>
     <string name="sumh_overlay_xattr">Masquer les attributs étendus d’OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">Masquer les marqueurs OverlayFS dans la vue virtuelle</string>
     <string name="sumh_retry_apply">Réessayer l’application</string>
     <string name="sumh_rule_maps_spoof">Usurper ino/dev/pathname dans /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Masquer les montages overlay de /proc/mounts</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Enregistré, mais l’application au noyau a échoué : %1$s</string>
     <string name="sumh_saved_reboot">Enregistré. Le moteur de montage prendra effet après redémarrage.</string>
     <string name="sumh_statfs_spoof">Simulation de Statfs</string>
-    <string name="sumh_statfs_spoof_desc">Remapper les informations de type de système de fichiers</string>
     <string name="sumh_status_kernel_too_old">Noyau trop ancien</string>
     <string name="sumh_status_module_too_old">La version du protocole du gestionnaire est trop ancienne. Mettez le gestionnaire à jour.</string>
     <string name="sumh_status_not_present">Absent</string>
     <string name="sumh_stealth">Mode furtif</string>
-    <string name="sumh_stealth_desc">Masquer les traces de montage et réordonner les ID de montage</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Non monté</string>
     <string name="sumh_tempdir">Point de montage temporaire</string>

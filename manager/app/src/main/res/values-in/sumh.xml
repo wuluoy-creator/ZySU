@@ -45,7 +45,6 @@
     <string name="sumh_status_kernel_too_old">Kernel terlalu lama</string>
     <string name="sumh_status_not_present">Tidak ada</string>
     <string name="sumh_stealth">Mode siluman</string>
-    <string name="sumh_stealth_desc">Sembunyikan jejak pemasangan dan tata ulang ID pemasangan</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Tidak terpasang</string>
     <string name="sumh_tempdir">Titik pemasangan sementara</string>
@@ -73,16 +72,13 @@
     <string name="sumh_logs_search">Cari log</string>
     <string name="sumh_logs_actions">Tindakan log</string>
     <string name="sumh_maps_spoof">Penyamaran Maps</string>
-    <string name="sumh_maps_spoof_desc">Petakan jalur, nomor perangkat, dan inode area memori</string>
     <string name="sumh_mirror_path_desc">Biarkan kosong agar SUMHP memilih direktori secara otomatis.</string>
     <string name="sumh_mount_filter">Filter mode mount</string>
     <string name="sumh_mount_hide">Sembunyikan mount</string>
-    <string name="sumh_mount_hide_desc">Sembunyikan entri modul dari tampilan mount</string>
     <string name="sumh_mount_total">Mount modul</string>
     <string name="sumh_mountsource_invalid">Nama tidak boleh kosong atau mengandung spasi, garis miring terbalik, maupun karakter kontrol.</string>
     <string name="sumh_no_conflicts">Tidak ditemukan konflik mount</string>
     <string name="sumh_overlay_xattr">Sembunyikan atribut tambahan OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">Sembunyikan penanda OverlayFS dalam tampilan virtual</string>
     <string name="sumh_retry_apply">Coba terapkan lagi</string>
     <string name="sumh_rule_save">Terapkan perubahan</string>
     <string name="sumh_rule_user">Aturan pengguna</string>
@@ -90,7 +86,6 @@
     <string name="sumh_saved_apply_failed">Disimpan, tetapi gagal diterapkan ke kernel: %1$s</string>
     <string name="sumh_saved_reboot">Disimpan. Backend mount berlaku setelah mulai ulang</string>
     <string name="sumh_statfs_spoof">Penyamaran Statfs</string>
-    <string name="sumh_statfs_spoof_desc">Petakan informasi jenis sistem berkas</string>
     <string name="sumh_status_module_too_old">Versi protokol pengelola terlalu lama. Perbarui pengelola</string>
     <string name="sumh_user_hide_remove">Hapus aturan penyembunyian</string>
     <string name="sumh_disable_unsupported">Tidak didukung oleh kernel ini. Nonaktifkan untuk membersihkan pengaturan tersimpan.</string>

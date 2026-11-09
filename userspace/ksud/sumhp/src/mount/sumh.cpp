@@ -356,10 +356,7 @@ bool disable_kernel_features(std::string* error = nullptr) {
         }
     };
     disable(::sumhp::sumh::set_debug(false), "kernel debug");
-    disable(::sumhp::sumh::set_stealth(false), "stealth");
-    disable(::sumhp::sumh::set_mount_hide(false), "mount hide");
     disable(::sumhp::sumh::set_maps_spoof(false), "maps spoof");
-    disable(::sumhp::sumh::set_statfs_spoof(false), "statfs spoof");
     disable(::sumhp::sumh::set_kernel_build(false), "kernel build spoof");
     return ok;
 }
@@ -555,11 +552,9 @@ bool apply_maps_config(const Config& config, std::string& error, bool restore_ru
 
 bool apply_feature_config(const Config& config, std::string& error, bool apply_immediately,
                           bool apply_maps) {
-    mlog("apply features: mount_hide=" + std::to_string(config.enable_mount_hide) +
-         " mode=" + config.mount_hide_mode + " maps=" + std::to_string(config.enable_maps_spoof) +
-         " statfs=" + std::to_string(config.enable_statfs_spoof) +
-         " kernel_build=" + std::to_string(config.enable_kernel_build_spoof) +
-         " overlay_xattrs=" + std::to_string(config.enable_overlay_xattr_hide));
+    // Built-in protections are intrinsic to the kernel and have no user-space switches.
+    mlog("apply optional features: maps=" + std::to_string(config.enable_maps_spoof) +
+         " kernel_build=" + std::to_string(config.enable_kernel_build_spoof));
     bool ok = true;
     const auto apply = [&](bool result, const char* name) {
         if (!result) {
@@ -571,22 +566,6 @@ bool apply_feature_config(const Config& config, std::string& error, bool apply_i
     };
 
     apply(::sumhp::sumh::set_debug(config.enable_kernel_debug), "kernel debug");
-    apply(::sumhp::sumh::set_stealth(config.enable_stealth), "stealth");
-    const auto mount_hide_mode = config.mount_hide_mode == "aggressive"
-                                     ? ::sumhp::sumh::MountHideMode::Aggressive
-                                     : ::sumhp::sumh::MountHideMode::Normal;
-    bool mount_hide_ok = ::sumhp::sumh::set_mount_hide(config.enable_mount_hide, mount_hide_mode);
-    if (!mount_hide_ok && mount_hide_mode == ::sumhp::sumh::MountHideMode::Aggressive &&
-        errno == EOPNOTSUPP) {
-        // Older saved configurations must not disable all filtering when a
-        // kernel retires the incomplete namespace-link projection.
-        mlog("aggressive mount hide unsupported; applying normal mount hide with native namespace "
-             "IDs");
-        mount_hide_ok = ::sumhp::sumh::set_mount_hide(config.enable_mount_hide,
-                                                      ::sumhp::sumh::MountHideMode::Normal);
-    }
-    apply(mount_hide_ok, "mount hide");
-    apply(::sumhp::sumh::set_statfs_spoof(config.enable_statfs_spoof), "statfs spoof");
     if (apply_immediately || !config.enable_kernel_build_spoof ||
         config.kernel_build_apply_stage == "post-fs-data" ||
         ksud::getprop("sys.boot_completed") == "1") {

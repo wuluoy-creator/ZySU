@@ -6,6 +6,7 @@
 #include "mount/partition_alias.hpp"
 #include "mount/storage.hpp"
 #include "sumhp/sumh_client.hpp"
+#include "uapi/sumh.h"
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -688,6 +689,17 @@ bool sync_content(const std::vector<ModuleEntry>& modules, const storage::Handle
 }  // namespace
 
 bool mount_modules(const std::vector<ModuleEntry>& modules, const Config& config) {
+    bool hide_xattrs = false;
+    if (::sumhp::sumh::is_available()) {
+        const auto caps = ::sumhp::sumh::feature_capabilities();
+        if (!caps.ok) {
+            errno = caps.last_errno;
+            mlog("overlay: failed to query xattr support: " + std::string(std::strerror(errno)),
+                 logging::Level::Error);
+            return false;
+        }
+        hide_xattrs = (caps.bitmask & SUMH_FEATURE_OVERLAY_XATTR_HIDE) != 0;
+    }
     const storage::Handle base = storage::setup(config);
     if (!base.ok) {
         mlog("overlay: storage base setup failed", logging::Level::Error);
@@ -728,7 +740,6 @@ bool mount_modules(const std::vector<ModuleEntry>& modules, const Config& config
     }
     if (ok) {
         std::vector<fsutil::MountRecord> records;
-        const bool hide_xattrs = config.enable_overlay_xattr_hide && ::sumhp::sumh::is_available();
         for (const auto& entry : attached) {
             if (!fsutil::mount_matches(entry.identity)) {
                 mlog("overlay: attached mount changed before commit: " + entry.path,
@@ -791,19 +802,21 @@ bool unmount_all(const Config& config) {
 }
 
 bool restore_xattr_hiding(const Config& config) {
+    const auto caps = ::sumhp::sumh::feature_capabilities();
+    if (!caps.ok) {
+        errno = caps.last_errno;
+        mlog("overlay: failed to query xattr support: " + std::string(std::strerror(errno)),
+             logging::Level::Error);
+        return false;
+    }
+    if (!(caps.bitmask & SUMH_FEATURE_OVERLAY_XATTR_HIDE))
+        return true;
     std::vector<fsutil::MountRecord> records;
     bool legacy;
     if (!fsutil::read_mount_journal(overlay_journal(), records, legacy) || legacy)
         return false;
     if (!::sumhp::sumh::clear_overlay_xattr_hiding())
         return false;
-    if (!config.enable_overlay_xattr_hide) {
-        return true;
-    }
-    if (!::sumhp::sumh::is_available()) {
-        return false;
-    }
-
     bool ok = true;
     for (const auto& target : our_overlays(config.mount_source)) {
         if (!::sumhp::sumh::hide_overlay_xattrs(target)) {

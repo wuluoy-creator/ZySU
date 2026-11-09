@@ -1,10 +1,10 @@
 package com.zying.zysu.ui.sumh.util
 
-internal enum class SUMHManagedFeature(val capability: String) {
-    Stealth("stealth"),
-    MountHide("mount_hide"),
-    OverlayXattr("overlay_xattr_hide"),
-    Statfs("statfs_spoof"),
+internal enum class SUMHManagedFeature(val capability: String, val alwaysEnabled: Boolean = false) {
+    Stealth("stealth", alwaysEnabled = true),
+    MountHide("mount_hide", alwaysEnabled = true),
+    OverlayXattr("overlay_xattr_hide", alwaysEnabled = true),
+    Statfs("statfs_spoof", alwaysEnabled = true),
     Maps("maps_spoof"),
     KernelBuild("kernel_build_spoof"),
 }
@@ -19,9 +19,9 @@ internal data class SUMHFeatureState(
     val support: SUMHFeatureSupport,
     val runtimeEnabled: Boolean? = null,
 ) {
-    // Saved settings can always be cleared, including after changing kernels.
+    // Optional saved settings can be cleared even after changing kernels.
     val canChange: Boolean
-        get() = configuredEnabled || support == SUMHFeatureSupport.Supported
+        get() = !feature.alwaysEnabled && (configuredEnabled || support == SUMHFeatureSupport.Supported)
 }
 
 internal fun sumhFeatureStates(
@@ -32,7 +32,7 @@ internal fun sumhFeatureStates(
 ): List<SUMHFeatureState> = SUMHManagedFeature.entries.map { feature ->
     SUMHFeatureState(
         feature = feature,
-        configuredEnabled = feature in configuredEnabled,
+        configuredEnabled = feature.alwaysEnabled || feature in configuredEnabled,
         support = when {
             !kernelAvailable -> SUMHFeatureSupport.KernelUnavailable
             feature == SUMHManagedFeature.Stealth -> SUMHFeatureSupport.Supported
@@ -62,5 +62,5 @@ internal fun SUMHFeatureState.matches(
 }
 
 internal fun unsupportedConfiguredFeatures(states: List<SUMHFeatureState>): Set<SUMHManagedFeature> =
-    states.filter { it.configuredEnabled && it.support == SUMHFeatureSupport.Unsupported }
+    states.filter { !it.feature.alwaysEnabled && it.configuredEnabled && it.support == SUMHFeatureSupport.Unsupported }
         .mapTo(linkedSetOf()) { it.feature }

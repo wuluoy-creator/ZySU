@@ -43,9 +43,7 @@ object SUMHUiAdapter {
         val tempdir: String = "",
         val mountsource: String = "KSU", val debug: Boolean = false, val verbose: Boolean = false,
         val fsType: String = "auto", val enableKernelDebug: Boolean = false,
-        val enableStealth: Boolean = true, val enableOverlayXattrHide: Boolean = false,
-        val enableMountHide: Boolean = false,
-        val enableMapsSpoof: Boolean = false, val enableStatfsSpoof: Boolean = false,
+        val enableMapsSpoof: Boolean = false,
         val mapsRules: List<MapsPathRule> = emptyList(),
         val kstatRules: List<KstatPathRule> = emptyList(),
         val enableKernelBuildSpoof: Boolean = false,
@@ -72,9 +70,6 @@ object SUMHUiAdapter {
             mountsource = raw.optString("mountsource", "KSU"),
             debug = raw.optBoolean("debug"), verbose = raw.optBoolean("verbose"),
             fsType = raw.optString("fs_type", "auto"), enableKernelDebug = raw.optBoolean("enable_kernel_debug"),
-            enableStealth = raw.optBoolean("enable_stealth", true),
-            enableOverlayXattrHide = raw.optBoolean("enable_overlay_xattr_hide"),
-            enableMountHide = raw.optBoolean("enable_mount_hide"),
             enableMapsSpoof = raw.optBoolean("enable_maps_spoof"),
             mapsRules = if (mapsRules == null) emptyList() else (0 until mapsRules.length()).map {
                 val rule = mapsRules.getJSONObject(it)
@@ -84,7 +79,6 @@ object SUMHUiAdapter {
                 val rule = kstatRules.getJSONObject(it)
                 parseKstatRule(rule)
             },
-            enableStatfsSpoof = raw.optBoolean("enable_statfs_spoof"),
             enableKernelBuildSpoof = raw.optBoolean("enable_kernel_build_spoof"),
             kernelBuildRelease = raw.optString("kernel_build_release"),
             kernelBuildVersion = raw.optString("kernel_build_version"),
@@ -219,16 +213,19 @@ object SUMHUiAdapter {
         return ManagedKstatStatus(countInt, generation)
     }
 
+    internal fun kernelStatus(protocol: Int, expected: Int, available: Boolean): SUMHStatus = when {
+        available -> SUMHStatus.AVAILABLE
+        protocol == 0 -> SUMHStatus.NOT_PRESENT
+        protocol < expected -> SUMHStatus.KERNEL_TOO_OLD
+        else -> SUMHStatus.MODULE_TOO_OLD
+    }
+
     suspend fun load(): UiState = withContext(Dispatchers.IO) {
         val snapshot = SUMHManager.snapshot()
         val sys = snapshot.system
         val protocol = sys.optInt("kernel_version")
-        val status = when {
-            snapshot.mounts.available -> SUMHStatus.AVAILABLE
-            protocol == 0 -> SUMHStatus.NOT_PRESENT
-            protocol < 1 -> SUMHStatus.KERNEL_TOO_OLD
-            else -> SUMHStatus.MODULE_TOO_OLD
-        }
+        val expectedProtocol = sys.getInt("expected_protocol")
+        val status = kernelStatus(protocol, expectedProtocol, snapshot.mounts.available)
         val features = parseFeatures(sys.optJSONObject("features"))
         val supported = features?.names.orEmpty()
         val viewConfig = config(snapshot.config, supported.toSet(), snapshot.mounts.available, snapshot.mounts.externalOwner)
@@ -261,7 +258,7 @@ object SUMHUiAdapter {
             protocol.toString(), status, viewConfig,
             snapshot.mounts.modules.values.map { ModuleInfo(it.id, it.name, it.mode, it.strategy) },
             SystemInfo(sys.optString("kernel"), base, mounts, ids,
-                protocol != 0 && protocol != 1, null,
+                protocol != 0 && protocol != expectedProtocol, null,
                 stats?.let { MountStats(it.optInt("total_mounts"), it.optInt("overlayfs_mounts")) }, partitions,
                 sys.optString("hooks"), sys.optBoolean("enabled"),
                 parseManagedKstatStatus(sys.optJSONObject("managed_kstat_status"))),
@@ -288,9 +285,6 @@ object SUMHUiAdapter {
         change("verbose", old.verbose, value.verbose)
         change("fs_type", old.fsType, value.fsType)
         change("enable_kernel_debug", old.enableKernelDebug, value.enableKernelDebug)
-        change("enable_stealth", old.enableStealth, value.enableStealth)
-        change("enable_overlay_xattr_hide", old.enableOverlayXattrHide, value.enableOverlayXattrHide)
-        change("enable_mount_hide", old.enableMountHide, value.enableMountHide)
         change("enable_maps_spoof", old.enableMapsSpoof, value.enableMapsSpoof)
         if (old.mapsRules != value.mapsRules) {
             require(value.mapsRules.size <= SUMH_MAX_MAPS_PATH_RULES)
@@ -305,7 +299,6 @@ object SUMHUiAdapter {
             require(validSUMHKstatRules(value.kstatRules))
             updates.put("kstat_rules", kstatRulesJson(value.kstatRules))
         }
-        change("enable_statfs_spoof", old.enableStatfsSpoof, value.enableStatfsSpoof)
         change("enable_kernel_build_spoof", old.enableKernelBuildSpoof, value.enableKernelBuildSpoof)
         change("kernel_build_release", old.kernelBuildRelease, value.kernelBuildRelease)
         change("kernel_build_version", old.kernelBuildVersion, value.kernelBuildVersion)
@@ -328,12 +321,6 @@ object SUMHUiAdapter {
             require(value.partitions.distinct().size == value.partitions.size)
             updates.put("partitions", org.json.JSONArray(value.partitions))
         }
-        val plan = planSUMHConfigSave(
-            updates.keys().asSequence().toSet(),
-            value.kernelAvailable,
-            value.original.optString("mount_hide_mode", "normal"),
-        )
-        if (plan.normalizeMountHideMode) updates.put("mount_hide_mode", "normal")
         return updates
     }
 

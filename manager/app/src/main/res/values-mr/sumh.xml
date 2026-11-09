@@ -45,7 +45,6 @@
     <string name="sumh_status_kernel_too_old">कर्नल खूप जुने आहे</string>
     <string name="sumh_status_not_present">उपस्थित नाही</string>
     <string name="sumh_stealth">स्टेल्थ मोड</string>
-    <string name="sumh_stealth_desc">माउंट खुणा लपवा आणि माउंट आयडी पुन्हा क्रमवारी लावा</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">माउंट केलेले नाही</string>
     <string name="sumh_tempdir">तात्पुरते माउंट पॉइंट</string>
@@ -73,16 +72,13 @@
     <string name="sumh_logs_search">लॉग शोधा</string>
     <string name="sumh_logs_actions">लॉग क्रिया</string>
     <string name="sumh_maps_spoof">Maps चे छद्म रूप</string>
-    <string name="sumh_maps_spoof_desc">मॅप केलेल्या मेमरी भागांचे पथ, डिव्हाइस क्रमांक आणि inode रीमॅप करा</string>
     <string name="sumh_mirror_path_desc">SUMHP ला निर्देशिका आपोआप निवडू देण्यासाठी रिकामे सोडा.</string>
     <string name="sumh_mount_filter">माउंट मोड फिल्टर करा</string>
     <string name="sumh_mount_hide">माउंट लपवणे</string>
-    <string name="sumh_mount_hide_desc">माउंट दृश्यातील मॉड्यूलच्या नोंदी लपवा</string>
     <string name="sumh_mount_total">मॉड्यूल माउंट</string>
     <string name="sumh_mountsource_invalid">नाव रिकामे असू शकत नाही आणि त्यात रिक्त जागा, बॅकस्लॅश किंवा नियंत्रण वर्ण नसावेत.</string>
     <string name="sumh_no_conflicts">कोणतेही माउंट संघर्ष आढळले नाहीत</string>
     <string name="sumh_overlay_xattr">OverlayFS चे विस्तारित गुणधर्म लपवा</string>
-    <string name="sumh_overlay_xattr_desc">आभासी दृश्यातील OverlayFS चिन्हे लपवा</string>
     <string name="sumh_retry_apply">पुन्हा लागू करा</string>
     <string name="sumh_rule_save">बदल लागू करा</string>
     <string name="sumh_rule_user">वापरकर्त्याचे नियम</string>
@@ -90,7 +86,6 @@
     <string name="sumh_saved_apply_failed">जतन केले, परंतु कर्नलवर लागू करता आले नाही: %1$s</string>
     <string name="sumh_saved_reboot">जतन केले. माउंट बॅकएंड रीस्टार्टनंतर प्रभावी होईल.</string>
     <string name="sumh_statfs_spoof">Statfs चे छद्म रूप</string>
-    <string name="sumh_statfs_spoof_desc">फाइल सिस्टम प्रकाराची माहिती रीमॅप करा</string>
     <string name="sumh_status_module_too_old">व्यवस्थापकाच्या प्रोटोकॉलची आवृत्ती खूप जुनी आहे. व्यवस्थापक अपडेट करा.</string>
     <string name="sumh_user_hide_remove">लपवण्याचा नियम काढा</string>
     <string name="sumh_disable_unsupported">या कर्नलवर समर्थित नाही. जतन केलेली सेटिंग्ज साफ करण्यासाठी बंद करा.</string>

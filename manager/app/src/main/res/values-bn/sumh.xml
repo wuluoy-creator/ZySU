@@ -45,7 +45,6 @@
     <string name="sumh_status_kernel_too_old">কার্নেল খুব পুরনো</string>
     <string name="sumh_status_not_present">উপস্থিত নেই</string>
     <string name="sumh_stealth">স্টেলথ মোড</string>
-    <string name="sumh_stealth_desc">মাউন্ট ট্রেস লুকান এবং মাউন্ট আইডি পুনঃক্রমিত করুন</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">মাউন্ট করা নেই</string>
     <string name="sumh_tempdir">অস্থায়ী মাউন্ট পয়েন্ট</string>
@@ -73,16 +72,13 @@
     <string name="sumh_logs_search">লগ খুঁজুন</string>
     <string name="sumh_logs_actions">লগের কাজ</string>
     <string name="sumh_maps_spoof">Maps-এর ভুয়া তথ্য</string>
-    <string name="sumh_maps_spoof_desc">মেমরি অঞ্চলের পাথ, ডিভাইস নম্বর ও inode ম্যাপ করুন</string>
     <string name="sumh_mirror_path_desc">ফাঁকা রাখলে SUMHP স্বয়ংক্রিয়ভাবে ডিরেক্টরি বেছে নেবে।</string>
     <string name="sumh_mount_filter">মাউন্ট মোড অনুযায়ী ছাঁকুন</string>
     <string name="sumh_mount_hide">মাউন্ট লুকান</string>
-    <string name="sumh_mount_hide_desc">মাউন্ট ভিউ থেকে মডিউলের এন্ট্রি লুকান</string>
     <string name="sumh_mount_total">মডিউল মাউন্ট</string>
     <string name="sumh_mountsource_invalid">নাম ফাঁকা রাখা যাবে না এবং এতে ফাঁকা স্থান, ব্যাকস্ল্যাশ বা নিয়ন্ত্রণ অক্ষর থাকতে পারবে না।</string>
     <string name="sumh_no_conflicts">মাউন্টের কোনো দ্বন্দ্ব পাওয়া যায়নি</string>
     <string name="sumh_overlay_xattr">OverlayFS-এর বর্ধিত অ্যাট্রিবিউট লুকান</string>
-    <string name="sumh_overlay_xattr_desc">ভার্চুয়াল ভিউতে OverlayFS-এর চিহ্ন লুকান</string>
     <string name="sumh_retry_apply">আবার প্রয়োগের চেষ্টা করুন</string>
     <string name="sumh_rule_save">সম্পাদনা প্রয়োগ করুন</string>
     <string name="sumh_rule_user">ব্যবহারকারীর নিয়ম</string>
@@ -90,7 +86,6 @@
     <string name="sumh_saved_apply_failed">সংরক্ষিত হয়েছে, তবে কার্নেলে প্রয়োগ ব্যর্থ: %1$s</string>
     <string name="sumh_saved_reboot">সংরক্ষিত হয়েছে। মাউন্ট ব্যাকএন্ড পুনরায় চালুর পর কার্যকর হবে</string>
     <string name="sumh_statfs_spoof">Statfs-এর ভুয়া তথ্য</string>
-    <string name="sumh_statfs_spoof_desc">ফাইল সিস্টেমের ধরনের তথ্য ম্যাপ করুন</string>
     <string name="sumh_status_module_too_old">ম্যানেজারের প্রোটোকল সংস্করণ অনেক পুরোনো। ম্যানেজার আপডেট করুন</string>
     <string name="sumh_user_hide_remove">লুকানোর নিয়ম মুছুন</string>
     <string name="sumh_disable_unsupported">এই কার্নেলে সমর্থিত নয়। সংরক্ষিত সেটিংস মুছতে বন্ধ করতে পারেন।</string>

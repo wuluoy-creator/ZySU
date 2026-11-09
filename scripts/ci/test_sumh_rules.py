@@ -22,7 +22,7 @@ def rules_source():
 #define EFAULT 14
 #define GFP_KERNEL 0
 #define SUMH_IOC_LIST_RULES 1
-#define SUMH_PROTOCOL_VERSION 1
+#define SUMH_PROTOCOL_VERSION 2
 #define SUMH_FEATURE_MOUNT_HIDE 1
 #define SUMH_FEATURE_MAPS_SPOOF 2
 #define SUMH_FEATURE_STATFS_SPOOF 4
@@ -41,8 +41,10 @@ static struct sumh_hide_entry *sumh_hide_paths;
 static struct sumh_inject_entry *sumh_inject_dirs;
 static struct sumh_merge_entry *sumh_merge_dirs;
 static struct sumh_xattr_sb_entry *sumh_xattr_sbs;
-static int sumh_enabled = 1, sumh_feature_enabled_mask, sumh_mount_hide_mode;
-static int sumh_stealth_enabled;
+static int sumh_enabled = 1, sumh_feature_enabled_mask;
+static int sumh_proc_proxy_registered, sumh_mount_hide_vfsmnt_registered;
+static int sumh_mount_hide_mountinfo_registered, statfs_ready;
+static bool sumh_statfs_view_available(void) { return statfs_ready; }
 static bool sumh_kernel_build_enabled(void) { return false; }
 #define hash_for_each_rcu(table, bkt, pos, member) \
     for ((bkt) = 0, (pos) = (table); (pos); (pos) = NULL)
@@ -159,8 +161,9 @@ static long list_rules(unsigned int cmd, void *arg) {
     return -1;
 }
 int main(void) {
-    static const char expected[] = "SUMH Protocol: 1\nSUMH Enabled: 1\n"
-        "add /system/test /data/adb/modules/demo/system/test 0\n";
+    static const char expected[] = "SUMH Protocol: 2\nSUMH Enabled: 1\n"
+        "add /system/test /data/adb/modules/demo/system/test 0\n"
+        "stealth enabled\n";
     const size_t length = sizeof(expected) - 1;
 
     /* Fragmentation alone must not turn a small rule dump into ENOMEM. */
@@ -201,6 +204,17 @@ int main(void) {
         CHECK(copied_size == request.size && output[request.size] == 'Y');
         CHECK(!strncmp(output, expected, request.size) && frees == 1 && clean());
     }
+    /* Built-in protections still report active with an empty rule set and
+     * no optional features enabled, including after a rule cleanup. */
+    reset(CAPACITY);
+    sumh_paths = NULL;
+    sumh_feature_enabled_mask = 0;
+    sumh_proc_proxy_registered = statfs_ready = 1;
+    static const char fixed[] = "SUMH Protocol: 2\nSUMH Enabled: 1\n"
+        "mount_hide enabled mode=normal\nstatfs_spoof enabled\nstealth enabled\n";
+    CHECK(list_rules(SUMH_IOC_LIST_RULES, &request) == 0);
+    CHECK(request.size == sizeof(fixed) - 1 && !strncmp(output, fixed, request.size));
+    CHECK(frees == 1 && clean());
     return 0;
 }
 """

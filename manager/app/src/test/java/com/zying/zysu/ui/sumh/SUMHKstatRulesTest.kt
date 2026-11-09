@@ -8,6 +8,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -70,9 +72,9 @@ class SUMHKstatRulesTest {
         } } }
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.sumh_kstat_edit)).assertIsNotEnabled()
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.sumh_kstat_details)).performClick()
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kstat_target)).assertExists()
+        compose.onNode(hasText(compose.activity.getString(R.string.sumh_kstat_target)) and hasAnyAncestor(isDialog())).assertExists()
         compose.onAllNodesWithText(target).assertCountEquals(2)
-        compose.onAllNodesWithText(source).assertCountEquals(1)
+        compose.onNode(hasText(source) and hasAnyAncestor(isDialog())).assertExists()
     }
 
     @Test

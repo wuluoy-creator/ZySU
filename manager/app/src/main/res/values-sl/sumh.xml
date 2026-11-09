@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Išči po dnevnikih</string>
     <string name="sumh_logs_actions">Dejanja dnevnika</string>
     <string name="sumh_maps_spoof">Ponarejanje maps</string>
-    <string name="sumh_maps_spoof_desc">Zamenjaj poti, številke naprav in vrednosti inode pomnilniških območij</string>
     <string name="sumh_mirror_path">Osnova priklopa / pot zrcala</string>
     <string name="sumh_mirror_path_desc">Pustite prazno, da SUMHP samodejno izbere mapo.</string>
     <string name="sumh_mismatch_default">Zaznano neujemanje protokola. Posodobite jedro ali modul.</string>
     <string name="sumh_mount_config">Konfiguracija priklopa</string>
     <string name="sumh_mount_filter">Filtriraj načine priklopa</string>
     <string name="sumh_mount_hide">Skrivanje priklopov</string>
-    <string name="sumh_mount_hide_desc">Skrij zapise modulov v pogledu priklopov</string>
     <string name="sumh_mount_mode">Način priklopa</string>
     <string name="sumh_mount_mode_auto">Samodejno</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">Ime ne sme biti prazno ali vsebovati presledkov, poševnic nazaj ali krmilnih znakov.</string>
     <string name="sumh_no_conflicts">Ni sporov pri priklopih</string>
     <string name="sumh_overlay_xattr">Skrij razširjene atribute OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">Skrij oznake OverlayFS v navideznem pogledu</string>
     <string name="sumh_retry_apply">Znova poskusi uporabiti</string>
     <string name="sumh_rule_maps_spoof">Ponaredi ino/dev/pathname v /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Skrij priklope overlay iz /proc/mounts</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Shranjeno, vendar uporaba v jedru ni uspela: %1$s</string>
     <string name="sumh_saved_reboot">Shranjeno; zaledje priklopov začne veljati po ponovnem zagonu</string>
     <string name="sumh_statfs_spoof">Ponarejanje Statfs</string>
-    <string name="sumh_statfs_spoof_desc">Zamenjaj podatke o vrsti datotečnega sistema</string>
     <string name="sumh_status_kernel_too_old">Jedro prestaro</string>
     <string name="sumh_status_module_too_old">Različica protokola upravitelja je prestara. Posodobite upravitelja.</string>
     <string name="sumh_status_not_present">Ni prisoten</string>
     <string name="sumh_stealth">Prikriti način</string>
-    <string name="sumh_stealth_desc">Skrij sledi priklopa in preuredi ID-je priklopov</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Ni priklopljeno</string>
     <string name="sumh_tempdir">Začasna priklopna točka</string>

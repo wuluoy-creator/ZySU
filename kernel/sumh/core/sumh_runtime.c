@@ -340,13 +340,11 @@ LIST_HEAD(sumh_maps_rules);
 DEFINE_MUTEX(sumh_maps_mutex);
 
 bool sumh_debug_enabled;
-bool sumh_stealth_enabled;
 
 int sumh_mount_hide_vfsmnt_registered;
 int sumh_mount_hide_mountinfo_registered;
 int sumh_proc_proxy_registered;
 int sumh_feature_enabled_mask;
-int sumh_mount_hide_mode = SUMH_MOUNT_HIDE_MODE_NORMAL;
 int sumh_fscap_kretprobe_registered;
 int sumh_fscaps_enabled = 1;
 int sumh_device_sources_enabled = 1;
@@ -933,9 +931,7 @@ void sumh_cleanup_locked(void)
 
 	/* Rule cleanup is reusable while the always-on provider remains live.
 	 * Lifecycle shutdown withdraws sumh_enabled before calling here. */
-	sumh_stealth_enabled = false;
 	sumh_feature_enabled_mask = 0;
-	sumh_mount_hide_mode = SUMH_MOUNT_HIDE_MODE_NORMAL;
 	/* Stop provider calls and release any external module reference. */
 
 	hash_for_each_safe(sumh_paths, bkt, tmp, entry, node)

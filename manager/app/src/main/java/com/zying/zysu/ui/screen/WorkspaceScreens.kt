@@ -1,7 +1,6 @@
 package com.zying.zysu.ui.screen
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -32,6 +31,7 @@ import com.zying.zysu.BuildConfig
 import com.zying.zysu.Natives
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.KsuIsValid
+import com.zying.zysu.ui.component.LiquidGlassSurface
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
@@ -55,7 +55,7 @@ import ui.screen.moreSettings.PreferenceCategory
 import ui.screen.moreSettings.component.MoreSettingsItemPosition
 import ui.screen.moreSettings.component.SettingsCard
 
-/** Capsule tabs share the dock's selection treatment and grow with wrapped labels. */
+/** Tabs share the page header's wallpaper-aware material and grow with wrapped labels. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WorkspaceTabs(
@@ -65,11 +65,9 @@ internal fun WorkspaceTabs(
     enabled: Boolean = true,
 ) {
     val focusManager = LocalFocusManager.current
-    Surface(
+    LiquidGlassSurface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        samplePageBackdrop = false,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(4.dp).selectableGroup(),
@@ -194,8 +192,10 @@ fun KernelPolicyScreen(navigator: DestinationsNavigator, initialPage: Int = 0) {
 fun MountIsolationScreen(navigator: DestinationsNavigator) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
     val sections = listOf(SUMHSection.Mount, SUMHSection.Isolation, SUMHSection.Rules,
-        SUMHSection.Kstat, SUMHSection.Maps, SUMHSection.Kernel)
-    val section = sections.getOrElse(selected) { SUMHSection.Mount }
+        SUMHSection.Kstat, SUMHSection.Maps)
+    // Restore the former kernel-info tab into its new home under Standard.
+    val section = if (selected == 5) SUMHSection.Isolation
+        else sections.getOrElse(selected) { SUMHSection.Mount }
     var sumhSaving by remember { mutableStateOf(false) }
     var isolationSaving by remember { mutableStateOf(false) }
     val saving = sumhSaving || isolationSaving

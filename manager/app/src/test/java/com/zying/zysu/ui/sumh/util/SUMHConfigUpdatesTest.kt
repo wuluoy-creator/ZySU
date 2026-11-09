@@ -1,6 +1,7 @@
 package com.zying.zysu.ui.sumh.util
 
 import android.app.Application
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -16,6 +17,14 @@ import kotlin.test.assertTrue
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [35])
 class SUMHConfigUpdatesTest {
+    @Test
+    fun protocolCompatibilityUsesTheNativeExpectedVersion() {
+        assertEquals(SUMHUiAdapter.SUMHStatus.NOT_PRESENT, SUMHUiAdapter.kernelStatus(0, 2, false))
+        assertEquals(SUMHUiAdapter.SUMHStatus.KERNEL_TOO_OLD, SUMHUiAdapter.kernelStatus(1, 2, false))
+        assertEquals(SUMHUiAdapter.SUMHStatus.AVAILABLE, SUMHUiAdapter.kernelStatus(2, 2, true))
+        assertEquals(SUMHUiAdapter.SUMHStatus.MODULE_TOO_OLD, SUMHUiAdapter.kernelStatus(3, 2, false))
+    }
+
     private fun configWithLegacyMode() = SUMHUiAdapter.SUMHPConfig(
         original = JSONObject().put("mount_hide_mode", "aggressive"),
         kernelAvailable = true,
@@ -27,7 +36,7 @@ class SUMHConfigUpdatesTest {
     }
 
     @Test
-    fun mountAndLogEditsKeepTheSavedMountHideMode() {
+    fun mountAndLogEditsDoNotSerializeTheRetiredMountHideMode() {
         val updates = SUMHUiAdapter.configUpdates(configWithLegacyMode().copy(mountBackend = "magic", debug = true))
         assertEquals(setOf("mount_backend", "debug"), updates.keys().asSequence().toSet())
         val plan = planSUMHConfigSave(updates.keys().asSequence().toSet(), true)
@@ -76,11 +85,31 @@ class SUMHConfigUpdatesTest {
     }
 
     @Test
-    fun togglingMountHidingSavesTheNormalMode() {
-        val updates = SUMHUiAdapter.configUpdates(configWithLegacyMode().copy(enableMountHide = true))
-        assertEquals(setOf("enable_mount_hide", "mount_hide_mode"), updates.keys().asSequence().toSet())
-        assertEquals("normal", updates.getString("mount_hide_mode"))
-        assertEquals(true, updates.getBoolean("enable_mount_hide"))
+    fun retiredMountHidingFieldsDoNotGenerateMigrationWrites() {
+        val raw = JSONObject().put("mount_hide_mode", "aggressive").put("enable_mount_hide", false)
+        val config = SUMHUiAdapter.config(raw, emptySet(), true, "")
+        val updates = SUMHUiAdapter.configUpdates(config)
+        assertEquals(0, updates.length())
+    }
+
+    @Test
+    fun retiredProtectionFieldsAreNeverReadOrWritten() {
+        for (legacyValue in listOf(false, true, "not a boolean", JSONObject.NULL, JSONArray())) {
+            val raw = JSONObject().apply { retiredSUMHConfigKeys.forEach { put(it, legacyValue) } }
+            val config = SUMHUiAdapter.config(raw, emptySet(), true, "")
+            val updates = SUMHUiAdapter.configUpdates(config)
+            assertEquals(0, updates.length())
+            assertEquals(SUMHUiAdapter.SUMHPConfig(kernelAvailable = true, original = raw), config)
+        }
+    }
+
+    @Test
+    fun savingOtherSettingsNeverSerializesRetiredProtectionFields() {
+        val raw = JSONObject().apply { retiredSUMHConfigKeys.forEach { put(it, false) } }
+        val config = SUMHUiAdapter.config(raw, emptySet(), true, "").copy(debug = true)
+        val updates = SUMHUiAdapter.configUpdates(config)
+        assertEquals(setOf("debug"), updates.keys().asSequence().toSet())
+        assertTrue(updates.getBoolean("debug"))
     }
 
     @Test

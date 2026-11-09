@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Buscar nos rexistros</string>
     <string name="sumh_logs_actions">Accións dos rexistros</string>
     <string name="sumh_maps_spoof">Simulación de maps</string>
-    <string name="sumh_maps_spoof_desc">Remapear rutas, números de dispositivo e inode das rexións de memoria mapeadas</string>
     <string name="sumh_mirror_path">Base de montaxe / ruta do espello</string>
     <string name="sumh_mirror_path_desc">Deixa baleiro para que SUMHP escolla o directorio automaticamente.</string>
     <string name="sumh_mismatch_default">Detectouse unha incompatibilidade de protocolo. Actualiza o kernel ou o módulo.</string>
     <string name="sumh_mount_config">Configuración de montaxe</string>
     <string name="sumh_mount_filter">Filtrar modos de montaxe</string>
     <string name="sumh_mount_hide">Ocultación de montaxes</string>
-    <string name="sumh_mount_hide_desc">Agochar as entradas dos módulos na vista de montaxes</string>
     <string name="sumh_mount_mode">Modo de montaxe</string>
     <string name="sumh_mount_mode_auto">Automático</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">O nome non pode estar baleiro nin conter espazos, barras invertidas ou caracteres de control.</string>
     <string name="sumh_no_conflicts">Non se atoparon conflitos de montaxe</string>
     <string name="sumh_overlay_xattr">Agochar atributos estendidos de OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">Agochar as marcas de OverlayFS na vista virtual</string>
     <string name="sumh_retry_apply">Volver aplicar</string>
     <string name="sumh_rule_maps_spoof">Falsificar ino/dev/pathname en /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Ocultar as montaxes overlay de /proc/mounts</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Gardado, pero non se puido aplicar ao núcleo: %1$s</string>
     <string name="sumh_saved_reboot">Gardado. O motor de montaxe aplicarase despois de reiniciar.</string>
     <string name="sumh_statfs_spoof">Simulación de Statfs</string>
-    <string name="sumh_statfs_spoof_desc">Remapear a información do tipo de sistema de ficheiros</string>
     <string name="sumh_status_kernel_too_old">Kernel demasiado antigo</string>
     <string name="sumh_status_module_too_old">A versión do protocolo do xestor é demasiado antiga. Actualiza o xestor.</string>
     <string name="sumh_status_not_present">Non presente</string>
     <string name="sumh_stealth">Modo furtivo</string>
-    <string name="sumh_stealth_desc">Ocultar os rastros de montaxe e reordenar os IDs de montaxe</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Non montado</string>
     <string name="sumh_tempdir">Punto de montaxe temporal</string>

@@ -49,17 +49,17 @@ void expect_hide_rule(std::uint64_t cursor, std::uint64_t id, const char* path) 
 
 void test_protocol_compatibility() {
     namespace sumh = sumhp::sumh;
-    for (const int protocol : {0, 1, 2, 17}) {
+    for (const int protocol : {0, 1, SUMH_PROTOCOL_VERSION, SUMH_PROTOCOL_VERSION + 1}) {
         expect(SUMH_IOC_GET_VERSION, [protocol](void* arg) {
             *static_cast<int*>(arg) = protocol;
             return 0;
         });
         const auto info = sumh::version_info();
-        assert(info.expected_protocol == 1);
+        assert(info.expected_protocol == SUMH_PROTOCOL_VERSION);
         assert(info.kernel_protocol == protocol);
-        const auto status = protocol == 1   ? sumh::Status::Available
-                            : protocol == 0 ? sumh::Status::KernelTooOld
-                                            : sumh::Status::ClientTooOld;
+        const auto status = protocol == SUMH_PROTOCOL_VERSION ? sumh::Status::Available
+                            : protocol < SUMH_PROTOCOL_VERSION ? sumh::Status::KernelTooOld
+                                                               : sumh::Status::ClientTooOld;
         assert(info.status == status);
     }
     expect_error(SUMH_IOC_GET_VERSION, ENOTTY);
@@ -168,34 +168,6 @@ void test_feature_errors() {
     });
     assert(sumh::clear_overlay_xattr_hiding());
 
-    expect_error(SUMH_IOC_GET_FEATURES, EACCES);
-    assert(!sumh::set_mount_hide(true));
-    assert(errno == EACCES);
-    expect_features(SUMH_FEATURE_MOUNT_HIDE);
-    assert(!sumh::set_mount_hide(true, sumh::MountHideMode::Aggressive));
-    assert(errno == EOPNOTSUPP);
-
-    expect_features(SUMH_FEATURE_MOUNT_HIDE);
-    expect(SUMH_IOC_SET_MOUNT_HIDE, [](void* value) {
-        const auto& arg = *static_cast<sumh_mount_hide_arg*>(value);
-        assert(arg.enable == 1);
-        return 0;
-    });
-    assert(sumh::set_mount_hide(true));
-
-    expect_features(SUMH_FEATURE_MOUNT_HIDE | SUMH_FEATURE_MOUNT_HIDE_AGGRESSIVE);
-    expect(SUMH_IOC_SET_MOUNT_HIDE_MODE, [](void* value) {
-        assert(*static_cast<int*>(value) == SUMH_MOUNT_HIDE_MODE_AGGRESSIVE);
-        return 0;
-    });
-    expect(SUMH_IOC_SET_MOUNT_HIDE, [](void* value) {
-        auto& arg = *static_cast<sumh_mount_hide_arg*>(value);
-        assert(arg.enable == 1);
-        arg.err = -EBUSY;
-        return 0;
-    });
-    assert(!sumh::set_mount_hide(true, sumh::MountHideMode::Aggressive));
-    assert(errno == EBUSY);
     assert(calls.empty());
 }
 

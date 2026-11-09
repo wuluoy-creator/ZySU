@@ -72,8 +72,7 @@ void print_usage() {
         << "  ksud sumhp recovery status|reset\n"
         << "  ksud sumhp hide list|apply|add|remove\n"
         << "  ksud sumhp sumh "
-           "version|list|clear|fix-mounts|hide-overlay-xattrs|mount-hide "
-           "off|normal|aggressive|maps|kstat\n"
+           "version|list|clear|fix-mounts|maps|kstat\n"
         << "  ksud sumhp sumh kernel-build show|set <release> <version>|reset\n"
         << "  ksud sumhp sumh maps list-paths|apply\n"
         << "  ksud sumhp sumh maps add-path <target-path> <replacement-path>\n"
@@ -1393,36 +1392,14 @@ int handle_sumh(const std::vector<std::string>& args) {
         }
         return 0;
     }
-    if (sub == "hide-overlay-xattrs") {
-        const std::string path = arg_or_default(args, 2, "");
-        if (path.empty() || path.front() != '/') {
-            std::cerr << "sumh hide-overlay-xattrs requires an absolute path\n";
-            return 1;
-        }
-        if (!sumh::hide_overlay_xattrs(path)) {
-            std::cerr << "failed to hide overlay xattrs for " << path << "\n";
-            return 1;
-        }
-        return 0;
-    }
-    if (sub == "mount-hide" || sub == "maps-spoof" || sub == "statfs-spoof") {
+    if (sub == "maps-spoof") {
         const std::string value = arg_or_default(args, 2, "off");
-        const bool on = value == "on" || value == "normal" || value == "aggressive";
-        bool ok = false;
-        if (sub == "mount-hide") {
-            if (value != "off" && value != "on" && value != "normal" && value != "aggressive") {
-                std::cerr << "usage: ksud sumhp sumh mount-hide off|normal|aggressive\n";
-                return 1;
-            }
-            ok = sumh::set_mount_hide(on, value == "aggressive" ? sumh::MountHideMode::Aggressive
-                                                                : sumh::MountHideMode::Normal);
-        } else if (sub == "maps-spoof") {
-            ok = sumh::set_maps_spoof(on);
-        } else if (sub == "statfs-spoof") {
-            ok = sumh::set_statfs_spoof(on);
+        if (value != "off" && value != "on") {
+            std::cerr << "usage: ksud sumhp sumh maps-spoof off|on\n";
+            return 1;
         }
-        if (!ok) {
-            std::cerr << "failed to set SUMH " << sub << "\n";
+        if (!sumh::set_maps_spoof(value == "on")) {
+            std::cerr << "failed to set SUMH maps-spoof\n";
             return 1;
         }
         return 0;
@@ -1557,10 +1534,8 @@ int run_command(const std::vector<std::string>& args) {
         if (args.size() >= 2 && (args[1] == "enable" || args[1] == "disable")) {
             return sumh::set_debug(args[1] == "enable") ? 0 : 1;
         }
-        if (args.size() >= 3 && args[1] == "stealth") {
-            return sumh::set_stealth(args[2] == "enable") ? 0 : 1;
-        }
-        return 0;
+        print_usage();
+        return 1;
     }
     if (args[0] == "hide") {
         return handle_hide(args);
@@ -1602,13 +1577,8 @@ std::string operation_description(const std::vector<std::string>& args) {
             const std::set<std::string> public_values = {"debug",
                                                          "verbose",
                                                          "enable_kernel_debug",
-                                                         "enable_stealth",
-                                                         "enable_mount_hide",
-                                                         "mount_hide_mode",
                                                          "enable_maps_spoof",
-                                                         "enable_statfs_spoof",
                                                          "enable_kernel_build_spoof",
-                                                         "enable_overlay_xattr_hide",
                                                          "overlayfs_enabled",
                                                          "magic_mount_enabled",
                                                          "fs_type",

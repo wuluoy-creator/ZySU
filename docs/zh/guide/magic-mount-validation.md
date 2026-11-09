@@ -25,18 +25,18 @@ ksud sumhp module list --all
 
 ## SUMH 挂载观察与 statfs
 
-内核中的 `mount_hide` 是独立于文件内容路由的观察策略。启用后，普通应用和隔离进程会按照各自打开的 `/proc/self/mountinfo`、`/proc/self/mounts` 所属命名空间生成过滤视图；root、allowlist 中的管理器/服务继续使用管理视图。过滤使用挂载身份、来源和目录关系，不应根据应用名称或固定 `/apex`/`/vendor` 路径推断结果。
+内核中的 `mount_hide` 是独立于文件内容路由的观察策略。隐身模式、挂载隐藏、OverlayFS 扩展属性隐藏和 statfs 伪装是固定内建行为，没有配置字段或启停入口。旧配置中的相关字段直接忽略，配置更新不再接受这些字段，备份也不导出它们。普通应用和隔离进程会按照各自打开的 `/proc/self/mountinfo`、`/proc/self/mounts` 所属命名空间生成过滤视图；root、allowlist 中的管理器/服务继续使用管理视图。过滤使用挂载身份、来源和目录关系，不应根据应用名称或固定 `/apex`/`/vendor` 路径推断结果。
 
 ```sh
-ksud sumhp sumh mount-hide normal
-ksud sumhp sumh statfs-spoof on
+ksud sumhp api features
+ksud sumhp sumh list
 ```
 
 实现保留原生挂载 ID、父 ID 和传播字段，不为追求连续编号而重排。每个打开的 proc 文件维护自己的快照，成功从头 seek 会重新生成；快照构建或成对过滤失败时应返回错误，不应默默返回未经处理的内容。内核对快照大小有约 1 MiB 的实现上限，真实设备上的挂载表超过此限需要记录错误并调整布局。
 
-上述直接命令只改变运行时状态；需要持久化时，保存 `enable_mount_hide`、`enable_statfs_spoof` 和 `mount_hide_mode` 到 SUMHP 配置，再执行 `config apply`。当前内核不再支持 `aggressive` 模式；旧配置应用时会回退到 normal，保留原生命名空间身份。
+上述命令只查询能力和规则。内核启动后即提供这些行为，不依赖 `config apply`，清理其他功能的规则也不会关闭它们。挂载隐藏固定保留原生命名空间身份，旧 `mount_hide_mode` 配置和修改命令已退役。
 
-`statfs-spoof` 要求同时开启挂载隐藏，仅在内核能够找到对应可见上层挂载并成功生成视图时替换完整 `kstatfs` 结果（类型、fsid、容量、inode 计数和标志）。它不是对所有路径或所有文件系统的通用伪装。`mount-hide` 和 `statfs-spoof` 都需要包含 SUMH 内核改动的模块；仅替换 ksud 不会安装这些 hook。
+Statfs 视图依赖挂载隐藏能力，仅在内核能够找到对应可见上层挂载并成功生成视图时替换完整 `kstatfs` 结果（类型、fsid、容量、inode 计数和标志）。它不是对所有路径或所有文件系统的通用伪装。这些行为需要包含 SUMH 内核改动的模块；仅替换 ksud 不会安装这些 hook。明确缺少可选 hook 时对应保护不可用，不影响其他挂载或规则。OverlayFS 属性标记仍随实际挂载登记和清理，能力查询或登记失败仍按错误处理。
 
 ## 设备复验步骤
 

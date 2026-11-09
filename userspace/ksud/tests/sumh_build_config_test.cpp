@@ -31,6 +31,8 @@ bool saved = false;
 bool save_ok = true;
 bool build_supported = true;
 int capabilities_error = 0;
+int optional_capabilities = SUMH_FEATURE_MOUNT_HIDE | SUMH_FEATURE_STATFS_SPOOF |
+                            SUMH_FEATURE_OVERLAY_XATTR_HIDE;
 bool original_query_ok = true;
 int original_query_error = EIO;
 const std::string original_version = "#2 SMP PREEMPT_RT Fri Aug 23 03:08:10 UTC 2024";
@@ -68,9 +70,6 @@ std::vector<std::string> maps_operations;
 std::vector<sumhp::MapsPathRule> restored_maps;
 std::vector<bool> maps_enable_calls;
 int boot_errors = 0;
-int aggressive_mount_error = 0;
-int normal_mount_error = 0;
-std::vector<std::pair<bool, sumhp::sumh::MountHideMode>> mount_hide_calls;
 sumhp::sumh::KernelBuild live_build;
 std::string cli_output;
 std::function<void()> lock_acquire_hook;
@@ -145,7 +144,8 @@ namespace sumhp::sumh {
 FeatureCapabilities feature_capabilities() {
     if (capabilities_error)
         return {false, capabilities_error, 0};
-    return {true, 0, build_supported ? SUMH_FEATURE_KERNEL_BUILD_SPOOF : 0};
+    return {true, 0, optional_capabilities |
+                        (build_supported ? SUMH_FEATURE_KERNEL_BUILD_SPOOF : 0)};
 }
 bool original_kernel_build(KernelBuild& state) {
     if (!original_query_ok) {
@@ -217,16 +217,6 @@ bool fix_mounts() {
 bool hide_overlay_xattrs(const std::string&) {
     return false;
 }
-bool set_mount_hide(bool enable, MountHideMode mode) {
-    mount_hide_calls.emplace_back(enable, mode);
-    const int error =
-        mode == MountHideMode::Aggressive ? aggressive_mount_error : normal_mount_error;
-    if (enable && error) {
-        errno = error;
-        return false;
-    }
-    return true;
-}
 bool set_maps_spoof(bool enabled) {
     maps_operations.push_back(enabled ? "enable" : "disable");
     maps_enable_calls.push_back(enabled);
@@ -234,9 +224,6 @@ bool set_maps_spoof(bool enabled) {
         errno = maps_switch_error;
         return false;
     }
-    return true;
-}
-bool set_statfs_spoof(bool) {
     return true;
 }
 bool managed_kstat_status(ManagedKstatStatus& status) {
@@ -249,9 +236,6 @@ bool managed_kstat_status(ManagedKstatStatus& status) {
     return true;
 }
 bool set_debug(bool) {
-    return true;
-}
-bool set_stealth(bool) {
     return true;
 }
 }  // namespace sumhp::sumh
@@ -381,6 +365,48 @@ std::string read_kernel_release_from_sysfs() {
 }  // namespace ksud
 
 namespace {
+void test_builtin_protections_have_no_configuration() {
+    using namespace sumhp;
+    Config config;
+    std::string error;
+    const auto defaults = json::parse(default_config_json());
+    const std::vector<std::string> retired_keys = {"enable_stealth", "enable_mount_hide",
+        "enable_overlay_xattr_hide", "enable_statfs_spoof", "mount_hide_mode"};
+    JsonValue legacy = JsonValue::object();
+    for (const auto& key : retired_keys) {
+        assert(!defaults.find(key));
+        legacy.o[key] = false;
+        // Neither enabling nor disabling an intrinsic protection is a config mutation.
+        for (const bool requested : {false, true}) {
+            JsonValue patch = JsonValue::object();
+            patch.o[key] = requested;
+            assert(!validate_config_patch(patch, error));
+            assert(error.find("unknown") != std::string::npos);
+            saved_config = default_config_json();
+            const auto before = saved_config;
+            saved = false;
+            assert(!merge_config_json(stringify_json(patch), error));
+            assert(!saved && saved_config == before);
+        }
+    }
+    // Legacy values are ignored, including invalid types; they are not read as switches.
+    legacy.o["enable_stealth"] = JsonValue::object();
+    legacy.o["mount_hide_mode"] = "aggressive";
+    legacy.o["debug"] = true;
+    assert(parse_config_json(stringify_json(legacy), config, error) && config.debug);
+    saved_config = stringify_json(legacy);
+    assert(merge_config_json(R"({"verbose":true})", error));
+    const auto stored = json::parse(*saved_config);
+    for (const auto& key : retired_keys)
+        assert(!stored.find(key));
+    assert(stored.find("debug")->b && stored.find("verbose")->b);
+    auto shown = legacy;
+    prune_config_fields(shown);
+    for (const auto& key : retired_keys)
+        assert(!shown.find(key));
+    saved_config = default_config_json();
+}
+
 void test_config() {
     using namespace sumhp;
     Config config;
@@ -675,6 +701,12 @@ int run_cli(const std::vector<std::string>& args) {
 
 void test_cli() {
     using namespace sumhp;
+    for (const auto& args : std::vector<std::vector<std::string>>{
+             {"sumh", "mount-hide", "off"}, {"sumh", "mount-hide", "on"},
+             {"sumh", "statfs-spoof", "off"}, {"sumh", "statfs-spoof", "on"},
+             {"sumh", "hide-overlay-xattrs", "/system"},
+             {"debug", "stealth", "enable"}, {"debug", "stealth", "disable"}})
+        assert(run_cli(args) != 0);
     saved_config = default_config_json();
     saved = false;
     build_supported = true;
@@ -1115,14 +1147,13 @@ void test_maps_lifecycle_and_config_wrapper() {
     // Exercise the production config apply wrapper, not only the feature
     // helper: its old outer cleanup turned a missing maps path into a global reset.
     saved_config =
-        R"({"enable_maps_spoof":true,"enable_mount_hide":true,"enable_kernel_build_spoof":true,"kernel_build_release":"release","maps_rules":[{"target_path":"/target","replacement_path":"/replacement"}]})";
+        R"({"enable_maps_spoof":true,"enable_kernel_build_spoof":true,"kernel_build_release":"release","maps_rules":[{"target_path":"/target","replacement_path":"/replacement"}]})";
     feature_reset_calls = snapshot_calls = xattr_restore_calls = 0;
     replay_pending = false;
-    mount_hide_calls.clear();
     maps_operations.clear();
     assert(apply_config_file() != 0);
     assert(feature_reset_calls == 0 && snapshot_calls == 0 && xattr_restore_calls == 0);
-    assert(live_build.enabled && mount_hide_calls.size() == 1 && mount_hide_calls[0].first);
+    assert(live_build.enabled);
     assert((maps_operations == std::vector<std::string>{"restore"}));
     maps_restore_ok = true;
     maps_operations.clear();
@@ -1148,43 +1179,6 @@ void test_maps_lifecycle_and_config_wrapper() {
     assert(!is_query({"sumh", "maps", "apply"}));
     assert(!is_query({"sumh", "maps", "add-path", "/target", "/replacement"}));
     saved_config = default_config_json();
-}
-
-void test_retired_mount_mode_restore() {
-    using sumhp::sumh::MountHideMode;
-    sumhp::Config config;
-    config.enable_mount_hide = true;
-    config.mount_hide_mode = "aggressive";
-    std::string error;
-    mount_hide_calls.clear();
-    aggressive_mount_error = EOPNOTSUPP;
-    assert(sumhp::mount::sumh::apply_feature_config(config, error, false));
-    assert(error.empty() && mount_hide_calls.size() == 2);
-    assert(mount_hide_calls[0].first && mount_hide_calls[0].second == MountHideMode::Aggressive);
-    assert(mount_hide_calls[1].first && mount_hide_calls[1].second == MountHideMode::Normal);
-
-    // Transport errors are not evidence that the requested mode was retired.
-    mount_hide_calls.clear();
-    aggressive_mount_error = EIO;
-    assert(!sumhp::mount::sumh::apply_feature_config(config, error, false));
-    assert(!error.empty() && mount_hide_calls.size() == 2);
-    assert(!mount_hide_calls.back().first);  // Existing failure cleanup remains active.
-
-    mount_hide_calls.clear();
-    error.clear();
-    aggressive_mount_error = EOPNOTSUPP;
-    normal_mount_error = EIO;
-    assert(!sumhp::mount::sumh::apply_feature_config(config, error, false));
-    assert(!error.empty() && mount_hide_calls.size() == 3);
-    assert(!mount_hide_calls.back().first);
-
-    mount_hide_calls.clear();
-    error.clear();
-    aggressive_mount_error = normal_mount_error = 0;
-    assert(sumhp::mount::sumh::apply_feature_config(config, error, false));
-    assert(error.empty() && mount_hide_calls.size() == 1);
-    assert(mount_hide_calls[0].second == MountHideMode::Aggressive);
-    mount_hide_calls.clear();
 }
 
 void test_date_suggestion() {
@@ -1216,6 +1210,7 @@ void test_date_suggestion() {
 }  // namespace
 
 int main() {
+    test_builtin_protections_have_no_configuration();
     test_config();
     test_maps_config();
     test_kstat_config();
@@ -1228,7 +1223,6 @@ int main() {
     test_kstat_status_json();
     test_boot_restore();
     test_maps_lifecycle_and_config_wrapper();
-    test_retired_mount_mode_restore();
     test_date_suggestion();
     std::cout << "sumh_build_config_test: all checks passed\n";
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
@@ -13,10 +14,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zying.zysu.R
+import com.zying.zysu.ui.component.LiquidGlassSurface
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
@@ -69,7 +73,7 @@ internal fun SUMHLogActions(content: @Composable RowScope.() -> Unit) {
 
 internal val SUMH_MAIN_SECTIONS = listOf(
     SUMHSection.Status, SUMHSection.Isolation, SUMHSection.Rules,
-    SUMHSection.Kstat, SUMHSection.Maps, SUMHSection.Kernel, SUMHSection.Mount, SUMHSection.Diagnostics,
+    SUMHSection.Kstat, SUMHSection.Maps, SUMHSection.Mount, SUMHSection.Diagnostics,
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -80,20 +84,26 @@ internal fun SUMHTabs(
     sections: List<SUMHSection> = SUMH_MAIN_SECTIONS,
     onSelect: (SUMHSection) -> Unit,
 ) {
-    PrimaryScrollableTabRow(
-        selectedTabIndex = sections.indexOf(selected).coerceAtLeast(0),
-        modifier = Modifier.fillMaxWidth(),
-        edgePadding = 0.dp,
-        minTabWidth = 80.dp,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    LiquidGlassSurface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp),
+        samplePageBackdrop = false,
     ) {
-        sections.forEach { section ->
-            Tab(
-                selected = selected == section,
-                onClick = { if (enabled) onSelect(section) },
-                enabled = enabled,
-                text = { Text(stringResource(section.displayNameRes)) },
-            )
+        PrimaryScrollableTabRow(
+            selectedTabIndex = sections.indexOf(selected).coerceAtLeast(0),
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(percent = 50)),
+            edgePadding = 12.dp,
+            minTabWidth = 80.dp,
+            containerColor = Color.Transparent,
+            divider = {},
+        ) {
+            sections.forEach { section ->
+                Tab(
+                    selected = selected == section,
+                    onClick = { if (enabled) onSelect(section) },
+                    enabled = enabled,
+                    text = { Text(stringResource(section.displayNameRes)) },
+                )
+            }
         }
     }
 }

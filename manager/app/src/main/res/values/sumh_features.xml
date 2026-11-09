@@ -5,6 +5,4 @@
     <string name="sumh_features_support_unknown">Kernel capabilities unavailable</string>
     <string name="sumh_features_kernel_unavailable">SUMH kernel unavailable</string>
     <string name="sumh_features_cleanup">Clear unsupported settings</string>
-    <string name="sumh_features_cleanup_confirm">Turn off these saved settings that this kernel does not support? Custom values and rules will be kept.</string>
-    <string name="sumh_features_cleanup_confirm_action">Turn off listed features</string>
 </resources>

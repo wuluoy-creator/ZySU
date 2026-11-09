@@ -43,7 +43,8 @@ def main():
             encoding="utf-8")
         (build / "overlay_mount_under_test.inc").write_text(
             function(source, "bool rollback_mounts(") +
-            function(source, "bool mount_modules(") + function(source, "bool unmount_all("),
+            function(source, "bool mount_modules(") + function(source, "bool unmount_all(") +
+            function(source, "bool restore_xattr_hiding("),
             encoding="utf-8")
         start = source.index("struct LayerSelection {")
         end = source.index("\n};", start) + 3

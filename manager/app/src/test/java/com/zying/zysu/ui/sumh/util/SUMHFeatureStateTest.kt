@@ -35,6 +35,18 @@ class SUMHFeatureStateTest {
     }
 
     @Test
+    fun builtInProtectionsCannotBeDisabledOrCleanedUp() {
+        for (capabilities in listOf(emptySet(), SUMHManagedFeature.entries.map { it.capability }.toSet())) {
+            val states = sumhFeatureStates(emptySet(), true, capabilities)
+            val builtIn = states.filter { it.feature.alwaysEnabled }
+            assertEquals(4, builtIn.size)
+            assertTrue(builtIn.all { it.configuredEnabled })
+            assertTrue(builtIn.none { it.canChange })
+            assertTrue(unsupportedConfiguredFeatures(states).isEmpty())
+        }
+    }
+
+    @Test
     fun searchCombinesLocalizedLabelsAndStableCapabilitiesWithSelectedFilter() {
         val state = SUMHFeatureState(SUMHManagedFeature.MountHide, true, SUMHFeatureSupport.Supported)
         assertTrue(state.matches(SUMHFeatureFilter.All, " 挂载 ", listOf("挂载隐藏", "隐藏模块条目")))

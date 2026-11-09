@@ -578,9 +578,6 @@ static int sumh_view_pre(struct kprobe *probe, struct pt_regs *regs)
 		return 0;
 	if (probe == &sumh_view_statfs_probe) {
 		if (!READ_ONCE(sumh_statfs_ready) ||
-		    (READ_ONCE(sumh_feature_enabled_mask) &
-		     (SUMH_FEATURE_STATFS_SPOOF | SUMH_FEATURE_MOUNT_HIDE)) !=
-			(SUMH_FEATURE_STATFS_SPOOF | SUMH_FEATURE_MOUNT_HIDE) ||
 		    !sumh_policy_current_is_mount_view_target())
 			return 0;
 		atomic64_inc(&sumh_hook_stats.statfs_entries);

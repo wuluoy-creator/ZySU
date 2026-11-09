@@ -49,7 +49,6 @@ internal fun SettingsTab(
     header: @Composable () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
     headingActions: (@Composable RowScope.() -> Unit)? = null,
-    runtimeRules: List<Controller.ActiveRule>? = null,
     managedKstatStatus: Controller.ManagedKstatStatus? = null,
 ) {
     val enabled = controlsEnabled
@@ -115,25 +114,16 @@ internal fun SettingsTab(
                     }
                 }
             }
-            SUMHSection.Isolation -> IsolationFeatureSettings(
-                config = config,
-                runtimeRules = runtimeRules,
-                kernelAvailable = sumhStatus == Controller.SUMHStatus.AVAILABLE,
-                features = features,
-                controlsEnabled = enabled,
-                onConfigChanged = onConfigChanged,
-                headingActions = headingActions,
-            )
-            SUMHSection.Maps -> MapsRulesSettings(config, sumhStatus, features, enabled,
-                runtimeApplyPending, onRetryApply, onConfigChanged, headingActions)
-            SUMHSection.Kstat -> KstatRulesSettings(config, sumhStatus, features, enabled,
-                onConfigChanged, headingActions, managedKstatStatus)
-            SUMHSection.Kernel -> {
+            SUMHSection.Isolation, SUMHSection.Kernel -> {
                 val support = sumhFeatureStates(config.configuredSUMHFeatures(),
                     sumhStatus == Controller.SUMHStatus.AVAILABLE, features?.names?.toSet())
                     .first { it.feature == SUMHManagedFeature.KernelBuild }.support
                 KernelBuildSpoofCard(config, enabled, kernelEnabled, support, onConfigChanged, headingActions)
             }
+            SUMHSection.Maps -> MapsRulesSettings(config, sumhStatus, features, enabled,
+                runtimeApplyPending, onRetryApply, onConfigChanged, headingActions)
+            SUMHSection.Kstat -> KstatRulesSettings(config, sumhStatus, features, enabled,
+                onConfigChanged, headingActions, managedKstatStatus)
             SUMHSection.Debug -> ConfigSection(stringResource(R.string.sumh_workspace_debug), segmented = true, actions = headingActions) {
                 SettingSwitch(stringResource(R.string.sumh_debug), stringResource(R.string.sumh_debug_desc),
                     config.debug, { onConfigChanged(config.copy(debug = it)) }, enabled,
@@ -162,36 +152,33 @@ private fun MapsRulesSettings(
 ) {
     val support = sumhManagedMapsSupport(status == Controller.SUMHStatus.AVAILABLE, features?.names?.toSet())
     var confirmStop by rememberSaveable { mutableStateOf(false) }
-    ConfigSection(stringResource(R.string.sumh_maps_rules_page), segmented = true, actions = headingActions) {
-        ManagedMapsControls(
-            rules = config.mapsRules,
-            enabled = enabled,
-            support = support,
-            mapsEnabled = config.enableMapsSpoof,
-            onRulesChanged = { rules ->
-                onConfigChanged(config.copy(mapsRules = rules,
-                    enableMapsSpoof = config.enableMapsSpoof || rules.isNotEmpty()))
-            },
-            onRetryApply = onRetryApply,
-            runtimeApplyPending = runtimeApplyPending,
-        )
+    ManagedMapsControls(
+        rules = config.mapsRules,
+        enabled = enabled,
+        support = support,
+        mapsEnabled = config.enableMapsSpoof,
+        onRulesChanged = { rules ->
+            onConfigChanged(config.copy(mapsRules = rules,
+                enableMapsSpoof = config.enableMapsSpoof || rules.isNotEmpty()))
+        },
+        onRetryApply = onRetryApply,
+        runtimeApplyPending = runtimeApplyPending,
+        headingActions = headingActions,
+    ) {
         if (config.mapsRules.isNotEmpty() && !config.enableMapsSpoof) {
-            SUMHControlGroup {
-                FilledTonalButton(onClick = { onConfigChanged(config.copy(enableMapsSpoof = true)) },
-                    enabled = enabled && support == com.zying.zysu.ui.sumh.util.SUMHFeatureSupport.Supported,
-                    modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.sumh_maps_activate_saved))
-                }
+            FilledTonalButton(onClick = { onConfigChanged(config.copy(enableMapsSpoof = true)) },
+                enabled = enabled && support == com.zying.zysu.ui.sumh.util.SUMHFeatureSupport.Supported,
+                modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.sumh_maps_activate_saved))
             }
         }
         if (config.mapsRules.isEmpty() && config.enableMapsSpoof) {
-            SUMHControlGroup {
-                Text(stringResource(R.string.sumh_maps_runtime_only),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { confirmStop = true }, enabled = enabled) {
-                    Text(stringResource(R.string.sumh_maps_stop_filtering))
-                }
+            Text(stringResource(R.string.sumh_maps_runtime_only),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { confirmStop = true }, enabled = enabled,
+                modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.sumh_maps_stop_filtering))
             }
         }
     }

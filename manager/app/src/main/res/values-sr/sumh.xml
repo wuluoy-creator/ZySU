@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Претражи записник</string>
     <string name="sumh_logs_actions">Радње записника</string>
     <string name="sumh_maps_spoof">Прикривање Maps</string>
-    <string name="sumh_maps_spoof_desc">Пресликава путање, бројеве уређаја и inode мапираних меморијских подручја</string>
     <string name="sumh_mirror_path">Постоље за монтирање / путања огледала</string>
     <string name="sumh_mirror_path_desc">Оставите празно да SUMHP аутоматски одабере директоријум.</string>
     <string name="sumh_mismatch_default">Откривена је неусклађеност протокола. Ажурирајте кернел или модул.</string>
     <string name="sumh_mount_config">Конфигурација монтирања</string>
     <string name="sumh_mount_filter">Филтрирај начине монтирања</string>
     <string name="sumh_mount_hide">Скривање монтирања</string>
-    <string name="sumh_mount_hide_desc">Скрива ставке модула у приказу монтирања</string>
     <string name="sumh_mount_mode">Режим монтирања</string>
     <string name="sumh_mount_mode_auto">Аутоматски</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">Назив не смије бити празан нити садржавати бјелине, обрнуту косу црту или контролне знакове.</string>
     <string name="sumh_no_conflicts">Нису пронађени сукоби монтирања</string>
     <string name="sumh_overlay_xattr">Сакриј проширене атрибуте OverlayFS-а</string>
-    <string name="sumh_overlay_xattr_desc">Скрива ознаке OverlayFS-а у виртуалном приказу</string>
     <string name="sumh_retry_apply">Понови примену</string>
     <string name="sumh_rule_maps_spoof">Спооф /proc/pid/maps ино/dev/pathname</string>
     <string name="sumh_rule_mount_hide">Сакриј преклопне носаче из /proc/mounts</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Сачувано, али примена на језгро није успела: %1$s</string>
     <string name="sumh_saved_reboot">Сачувано. Позадински систем монтирања примењује се након поновног покретања</string>
     <string name="sumh_statfs_spoof">Прикривање Statfs</string>
-    <string name="sumh_statfs_spoof_desc">Пресликава податке о врсти система датотека</string>
     <string name="sumh_status_kernel_too_old">Језгро је престаро</string>
     <string name="sumh_status_module_too_old">Верзија протокола менаџера је престара. Ажурирајте менаџер</string>
     <string name="sumh_status_not_present">Није присутан</string>
     <string name="sumh_stealth">Стеалтх Моде</string>
-    <string name="sumh_stealth_desc">Сакриј трагове монтирања и промени редослед монтажних ИД-ова</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Није монтирано</string>
     <string name="sumh_tempdir">Привремена тачка постављања</string>

@@ -136,7 +136,6 @@ sumh_proc_proxy_kind_for_file(struct file *file,
 	spoof = scope == SUMH_POLICY_SCOPE_SPOOF;
 	name = &file->f_path.dentry->d_name;
 	if (sumh_policy_current_is_mount_view_target() &&
-	    (READ_ONCE(sumh_feature_enabled_mask) & SUMH_FEATURE_MOUNT_HIDE) &&
 	    sumh_fake_mi_active() &&
 	    ((name->len == 9 && !memcmp(name->name, "mountinfo", 9)) ||
 	     (name->len == 6 && !memcmp(name->name, "mounts", 6))))

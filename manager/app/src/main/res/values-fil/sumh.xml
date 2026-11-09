@@ -45,7 +45,6 @@
     <string name="sumh_status_kernel_too_old">Masyadong luma ang kernel</string>
     <string name="sumh_status_not_present">Wala</string>
     <string name="sumh_stealth">Stealth Mode</string>
-    <string name="sumh_stealth_desc">Itago ang mga mount trace at ayusin muli ang mga Mount ID</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Hindi naka-mount</string>
     <string name="sumh_tempdir">Pansamantalang Mount Point</string>
@@ -73,16 +72,13 @@
     <string name="sumh_logs_search">Maghanap sa mga log</string>
     <string name="sumh_logs_actions">Mga aksyon sa log</string>
     <string name="sumh_maps_spoof">Pagpapanggap ng Maps</string>
-    <string name="sumh_maps_spoof_desc">I-map ang path, numero ng device at inode ng mga rehiyon ng memorya</string>
     <string name="sumh_mirror_path_desc">Iwang blangko upang awtomatikong pumili ng directory ang SUMHP.</string>
     <string name="sumh_mount_filter">Salain ayon sa mode ng mount</string>
     <string name="sumh_mount_hide">Itago ang mga mount</string>
-    <string name="sumh_mount_hide_desc">Itago ang mga entry ng module sa view ng mount</string>
     <string name="sumh_mount_total">Mga mount ng module</string>
     <string name="sumh_mountsource_invalid">Hindi maaaring blangko ang pangalan o maglaman ng whitespace, backslash o mga control character.</string>
     <string name="sumh_no_conflicts">Walang natagpuang salungatan sa mount</string>
     <string name="sumh_overlay_xattr">Itago ang mga pinalawak na attribute ng OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">Itago ang mga palatandaan ng OverlayFS sa virtual na view</string>
     <string name="sumh_retry_apply">Subukang ilapat muli</string>
     <string name="sumh_rule_save">Ilapat ang mga pag-edit</string>
     <string name="sumh_rule_user">Mga panuntunan ng user</string>
@@ -90,7 +86,6 @@
     <string name="sumh_saved_apply_failed">Na-save, ngunit hindi nailapat sa kernel: %1$s</string>
     <string name="sumh_saved_reboot">Na-save. Magkakabisa ang backend ng mount pagkatapos mag-restart</string>
     <string name="sumh_statfs_spoof">Pagpapanggap ng Statfs</string>
-    <string name="sumh_statfs_spoof_desc">I-map ang impormasyon ng uri ng file system</string>
     <string name="sumh_status_module_too_old">Masyadong luma ang bersyon ng protocol ng manager. I-update ang manager</string>
     <string name="sumh_user_hide_remove">Tanggalin ang panuntunan sa pagtatago</string>
     <string name="sumh_disable_unsupported">Hindi suportado ng kernel na ito. I-off upang burahin ang mga na-save na setting.</string>

@@ -387,8 +387,7 @@ sumh_iterate_prepare_wrapper(struct file *file, struct dir_context *orig_ctx)
 	/* Most directories need no filtering. Decide before allocating and
 	 * zeroing the wrapper (including its path buffer and merge targets). */
 	if (!dir_has_hidden && !dir_has_inject &&
-	    (scope != SUMH_POLICY_SCOPE_SPOOF || !sumh_stealth_enabled ||
-	     dir_path_len != 4))
+	    (scope != SUMH_POLICY_SCOPE_SPOOF || dir_path_len != 4))
 		return NULL;
 
 	w = kmem_cache_zalloc(sumh_filldir_cache, GFP_ATOMIC);

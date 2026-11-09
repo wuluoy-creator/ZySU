@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Otsi logist</string>
     <string name="sumh_logs_actions">Logitoimingud</string>
     <string name="sumh_maps_spoof">Maps-andmete maskeerimine</string>
-    <string name="sumh_maps_spoof_desc">Asenda mälupiirkondade teed, seadmenumbrid ja inode-väärtused</string>
     <string name="sumh_mirror_path">Haakimise baas / peegli tee</string>
     <string name="sumh_mirror_path_desc">Jäta tühjaks, et SUMHP valiks kataloogi automaatselt.</string>
     <string name="sumh_mismatch_default">Tuvastati protokolli mittevastavus. Palun uuendage kernel või moodul.</string>
     <string name="sumh_mount_config">Haakimise konfiguratsioon</string>
     <string name="sumh_mount_filter">Filtreeri haakimisrežiime</string>
     <string name="sumh_mount_hide">Haakimiste peitmine</string>
-    <string name="sumh_mount_hide_desc">Peida moodulite kirjed haakimisvaates</string>
     <string name="sumh_mount_mode">Haakimise režiim</string>
     <string name="sumh_mount_mode_auto">Automaatne</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">Nimi ei tohi olla tühi ega sisaldada tühimärke, kurakriipse või juhtmärke.</string>
     <string name="sumh_no_conflicts">Haakimiskonflikte ei leitud</string>
     <string name="sumh_overlay_xattr">Peida OverlayFS-i laiendatud atribuudid</string>
-    <string name="sumh_overlay_xattr_desc">Peida OverlayFS-i märgised virtuaalvaates</string>
     <string name="sumh_retry_apply">Proovi uuesti rakendada</string>
     <string name="sumh_rule_maps_spoof">Võltsi ino/dev/pathname failis /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Peida overlay-haakimised /proc/mounts eest</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Salvestatud, kuid tuumale rakendamine nurjus: %1$s</string>
     <string name="sumh_saved_reboot">Salvestatud; haakimise taustsüsteem jõustub pärast taaskäivitust</string>
     <string name="sumh_statfs_spoof">Statfs-andmete maskeerimine</string>
-    <string name="sumh_statfs_spoof_desc">Asenda failisüsteemi tüübi teave</string>
     <string name="sumh_status_kernel_too_old">Kernel liiga vana</string>
     <string name="sumh_status_module_too_old">Halduri protokolliversioon on liiga vana. Uuenda haldurit.</string>
     <string name="sumh_status_not_present">Puudub</string>
     <string name="sumh_stealth">Varjatud režiim</string>
-    <string name="sumh_stealth_desc">Peida haakimisjäljed ja järjesta haakimise ID-d ümber</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Haakimata</string>
     <string name="sumh_tempdir">Ajutine haakimispunkt</string>

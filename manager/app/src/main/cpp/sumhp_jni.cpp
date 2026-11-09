@@ -370,7 +370,8 @@ std::string kernel_snapshot() {
     failure("uname");
   auto out = std::string("{\"kernel\":") + quote(uts.release) +
              ",\"sumh_available\":" + (available ? "true" : "false") +
-             ",\"kernel_version\":" + std::to_string(version.kernel_protocol);
+             ",\"kernel_version\":" + std::to_string(version.kernel_protocol) +
+             ",\"expected_protocol\":" + std::to_string(version.expected_protocol);
   if (!available)
     return out + ",\"features\":{\"bitmask\":0,\"names\":[]},\"hooks\":\"\","
                  "\"rules\":\"\"}";

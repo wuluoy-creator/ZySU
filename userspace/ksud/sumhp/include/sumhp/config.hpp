@@ -57,14 +57,9 @@ struct Config {
     bool debug = false;
     bool verbose = false;
     bool enable_kernel_debug = false;
-    bool enable_stealth = true;
-    bool enable_overlay_xattr_hide = false;
-    bool enable_mount_hide = false;
-    std::string mount_hide_mode = "normal";
     bool enable_maps_spoof = false;
     std::vector<MapsPathRule> maps_rules;
     std::vector<KstatPathRule> kstat_rules;
-    bool enable_statfs_spoof = false;
     bool enable_kernel_build_spoof = false;
     std::string kernel_build_release;
     std::string kernel_build_version;

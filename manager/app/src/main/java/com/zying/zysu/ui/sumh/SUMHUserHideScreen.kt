@@ -21,6 +21,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -40,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.YukiAlertDialog
 import com.zying.zysu.ui.component.YukiIcon
+import com.zying.zysu.ui.component.YukiPanel
 import com.zying.zysu.ui.sumh.util.*
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as Controller
 import com.zying.zysu.ui.util.SnackbarController
@@ -91,6 +93,7 @@ internal fun UserHideRulesScreen(
     enabled: Boolean, snackbar: SnackbarController, onSavingChanged: (Boolean) -> Unit, kernelAvailable: Boolean,
     loadRules: suspend () -> List<Controller.ActiveRule> = Controller::userHideStates,
     changeRules: UserHideChange = Controller::changeUserHideRules,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -235,81 +238,88 @@ internal fun UserHideRulesScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Box {
-                TextButton(onClick = { filterMenu = true }) { Text(stringResource(filter.title, visible.size)); YukiIcon(Icons.Filled.ArrowDropDown, null) }
-                DropdownMenu(filterMenu, { filterMenu = false }) {
-                    UserHideFilter.entries.forEach { choice ->
-                        DropdownMenuItem(text = { Text(stringResource(choice.title, filterUserHideRules(rules, query, choice).size)) },
-                            onClick = { filter = choice; filterMenu = false })
-                    }
-                }
-            }
-            TextButton(onClick = { selecting = !selecting; selection = emptySet() }, enabled = !working && rules.isNotEmpty()) {
-                Text(stringResource(if (selecting) R.string.sumh_rules_done else R.string.sumh_rules_select))
-            }
-            Box {
-                IconButton(onClick = { menu = true }) { YukiIcon(Icons.Filled.MoreVert, stringResource(R.string.sumh_rules_more)) }
-                DropdownMenu(menu, { menu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_import)) }, enabled = !working,
-                        onClick = { menu = false; openEditor(bulk = true) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.sumh_user_rules_copy_visible)) }, enabled = visible.isNotEmpty(),
-                        onClick = { menu = false; copy(visible.filter { it.persisted }.map { it.src }) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_refresh)) }, enabled = !working && !loading,
-                        onClick = { menu = false; refresh++ })
-                    if (result != null) DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_last_result)) },
-                        onClick = { menu = false; details = true })
-                }
-            }
-            FilledTonalButton(onClick = { openEditor() }, enabled = !working) {
-                YukiIcon(Icons.Filled.Add, null); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.sumh_user_hide_add))
-            }
-        }
-        OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            singleLine = true, label = { Text(stringResource(R.string.sumh_user_rules_search)) },
-            leadingIcon = { YukiIcon(Icons.Filled.Search, null) }, trailingIcon = {
-                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { YukiIcon(Icons.Filled.Close, stringResource(R.string.sumh_user_rules_clear_search)) }
-            })
-        if (loading || working) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (working && operation.total > 0) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.sumh_rules_progress, operation.progress, operation.total), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { operation.stop.set(true) }) { Text(stringResource(R.string.sumh_rules_stop)) }
-        }
-        error?.let {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(it, Modifier.weight(1f), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { refresh++ }, enabled = !loading && !working) { Text(stringResource(R.string.retry)) }
-            }
-        }
-        if (!kernelAvailable) Text(stringResource(R.string.sumh_user_rules_kernel_unavailable), Modifier.padding(horizontal = 16.dp),
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        result?.takeUnless { dismissedResult }?.let {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { details = true }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.sumh_user_rules_result, it.completedCount, it.failedCount))
-                    YukiIcon(Icons.Filled.ChevronRight, null)
-                }
-                IconButton(onClick = { dismissedResult = true }) { YukiIcon(Icons.Filled.Close, stringResource(R.string.sumh_rules_dismiss_result)) }
-            }
-        }
-        if (selecting) FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.sumh_user_rules_selected, selection.size, selected.count { it in visible }), style = MaterialTheme.typography.labelMedium)
-            TextButton(onClick = { selection = toggleVisibleUserHideSelection(selection, visiblePaths) }, enabled = !working && visiblePaths.isNotEmpty()) {
-                Text(stringResource(if (visiblePaths.isNotEmpty() && selection.containsAll(visiblePaths)) R.string.sumh_rules_deselect_visible else R.string.sumh_user_rules_select_visible))
-            }
-            TextButton(onClick = { selection = invertVisibleUserHideSelection(selection, visiblePaths) }, enabled = !working && visiblePaths.isNotEmpty()) {
-                Text(stringResource(R.string.sumh_rules_invert_visible))
-            }
-        }
         UserHideRuleList(visible, selecting, selection, !working, Modifier.weight(1f),
             onSelect = { path -> selection = if (path in selection) selection - path else selection + path },
             onEdit = { openEditor(it.src) }, onRemove = { remove = listOf(it.src) },
             onRetry = { mutate(SUMHHideAction.Retry, listOf(it.src)) }, onCopy = { copy(listOf(it.src)) }, retryEnabled = canEdit && kernelAvailable,
             onLongSelect = { selecting = true; selection = selection + it.src }, state = listState,
             showEmpty = !loading && error == null, filtered = query.isNotEmpty() || filter != UserHideFilter.All,
-            onClearFilter = { query = ""; filter = UserHideFilter.All })
-        if (selecting && selection.isNotEmpty()) Surface(tonalElevation = 3.dp) {
+            onClearFilter = { query = ""; filter = UserHideFilter.All },
+            contentPadding = contentPadding,
+            header = {
+                SUMHRuleOverview(stringResource(R.string.sumh_workspace_rules), headingActions = {
+                    IconButton(onClick = { refresh++ }, enabled = !working && !loading) {
+                        YukiIcon(Icons.Filled.Refresh, stringResource(R.string.sumh_rules_refresh))
+                    }
+                    Box {
+                        IconButton(onClick = { menu = true }) { YukiIcon(Icons.Filled.MoreVert, stringResource(R.string.sumh_rules_more)) }
+                        DropdownMenu(menu, { menu = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_import)) }, enabled = !working,
+                                onClick = { menu = false; openEditor(bulk = true) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.sumh_user_rules_copy_visible)) }, enabled = visible.isNotEmpty(),
+                                onClick = { menu = false; copy(visible.filter { it.persisted }.map { it.src }) })
+                            if (result != null) DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_last_result)) },
+                                onClick = { menu = false; details = true })
+                        }
+                    }
+                }) {
+                    SUMHRuleActions {
+                        FilledTonalButton(onClick = { openEditor() }, enabled = !working, modifier = Modifier.heightIn(min = 48.dp)) {
+                            YukiIcon(Icons.Filled.Add, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.sumh_user_hide_add))
+                        }
+                        Box {
+                            TextButton(onClick = { filterMenu = true }) { Text(stringResource(filter.title, visible.size)); YukiIcon(Icons.Filled.ArrowDropDown, null) }
+                            DropdownMenu(filterMenu, { filterMenu = false }) {
+                                UserHideFilter.entries.forEach { choice ->
+                                    DropdownMenuItem(text = { Text(stringResource(choice.title, filterUserHideRules(rules, query, choice).size)) },
+                                        onClick = { filter = choice; filterMenu = false })
+                                }
+                            }
+                        }
+                        TextButton(onClick = { selecting = !selecting; selection = emptySet() }, enabled = !working && rules.isNotEmpty()) {
+                            Text(stringResource(if (selecting) R.string.sumh_rules_done else R.string.sumh_rules_select))
+                        }
+                    }
+                    OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(),
+                        singleLine = true, label = { Text(stringResource(R.string.sumh_user_rules_search)) },
+                        leadingIcon = { YukiIcon(Icons.Filled.Search, null) }, trailingIcon = {
+                            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { YukiIcon(Icons.Filled.Close, stringResource(R.string.sumh_user_rules_clear_search)) }
+                        })
+                    if (loading || working) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if (working && operation.total > 0) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.sumh_rules_progress, operation.progress, operation.total), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { operation.stop.set(true) }) { Text(stringResource(R.string.sumh_rules_stop)) }
+                    }
+                    error?.let {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(it, Modifier.weight(1f), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = { refresh++ }, enabled = !loading && !working) { Text(stringResource(R.string.retry)) }
+                        }
+                    }
+                    if (!kernelAvailable) Text(stringResource(R.string.sumh_user_rules_kernel_unavailable),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    result?.takeUnless { dismissedResult }?.let {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { details = true }, modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.sumh_user_rules_result, it.completedCount, it.failedCount))
+                                YukiIcon(Icons.Filled.ChevronRight, null)
+                            }
+                            IconButton(onClick = { dismissedResult = true }) { YukiIcon(Icons.Filled.Close, stringResource(R.string.sumh_rules_dismiss_result)) }
+                        }
+                    }
+                    if (selecting) FlowRow(Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.sumh_user_rules_selected, selection.size, selected.count { it in visible }), style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = { selection = toggleVisibleUserHideSelection(selection, visiblePaths) }, enabled = !working && visiblePaths.isNotEmpty()) {
+                            Text(stringResource(if (visiblePaths.isNotEmpty() && selection.containsAll(visiblePaths)) R.string.sumh_rules_deselect_visible else R.string.sumh_user_rules_select_visible))
+                        }
+                        TextButton(onClick = { selection = invertVisibleUserHideSelection(selection, visiblePaths) }, enabled = !working && visiblePaths.isNotEmpty()) {
+                            Text(stringResource(R.string.sumh_rules_invert_visible))
+                        }
+                    }
+                }
+            })
+        if (selecting && selection.isNotEmpty()) YukiPanel(Modifier.padding(horizontal = 18.dp).padding(bottom = 12.dp)) {
             FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = { copy(selected.map { it.src }) }) { Text(stringResource(R.string.sumh_rules_copy)) }
                 TextButton(onClick = { mutate(SUMHHideAction.Retry, selected.filter { it.persisted }.map { it.src }) },
@@ -362,42 +372,47 @@ internal fun UserHideRuleList(
     onRetry: (Controller.ActiveRule) -> Unit, onCopy: (Controller.ActiveRule) -> Unit, retryEnabled: Boolean,
     onLongSelect: (Controller.ActiveRule) -> Unit = {}, state: LazyListState = rememberLazyListState(),
     showEmpty: Boolean = true, filtered: Boolean = false, onClearFilter: () -> Unit = {},
+    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+    header: (@Composable () -> Unit)? = null,
 ) {
-    LazyColumn(modifier.fillMaxWidth(), state = state, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+    LazyColumn(modifier.fillMaxWidth(), state = state, contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (header != null) item(key = "overview", contentType = "overview") { header() }
         if (rules.isEmpty() && showEmpty) item {
-            Column(Modifier.padding(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(if (filtered) R.string.sumh_rules_no_match else R.string.sumh_user_rules_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SUMHRuleCard {
+                Text(stringResource(if (filtered) R.string.sumh_rules_no_match else R.string.sumh_user_rules_empty),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (filtered) TextButton(onClick = onClearFilter) { Text(stringResource(R.string.sumh_rules_clear_filter)) }
             }
         }
         items(rules, key = { it.src }) { rule ->
             var menu by remember { mutableStateOf(false) }
-            Row(Modifier.fillMaxWidth().heightIn(min = 72.dp)
+            SUMHRuleCard(Modifier.clip(sumhCardShape())
                 .semantics { if (selecting) toggleableState = if (rule.src in selection) ToggleableState.On else ToggleableState.Off }
                 .combinedClickable(enabled = enabled, role = if (selecting) Role.Checkbox else Role.Button,
                     onClickLabel = stringResource(if (selecting) R.string.sumh_rules_select else if (rule.persisted) R.string.sumh_rules_edit else R.string.sumh_rules_more),
                     onLongClickLabel = stringResource(R.string.sumh_rules_select),
                     onLongClick = { if (selecting) onSelect(rule.src) else onLongSelect(rule) },
-                    onClick = { if (selecting) onSelect(rule.src) else if (rule.persisted) onEdit(rule) else menu = true }),
-                verticalAlignment = Alignment.CenterVertically) {
-                if (selecting) Checkbox(rule.src in selection, null, enabled = enabled, modifier = Modifier.padding(end = 12.dp))
-                Column(Modifier.weight(1f).padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    onClick = { if (selecting) onSelect(rule.src) else if (rule.persisted) onEdit(rule) else menu = true })) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (selecting) Checkbox(rule.src in selection, null, enabled = enabled, modifier = Modifier.padding(end = 12.dp))
                     Text(rule.src, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
+                }
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(if (!rule.persisted) stringResource(R.string.sumh_user_rules_runtime_only)
                         else if (rule.hideState == null) stringResource(R.string.sumh_user_rules_unknown) else userHideStatus(rule),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (!selecting) Box {
-                    IconButton(onClick = { menu = true }, enabled = enabled) { YukiIcon(Icons.Filled.MoreVert, stringResource(R.string.sumh_rules_more)) }
-                    DropdownMenu(menu, { menu = false }) {
-                        if (rule.persisted) DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_edit)) }, onClick = { menu = false; onEdit(rule) })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_copy)) }, onClick = { menu = false; onCopy(rule) })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.sumh_hide_retry)) }, enabled = retryEnabled && rule.persisted, onClick = { menu = false; onRetry(rule) })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.sumh_user_hide_remove)) }, onClick = { menu = false; onRemove(rule) })
+                        modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!selecting) Box {
+                        IconButton(onClick = { menu = true }, enabled = enabled) { YukiIcon(Icons.Filled.MoreVert, stringResource(R.string.sumh_rules_more)) }
+                        DropdownMenu(menu, { menu = false }) {
+                            if (rule.persisted) DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_edit)) }, onClick = { menu = false; onEdit(rule) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.sumh_rules_copy)) }, onClick = { menu = false; onCopy(rule) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.sumh_hide_retry)) }, enabled = retryEnabled && rule.persisted, onClick = { menu = false; onRetry(rule) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.sumh_user_hide_remove)) }, onClick = { menu = false; onRemove(rule) })
+                        }
                     }
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }

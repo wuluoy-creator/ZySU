@@ -20,3 +20,13 @@ internal fun validKernelBuildField(value: String, release: Boolean = false): Boo
 internal fun validKernelBuildOverride(enabled: Boolean, release: String, version: String): Boolean =
     validKernelBuildField(release, release = true) && validKernelBuildField(version) &&
         (!enabled || release.isNotEmpty() || version.isNotEmpty())
+
+internal data class KernelBuildOverride(val release: String, val version: String) {
+    val enabled: Boolean get() = release.isNotEmpty() || version.isNotEmpty()
+}
+
+/** A saved pair is the setting: empty fields use the original kernel values. */
+internal fun kernelBuildOverride(release: String, version: String): KernelBuildOverride? {
+    val value = KernelBuildOverride(release.trim(), version.trim())
+    return value.takeIf { validKernelBuildOverride(it.enabled, it.release, it.version) }
+}

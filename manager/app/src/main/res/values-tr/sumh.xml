@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Günlüklerde ara</string>
     <string name="sumh_logs_actions">Günlük işlemleri</string>
     <string name="sumh_maps_spoof">Maps taklidi</string>
-    <string name="sumh_maps_spoof_desc">Eşlenen bellek bölgelerinin yollarını, aygıt numaralarını ve inode değerlerini eşler</string>
     <string name="sumh_mirror_path">Bağlama temeli / yansı yolu</string>
     <string name="sumh_mirror_path_desc">SUMHP\'nin dizini otomatik seçmesi için boş bırakın.</string>
     <string name="sumh_mismatch_default">Protokol uyuşmazlığı algılandı. Lütfen kerneli veya modülü güncelleyin.</string>
     <string name="sumh_mount_config">Bağlama yapılandırması</string>
     <string name="sumh_mount_filter">Bağlama kiplerini filtrele</string>
     <string name="sumh_mount_hide">Bağlamaları gizleme</string>
-    <string name="sumh_mount_hide_desc">Bağlama görünümündeki modül girdilerini gizler</string>
     <string name="sumh_mount_mode">Bağlama modu</string>
     <string name="sumh_mount_mode_auto">Otomatik</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">Ad boş olamaz; boşluk, ters eğik çizgi veya denetim karakteri içeremez.</string>
     <string name="sumh_no_conflicts">Bağlama çakışması bulunamadı</string>
     <string name="sumh_overlay_xattr">OverlayFS genişletilmiş özniteliklerini gizle</string>
-    <string name="sumh_overlay_xattr_desc">Sanal görünümde OverlayFS işaretlerini gizler</string>
     <string name="sumh_retry_apply">Uygulamayı yeniden dene</string>
     <string name="sumh_rule_maps_spoof">/proc/pid/maps içinde ino/dev/pathname sahtele</string>
     <string name="sumh_rule_mount_hide">Overlay bağlamalarını /proc/mounts\'tan gizle</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Kaydedildi ancak çekirdeğe uygulanamadı: %1$s</string>
     <string name="sumh_saved_reboot">Kaydedildi. Bağlama arka ucu yeniden başlatınca uygulanır</string>
     <string name="sumh_statfs_spoof">Statfs taklidi</string>
-    <string name="sumh_statfs_spoof_desc">Dosya sistemi türü bilgilerini eşler</string>
     <string name="sumh_status_kernel_too_old">Kernel çok eski</string>
     <string name="sumh_status_module_too_old">Yönetici protokolü çok eski. Yöneticiyi güncelleyin</string>
     <string name="sumh_status_not_present">Mevcut değil</string>
     <string name="sumh_stealth">Gizli mod</string>
-    <string name="sumh_stealth_desc">Bağlama izlerini gizle ve bağlama kimliklerini yeniden sırala</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Bağlanmadı</string>
     <string name="sumh_tempdir">Geçici bağlama noktası</string>

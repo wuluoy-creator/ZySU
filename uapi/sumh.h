@@ -12,7 +12,8 @@
 #include <sys/ioctl.h>
 #endif // #ifdef __KERNEL__
 
-#define SUMH_PROTOCOL_VERSION 1
+/* Protocol 2 fixes built-in protections on and retires their setters. */
+#define SUMH_PROTOCOL_VERSION 2
 
 #define SUMH_MAX_LEN_PATHNAME 256
 
@@ -282,6 +283,7 @@ struct sumh_statfs_spoof_arg {
   _IOWR(SUMH_IOC_MAGIC, 7, struct sumh_syscall_list_arg)
 #define SUMH_IOC_SET_DEBUG _IOW(SUMH_IOC_MAGIC, 8, int)
 #define SUMH_IOC_REORDER_MNT_ID _IO(SUMH_IOC_MAGIC, 9)
+/* Reserved legacy setter: fixed protections reject changes with -EOPNOTSUPP. */
 #define SUMH_IOC_SET_STEALTH _IOW(SUMH_IOC_MAGIC, 10, int)
 /* An empty src clears xattr targets when OVERLAY_XATTR_HIDE is advertised. */
 #define SUMH_IOC_HIDE_OVERLAY_XATTRS                                           \
@@ -304,14 +306,17 @@ struct sumh_statfs_spoof_arg {
 /* Upsert an unmanaged rule by (target_ino, target_dev). */
 #define SUMH_IOC_ADD_MAPS_RULE _IOW(SUMH_IOC_MAGIC, 23, struct sumh_maps_rule)
 #define SUMH_IOC_CLEAR_MAPS_RULES _IO(SUMH_IOC_MAGIC, 24)
+/* Reserved legacy setter; mount hiding has no mutable enabled state. */
 #define SUMH_IOC_SET_MOUNT_HIDE                                                \
   _IOW(SUMH_IOC_MAGIC, 25, struct sumh_mount_hide_arg)
 #define SUMH_IOC_SET_MAPS_SPOOF                                                \
   _IOW(SUMH_IOC_MAGIC, 26, struct sumh_maps_spoof_arg)
+/* Reserved legacy setter; statfs uses the backing view whenever available. */
 #define SUMH_IOC_SET_STATFS_SPOOF                                              \
   _IOW(SUMH_IOC_MAGIC, 27, struct sumh_statfs_spoof_arg)
 /* Commands 17 and 28 remain reserved for removed uname operations. */
 
+/* Reserved legacy setter; native namespace identity is the only behavior. */
 #define SUMH_IOC_SET_MOUNT_HIDE_MODE _IOW(SUMH_IOC_MAGIC, 38, int)
 
 #define SUMH_IOC_USER_HIDE_UPSERT                                              \

@@ -31,7 +31,6 @@ import com.zying.zysu.ui.sumh.util.SUMH_KSTAT_FIELDS
 import com.zying.zysu.ui.sumh.util.validSUMHKstatPath
 import com.zying.zysu.ui.sumh.util.validSUMHKstatNumber
 import com.zying.zysu.ui.sumh.util.validSUMHKstatRules
-import ui.screen.moreSettings.component.MoreSettingsItemPosition
 
 @Composable
 internal fun KstatRulesSettings(
@@ -55,17 +54,18 @@ internal fun KstatRulesSettings(
     var deletingTarget by rememberSaveable { mutableStateOf<String?>(null) }
     var detailTarget by rememberSaveable { mutableStateOf<String?>(null) }
 
-    ConfigSection(stringResource(R.string.sumh_workspace_kstat), segmented = true, actions = headingActions) {
-        SUMHControlGroup(MoreSettingsItemPosition.Only) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SUMHRuleOverview(stringResource(R.string.sumh_workspace_kstat), headingActions) {
+            Text(stringResource(R.string.sumh_kstat_saved_count, config.kstatRules.size),
+                style = MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.sumh_kstat_description), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(R.string.sumh_kstat_saved_count, config.kstatRules.size),
-                style = MaterialTheme.typography.bodyMedium)
             if (support == SUMHFeatureSupport.Supported && runtimeStatus != null) {
                 Text(stringResource(R.string.sumh_kstat_active_count, runtimeStatus.activeCount),
-                    style = MaterialTheme.typography.bodyMedium)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(R.string.sumh_kstat_generation, runtimeStatus.generation),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Text(stringResource(R.string.sumh_kstat_active_unknown),
@@ -79,38 +79,53 @@ internal fun KstatRulesSettings(
                 SUMHFeatureSupport.Supported -> R.string.sumh_kstat_description
             }), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            config.kstatRules.forEach { rule ->
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                Text(rule.targetPath, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (rule.mode != "custom") Text(stringResource(R.string.sumh_kstat_source, rule.sourcePath),
-                    style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                val modeLabel = when (rule.mode) {
-                    "full" -> R.string.sumh_kstat_mode_full
-                    "custom" -> R.string.sumh_kstat_mode_custom
-                    else -> R.string.sumh_kstat_mode_identity
-                }
-                Text(stringResource(modeLabel) + if (rule.mode == "custom")
-                    ": " + rule.customFields.keys.map { it.substringBefore('.') }.distinct().joinToString(", ") else "",
-                    style = MaterialTheme.typography.labelMedium)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    IconButton(onClick = { detailTarget = rule.targetPath }) {
-                        YukiIcon(Icons.Filled.Info, stringResource(R.string.sumh_kstat_details))
-                    }
-                    IconButton(onClick = { editingTarget = rule.targetPath; showEditor = true }, enabled = canEdit) {
-                        YukiIcon(Icons.Filled.Edit, stringResource(R.string.sumh_kstat_edit))
-                    }
-                    IconButton(onClick = { deletingTarget = rule.targetPath }, enabled = enabled) {
-                        YukiIcon(Icons.Filled.Delete, stringResource(R.string.sumh_kstat_remove))
-                    }
+            SUMHRuleActions {
+                FilledTonalButton(onClick = { editingTarget = null; showEditor = true },
+                    enabled = canEdit && config.kstatRules.size < SUMH_MAX_KSTAT_RULES,
+                    modifier = Modifier.heightIn(min = 48.dp)) {
+                    YukiIcon(Icons.Filled.Add, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.sumh_kstat_add))
                 }
             }
-            FilledTonalButton(onClick = { editingTarget = null; showEditor = true },
-                enabled = canEdit && config.kstatRules.size < SUMH_MAX_KSTAT_RULES,
-                modifier = Modifier.heightIn(min = 48.dp)) {
-                YukiIcon(Icons.Filled.Add, null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.sumh_kstat_add))
+        }
+        if (config.kstatRules.isEmpty()) {
+            SUMHRuleEmptyState(stringResource(R.string.sumh_kstat_empty))
+        }
+        config.kstatRules.forEach { rule ->
+            key(rule.targetPath) {
+                SUMHRuleCard {
+                    Text(stringResource(R.string.sumh_kstat_target), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(rule.targetPath, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    if (rule.mode != "custom") {
+                        Text(stringResource(R.string.sumh_kstat_source_label), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(rule.sourcePath, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    }
+                    val modeLabel = when (rule.mode) {
+                        "full" -> R.string.sumh_kstat_mode_full
+                        "custom" -> R.string.sumh_kstat_mode_custom
+                        else -> R.string.sumh_kstat_mode_identity
+                    }
+                    Text(stringResource(modeLabel) + if (rule.mode == "custom")
+                        ": " + rule.customFields.keys.map { it.substringBefore('.') }.distinct().joinToString(", ") else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        IconButton(onClick = { detailTarget = rule.targetPath }) {
+                            YukiIcon(Icons.Filled.Info, stringResource(R.string.sumh_kstat_details))
+                        }
+                        IconButton(onClick = { editingTarget = rule.targetPath; showEditor = true }, enabled = canEdit) {
+                            YukiIcon(Icons.Filled.Edit, stringResource(R.string.sumh_kstat_edit))
+                        }
+                        IconButton(onClick = { deletingTarget = rule.targetPath }, enabled = enabled) {
+                            YukiIcon(Icons.Filled.Delete, stringResource(R.string.sumh_kstat_remove))
+                        }
+                    }
+                }
             }
         }
     }

@@ -169,13 +169,13 @@ ksud sumhp module set-mode example.module magic
 | `sumhp daemon` | `status`, `start`, `serve`, `ping`, `stop`, `call <COMMAND> [ARGS...]` |
 | `sumhp module` | `list [--all]`, `configure <ID> <MODE> <RULES-JSON>`, `set-mode <ID> <MODE>`, `add-rule <ID> <ABSOLUTE-PATH> <MODE>`, `remove-rule <ID> <ABSOLUTE-PATH>`, `check-conflicts`, `normalize <PATH>` |
 | `sumhp module` runtime operations | `add` / `hot-mount <ID>`, `delete` / `hot-unmount <ID>`, `mount-all`, `unmount` |
-| `sumhp sumh` | `version`, `list`, `features`, `clear`, `hide-path <ABSOLUTE-PATH>`, `delete-rule <ABSOLUTE-PATH>`, `fix-mounts`, `hide-overlay-xattrs <ABSOLUTE-PATH>` |
-| `sumhp sumh` feature controls | `mount-hide off\|on\|normal\|aggressive`, `maps-spoof off\|on`, `statfs-spoof off\|on` |
+| `sumhp sumh` | `version`, `list`, `features`, `clear`, `hide-path <ABSOLUTE-PATH>`, `delete-rule <ABSOLUTE-PATH>`, `fix-mounts` |
+| `sumhp sumh` feature controls | `maps-spoof off\|on` |
 | `sumhp sumh maps` | `clear`, `add <TARGET-INO> <TARGET-DEV> <SPOOF-INO> <SPOOF-DEV> <PATH>` |
 | `sumhp sumh maps` saved paths | `list-paths`, `add-path <TARGET-PATH> <REPLACEMENT-PATH>`, `remove-path <TARGET-PATH>`, `apply` |
 | `sumhp sumh kernel-build` | `show`, `set <RELEASE> <VERSION>`, `reset` |
 | `sumhp hide` | `list`, `apply`, `add <ABSOLUTE-PATH>`, `remove <ABSOLUTE-PATH>` |
-| `sumhp debug` | `enable`, `disable`, `stealth enable\|disable` |
+| `sumhp debug` | `enable`, `disable` |
 | `sumhp recovery` | `status`, `reset` |
 
 Module modes are `auto`, `sumh`, `overlay`, `magic` and `none`; path rules also accept `hide`. A non-`auto` global `mount_backend` overrides individual module choices. `auto` follows **OverlayFS → Magic Mount → none**, selecting Magic Mount for files directly under a partition root, such as `system/build.prop`. SUMH is selected explicitly. Unavailable requested backends can resolve to fallback backends; inspect the actual plan and logs after boot.
@@ -188,7 +188,7 @@ SUMH replay compiles the new module plan before clearing existing mappings; unsu
 
 `config merge-json` validates keys, types, enums, paths and numeric ranges. `config gen` writes defaults. `config apply` applies supported runtime settings; changing a mount layout still requires reboot. For kernel build overrides, either `set` operand may be `default`, but not both; `reset` restores both. See [kernel build overrides](zh/guide/sumh-kernel-build.md).
 
-The parser still accepts `mount-hide aggressive`, but the current kernel rejects this retired mode and does not advertise its capability. Applying an older saved aggressive configuration falls back to normal mode. Direct feature controls affect runtime state; use saved configuration and `config apply` for persistent settings.
+Stealth, mount hiding, OverlayFS attribute hiding and statfs views are fixed built-in behaviors. They have no configuration fields or runtime switches. Old saved fields are ignored and omitted from exported configuration; attempts to modify them are rejected. Mount hiding uses native namespace identities with no configurable mode. OverlayFS targets are registered automatically when mounts are created; target registration and cleanup do not constitute a feature switch. SUMH protocol 2 requires matching kernel and userspace components so an older kernel cannot be mistaken for one providing these fixed behaviors.
 
 Daemon control requests use a 5-second client timeout; other requests use 60 seconds. Timeout does not cancel an executing operation. Lost responses do not trigger replay; inspect state before retrying changes. Automatic startup/retry is limited to missing/refused socket connections. The newline-terminated transport limits requests to 64 KiB and client responses to 1 MiB; the daemon allows 5 seconds to receive or send a frame.
 

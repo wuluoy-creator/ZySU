@@ -95,11 +95,6 @@ bool retry_user_hide(const std::string& path);
 // A retained managed definition prevents switching to legacy HIDE after an error.
 bool managed_hide_mode(bool& managed);
 
-enum class MountHideMode : std::uint32_t {
-    Normal = 0,
-    Aggressive = 1,
-};
-
 VersionInfo version_info();
 bool is_available();
 std::string active_rules();
@@ -110,13 +105,10 @@ std::vector<std::string> feature_names(int bitmask);
 std::vector<std::string> active_modules_from_rules(const std::string& rules);
 
 bool set_debug(bool enable);
-bool set_stealth(bool enable);
 bool fix_mounts();
 bool hide_overlay_xattrs(const std::string& path);
 bool clear_overlay_xattr_hiding();
-bool set_mount_hide(bool enable, MountHideMode mode = MountHideMode::Normal);
 bool set_maps_spoof(bool enable);
-bool set_statfs_spoof(bool enable);
 // Empty enabled fields retain ORIGINAL values; at least one custom field is
 // required. Disabling ignores both supplied strings.
 bool set_kernel_build(bool enable, const std::string& release = {},

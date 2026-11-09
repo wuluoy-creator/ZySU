@@ -16,10 +16,12 @@
 #include <system_error>
 #include <vector>
 
+#include "../sumhp/include/sumhp/sumh_client.hpp"
+
 constexpr int MNT_DETACH = 2;
+constexpr int SUMH_FEATURE_OVERLAY_XATTR_HIDE = 1 << 13;
 
 struct Config {
-    bool enable_overlay_xattr_hide = true;
     std::string mount_source = "KSU";
     std::vector<std::string> partitions;
 };
@@ -44,6 +46,9 @@ const std::vector<std::string> mounted = {"/system/etc", "/system/etc/child", "/
                                           "/vendor/lib"};
 struct State {
     bool available = true;
+    bool xattr_supported = true;
+    int capabilities_error = 0;
+    int xattr_clear_calls = 0;
     bool fail_journal = false;
     bool fail_snapshot = false;
     bool fail_first_journal = false;
@@ -96,6 +101,17 @@ bool write_file_atomic(const std::string&, const std::string& data) {
 namespace sumhp::sumh {
 bool is_available() {
     return fixture::state.available;
+}
+FeatureCapabilities feature_capabilities() {
+    const auto& state = fixture::state;
+    if (state.capabilities_error)
+        return {false, state.capabilities_error, 0};
+    return {true, 0, state.xattr_supported ? SUMH_FEATURE_OVERLAY_XATTR_HIDE : 0};
+}
+bool clear_overlay_xattr_hiding() {
+    ++fixture::state.xattr_clear_calls;
+    fixture::state.xattr_attempts.clear();
+    return true;
 }
 bool hide_overlay_xattrs(const std::string& path) {
     auto& state = fixture::state;
@@ -241,6 +257,10 @@ int umount2(const char* path, int flags) {
     return 0;
 }
 
+std::vector<std::string> our_overlays(const std::string&) {
+    return fixture::state.journal;
+}
+
 #include "overlay_mount_under_test.inc"
 
 int main() {
@@ -312,17 +332,36 @@ int main() {
         assert(count == 1);
     }
 
-    // An operator-disabled feature and an unavailable SUMH kernel preserve
-    // ordinary module mounting, without trying to register attributes.
-    for (int disabled = 0; disabled < 2; ++disabled) {
-        fixture::state = {};
-        config.enable_overlay_xattr_hide = disabled != 0;
-        fixture::state.available = disabled == 0;
-        assert(mount_modules(modules, config));
-        assert(fixture::state.xattr_attempts.empty());
-        assert(fixture::state.journal == fixture::overlays);
-    }
-    config.enable_overlay_xattr_hide = true;
+    // An unavailable SUMH kernel still permits ordinary module mounting.
+    fixture::state = {};
+    fixture::state.available = false;
+    assert(mount_modules(modules, config));
+    assert(fixture::state.xattr_attempts.empty());
+    assert(fixture::state.journal == fixture::overlays);
+
+    // Protocol availability does not imply an optional xattr hook exists.
+    fixture::state = {};
+    fixture::state.xattr_supported = false;
+    assert(mount_modules(modules, config));
+    assert(fixture::state.xattr_attempts.empty());
+    assert(fixture::state.journal == fixture::overlays && fixture::state.detached.empty());
+    assert(restore_xattr_hiding(config));
+    assert(fixture::state.xattr_clear_calls == 0 && fixture::state.xattr_attempts.empty());
+
+    // Query errors must fail before touching mounts or existing xattr markers.
+    fixture::state.capabilities_error = EIO;
+    assert(!restore_xattr_hiding(config) && errno == EIO);
+    assert(fixture::state.xattr_clear_calls == 0 && fixture::state.detached.empty());
+    fixture::state = {};
+    fixture::state.capabilities_error = EIO;
+    assert(!mount_modules(modules, config) && errno == EIO);
+    assert(fixture::state.live.empty() && fixture::state.journal_writes == 0);
+
+    fixture::state = {};
+    assert(mount_modules(modules, config));
+    assert(restore_xattr_hiding(config));
+    assert(fixture::state.xattr_clear_calls == 1);
+    assert(fixture::state.xattr_attempts == fixture::overlays);
 
     // A child registration error must fail the plan and roll back all mounts,
     // including the stock bind, without committing a success journal.

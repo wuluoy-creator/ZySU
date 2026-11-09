@@ -737,13 +737,8 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 	}
 
 	if (cmd == SUMH_IOC_SET_STEALTH) {
-		int val;
-		if (copy_from_user(&val, arg, sizeof(val)))
-			return -EFAULT;
-		sumh_stealth_enabled = !!val;
-		sumh_log("stealth mode %s\n",
-			 sumh_stealth_enabled ? "enabled" : "disabled");
-		return 0;
+		/* Reserved legacy command: stealth is an unconditional policy. */
+		return -EOPNOTSUPP;
 	}
 
 	if (cmd == SUMH_IOC_SET_ENABLED) {
@@ -835,15 +830,13 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 		}
 		/* Feature rules: mount_hide, maps_spoof, statfs_spoof, stealth
 		 */
-		if (sumh_feature_enabled_mask & SUMH_FEATURE_MOUNT_HIDE) {
+		if (sumh_proc_proxy_registered ||
+		    sumh_mount_hide_vfsmnt_registered ||
+		    sumh_mount_hide_mountinfo_registered) {
 			if (written < buf_size)
 				written += scnprintf(
 				    kbuf + written, buf_size - written,
-				    "mount_hide enabled mode=%s\n",
-				    READ_ONCE(sumh_mount_hide_mode) ==
-					    SUMH_MOUNT_HIDE_MODE_AGGRESSIVE
-					? "aggressive"
-					: "normal");
+				    "mount_hide enabled mode=normal\n");
 		}
 		if (sumh_feature_enabled_mask & SUMH_FEATURE_MAPS_SPOOF) {
 			if (written < buf_size)
@@ -851,18 +844,15 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 						     buf_size - written,
 						     "maps_spoof enabled\n");
 		}
-		if (sumh_feature_enabled_mask & SUMH_FEATURE_STATFS_SPOOF) {
+		if (sumh_statfs_view_available()) {
 			if (written < buf_size)
 				written += scnprintf(kbuf + written,
 						     buf_size - written,
 						     "statfs_spoof enabled\n");
 		}
-		if (sumh_stealth_enabled) {
-			if (written < buf_size)
-				written += scnprintf(kbuf + written,
-						     buf_size - written,
-						     "stealth enabled\n");
-		}
+		if (written < buf_size)
+			written += scnprintf(kbuf + written, buf_size - written,
+					     "stealth enabled\n");
 		if (sumh_kernel_build_enabled() && written < buf_size)
 			written += scnprintf(kbuf + written, buf_size - written,
 					     "kernel_build_spoof enabled\n");
@@ -914,39 +904,13 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 	}
 
 	if (cmd == SUMH_IOC_SET_MOUNT_HIDE) {
-		struct sumh_mount_hide_arg a;
-		if (copy_from_user(&a, arg, sizeof(a)))
-			return -EFAULT;
-		if (a.enable)
-			sumh_feature_enabled_mask |= SUMH_FEATURE_MOUNT_HIDE;
-		else
-			sumh_feature_enabled_mask &= ~SUMH_FEATURE_MOUNT_HIDE;
-		sumh_fake_mi_invalidate_all();
-		sumh_log("mount hide %s\n", a.enable ? "enabled" : "disabled");
-		/* path_pattern reserved for future custom hide rules */
-		return 0;
+		/* Mount visibility is fixed while the provider is live. */
+		return -EOPNOTSUPP;
 	}
 
 	if (cmd == SUMH_IOC_SET_MOUNT_HIDE_MODE) {
-		int mode;
-
-		if (copy_from_user(&mode, arg, sizeof(mode)))
-			return -EFAULT;
-		if (mode != SUMH_MOUNT_HIDE_MODE_NORMAL &&
-		    mode != SUMH_MOUNT_HIDE_MODE_AGGRESSIVE)
-			return -EINVAL;
-		/* A namespace is one kernel object across readlink/stat/fstat.
-		 * The retired text-only projection could not preserve that
-		 * identity.
-		 */
-		if (mode == SUMH_MOUNT_HIDE_MODE_AGGRESSIVE)
-			return -EOPNOTSUPP;
-		WRITE_ONCE(sumh_mount_hide_mode, mode);
-		sumh_fake_mi_invalidate_all();
-		sumh_log("mount hide mode: %s\n",
-			 mode == SUMH_MOUNT_HIDE_MODE_AGGRESSIVE ? "aggressive"
-								 : "normal");
-		return 0;
+		/* Preserve native namespace identity; there is no mutable mode. */
+		return -EOPNOTSUPP;
 	}
 
 	if (cmd == SUMH_IOC_SET_MAPS_SPOOF) {
@@ -962,17 +926,8 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 	}
 
 	if (cmd == SUMH_IOC_SET_STATFS_SPOOF) {
-		struct sumh_statfs_spoof_arg a;
-		if (copy_from_user(&a, arg, sizeof(a)))
-			return -EFAULT;
-		if (a.enable && !sumh_statfs_view_available())
-			return -EOPNOTSUPP;
-		if (a.enable)
-			sumh_feature_enabled_mask |= SUMH_FEATURE_STATFS_SPOOF;
-		else
-			sumh_feature_enabled_mask &= ~SUMH_FEATURE_STATFS_SPOOF;
-		/* path/spoof_f_type reserved for future custom mappings */
-		return 0;
+		/* The backing-filesystem view is automatic when supported. */
+		return -EOPNOTSUPP;
 	}
 
 	if (cmd == SUMH_IOC_GET_FEATURES) {

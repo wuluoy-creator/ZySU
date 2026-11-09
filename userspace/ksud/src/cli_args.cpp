@@ -283,11 +283,7 @@ const std::vector<Command>& commands() {
         {"sumhp sumh hide-path", "Hide an absolute path", "<ABSOLUTE-PATH>", 1, 1},
         {"sumhp sumh delete-rule", "Delete a path rule", "<ABSOLUTE-PATH>", 1, 1},
         {"sumhp sumh fix-mounts", "Reorder mount IDs", ""},
-        {"sumhp sumh hide-overlay-xattrs", "Hide OverlayFS attributes on a path", "<ABSOLUTE-PATH>",
-         1, 1},
-        {"sumhp sumh mount-hide", "Set mount hiding: off, on, normal, aggressive", "<MODE>", 1, 1},
         {"sumhp sumh maps-spoof", "Set maps spoofing: off or on", "<STATE>", 1, 1},
-        {"sumhp sumh statfs-spoof", "Set statfs spoofing: off or on", "<STATE>", 1, 1},
         {"sumhp sumh kernel-build", "Manage persistent kernel build spoofing", "<COMMAND>"},
         {"sumhp sumh kernel-build show", "Read the effective kernel release and build", ""},
         {"sumhp sumh kernel-build set",
@@ -317,7 +313,6 @@ const std::vector<Command>& commands() {
         {"sumhp debug", "Control kernel diagnostics", "<COMMAND>"},
         {"sumhp debug enable", "Enable kernel diagnostics", ""},
         {"sumhp debug disable", "Disable kernel diagnostics", ""},
-        {"sumhp debug stealth", "Set stealth mode: enable or disable", "<STATE>", 1, 1},
         {"sumhp hide", "Manage persistent path hiding", "<COMMAND>"},
         {"sumhp hide list", "Read persistent hidden paths", ""},
         {"sumhp hide apply", "Restore hidden paths after boot completion", ""},
@@ -729,9 +724,7 @@ int validate(const Command& command, const std::vector<std::string>& operands,
             !one_of(operands[2], "auto|sumh|overlay|magic|none|hide"))
             return bad("invalid rule mode '" + operands[2] +
                        "'; expected auto, sumh, overlay, magic, none or hide");
-        if (path == "sumhp sumh mount-hide" && !one_of(operands[0], "off|on|normal|aggressive"))
-            return bad("invalid mount hiding mode; expected off, on, normal or aggressive");
-        if ((path == "sumhp sumh maps-spoof" || path == "sumhp sumh statfs-spoof") &&
+        if (path == "sumhp sumh maps-spoof" &&
             !one_of(operands[0], "off|on"))
             return bad("invalid state '" + operands[0] + "'; expected off or on");
         if (path == "sumhp sumh kernel-build set") {
@@ -750,8 +743,6 @@ int validate(const Command& command, const std::vector<std::string>& operands,
         }
         if (path == "sumhp sumh kstat add-path" && !one_of(operands[2], "identity|full"))
             return bad("invalid kstat mode '" + operands[2] + "'; expected identity or full");
-        if (path == "sumhp debug stealth" && !one_of(operands[0], "enable|disable"))
-            return bad("invalid stealth state; expected enable or disable");
         if (path == "sumhp sumh maps add") {
             for (size_t i = 0; i < 4; ++i)
                 if (!numeric(i, UINT64_MAX, true))

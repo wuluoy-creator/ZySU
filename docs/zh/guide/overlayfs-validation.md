@@ -1,6 +1,6 @@
 # OverlayFS：扩展属性过滤与挂载登记
 
-本页针对两个独立功能：OverlayFS 负责合并模块文件，SUMH 内核的 `overlay_xattr_hide` 负责在目标观察视图中隐藏 OverlayFS 控制属性。它们的开关、失败条件和验证范围不同。
+本页针对两个独立功能：OverlayFS 负责合并模块文件，SUMH 内核的 `overlay_xattr_hide` 负责在目标观察视图中隐藏 OverlayFS 控制属性。属性隐藏是固定内建行为，不设启停开关；过滤目标随实际挂载登记。
 
 ## 实际挂载规划
 
@@ -16,18 +16,17 @@ OverlayFS 实现：
 
 挂载失败时按挂载身份回滚，避免卸载已经被替换的其他挂载。不能卸载的本模块挂载继续写入现有日志，供后续清理；已经消失的挂载会清理对应卸载登记。日志保存失败仍是操作失败，不能把仅打印错误当成残留挂载已经可恢复。
 
-`enable_overlay_xattr_hide` 默认关闭，并且需要内核导出 `overlay_xattr_hide` 能力。即使 OverlayFS 已启用，扩展属性过滤也可能不可用；用 `ksud sumhp api sumh`、`api features` 和日志确认实际状态。
+扩展属性隐藏不读取配置，也不接受配置修改。它需要内核导出 `overlay_xattr_hide` 能力；即使 OverlayFS 已启用，对应 hook 也可能不可用。用 `ksud sumhp api sumh`、`api features` 和日志确认实际能力。
 
 ```sh
 ksud sumhp config show
 ksud sumhp api features
-ksud sumhp config merge-json '{"enable_overlay_xattr_hide":true}'
 ksud sumhp config apply
 ```
 
-以上 JSON 引号适用于 Android/Linux shell。`config apply` 根据已登记挂载清理并重建过滤状态。低层命令 `sumhp sumh hide-overlay-xattrs <ABSOLUTE-PATH>` 也可直接登记一个实际 OverlayFS 路径，但不修改持久配置；路径必须位于 OverlayFS，不能假设 `/system` 根本身就是 overlay。
+OverlayFS 挂载时自动登记过滤目标，`config apply` 根据已登记挂载重建这些目标。目标身份的登记和清理由挂载生命周期管理，不提供用户修改入口。登记目标必须位于 OverlayFS，不能假设 `/system` 根本身就是 overlay。
 
-内核过滤只处理 `trusted.overlay.*` 与 `user.overlay.*` 名称，在已登记 OverlayFS superblock、当前观察策略允许且功能可用时，将原先成功或返回 `ERANGE` 的匹配 `getxattr` 结果改成 `ENODATA`，并从 `listxattr` 中删除；其他原生错误保持原义。size-only 查询、短缓冲区、未登记文件系统、root/allowlist 进程和功能关闭状态都必须分别检查。
+内核过滤只处理 `trusted.overlay.*` 与 `user.overlay.*` 名称，在已登记 OverlayFS superblock、当前观察策略允许且功能可用时，将原先成功或返回 `ERANGE` 的匹配 `getxattr` 结果改成 `ENODATA`，并从 `listxattr` 中删除；其他原生错误保持原义。size-only 查询、短缓冲区、未登记文件系统、root/allowlist 进程和缺少 hook 的情况都必须分别检查。
 
 ## 设备复验
 
@@ -36,9 +35,9 @@ ksud sumhp config apply
 1. 冷启动后执行 `ksud sumhp api mounts`，确认父、子 OverlayFS 都按计划挂载，登记数量与实际挂载一致；失败或回滚时检查控制器日志。
 2. 在关闭模块卸载的普通应用中读取模块内容和合并目录，确认 OverlayFS 行为不因 xattr 过滤改变。
 3. 在同一应用中对父、子 OverlayFS 目录调用 `getxattr`、`listxattr`、size-only 和短缓冲区查询，分别测试 `trusted.overlay.*`、`user.overlay.*` 与普通属性。记录返回码和列表长度。
-4. 将 `enable_overlay_xattr_hide` 设为 false 并执行 `config apply` 后重复查询，确认原生属性恢复；root、获 root 授权应用和原生文件系统不应被误过滤。
+4. 确认旧配置中的关闭值无法影响属性过滤，配置修改请求被拒绝；root、获 root 授权应用和原生文件系统不应被误过滤。
 5. 重启、刷新 SUMH 规则并触发一次挂载失败，确认父/子挂载的登记和清理与成功路径一致，不把恢复的原生 bind 挂载报告成 OverlayFS。
-6. 与 `mount-hide`、`statfs-spoof` 分开测试；这些功能不会由 xattr 开关自动启用。任何应用环境检测仍可能从设备号、inode、挂载关系或其他信号识别修改。
+6. 分别验证挂载隐藏、statfs 视图与属性隐藏的实际结果；三项均为固定行为，但能力与目标范围不同。任何应用环境检测仍可能从设备号、inode、挂载关系或其他信号识别修改。
 
 当前实现不承诺所有内核版本的 OverlayFS 属性 ABI 完全一致。测试报告必须保留内核日志、返回码和实际挂载表，不能仅写“通过”。
 

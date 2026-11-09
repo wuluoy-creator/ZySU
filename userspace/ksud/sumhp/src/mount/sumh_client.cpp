@@ -40,10 +40,6 @@ static_assert(sizeof(sumh_managed_kstat_rule) == 376);
 static_assert(offsetof(sumh_managed_kstat_rule, field_mask) == 368);
 #endif
 
-static_assert(static_cast<std::uint32_t>(MountHideMode::Normal) == SUMH_MOUNT_HIDE_MODE_NORMAL);
-static_assert(static_cast<std::uint32_t>(MountHideMode::Aggressive) ==
-              SUMH_MOUNT_HIDE_MODE_AGGRESSIVE);
-
 extern "C" int ksu_sumh_ioctl(unsigned long cmd, void* arg);
 
 namespace {
@@ -320,11 +316,6 @@ bool set_debug(bool enable) {
     return execute(SUMH_IOC_SET_DEBUG, &value) == 0;
 }
 
-bool set_stealth(bool enable) {
-    int value = enable ? 1 : 0;
-    return execute(SUMH_IOC_SET_STEALTH, &value) == 0;
-}
-
 bool fix_mounts() {
     return execute(SUMH_IOC_REORDER_MNT_ID, nullptr) == 0;
 }
@@ -346,40 +337,10 @@ bool clear_overlay_xattr_hiding() {
     return hide_overlay_xattrs("");
 }
 
-bool set_mount_hide(bool enable, MountHideMode mode) {
-    const auto caps = feature_capabilities();
-    if (!caps.ok) {
-        errno = caps.last_errno;
-        return false;
-    }
-    const bool mode_supported = (caps.bitmask & SUMH_FEATURE_MOUNT_HIDE_AGGRESSIVE) != 0;
-
-    if (enable && mode == MountHideMode::Aggressive && !mode_supported) {
-        errno = EOPNOTSUPP;
-        return false;
-    }
-    if (mode_supported) {
-        int raw_mode = static_cast<int>(mode);
-        if (execute(SUMH_IOC_SET_MOUNT_HIDE_MODE, &raw_mode) != 0)
-            return false;
-    }
-    sumh_mount_hide_arg arg = {};
-    arg.enable = enable ? 1 : 0;
-    const int rc = execute(SUMH_IOC_SET_MOUNT_HIDE, &arg);
-    return ioctl_arg_ok(rc, arg.err);
-}
-
 bool set_maps_spoof(bool enable) {
     sumh_maps_spoof_arg arg = {};
     arg.enable = enable ? 1 : 0;
     const int rc = execute(SUMH_IOC_SET_MAPS_SPOOF, &arg);
-    return ioctl_arg_ok(rc, arg.err);
-}
-
-bool set_statfs_spoof(bool enable) {
-    sumh_statfs_spoof_arg arg = {};
-    arg.enable = enable ? 1 : 0;
-    const int rc = execute(SUMH_IOC_SET_STATFS_SPOOF, &arg);
     return ioctl_arg_ok(rc, arg.err);
 }
 

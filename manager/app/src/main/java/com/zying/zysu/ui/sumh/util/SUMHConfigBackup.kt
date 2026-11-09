@@ -3,11 +3,20 @@ package com.zying.zysu.ui.sumh.util
 import org.json.JSONArray
 import org.json.JSONObject
 
+// Kept only to discard obsolete fields in old backups, never as settings.
+internal val retiredSUMHConfigKeys = setOf(
+    "enable_stealth", "enable_mount_hide", "enable_overlay_xattr_hide", "enable_statfs_spoof",
+    "mount_hide_mode",
+)
+
+private fun withoutRetiredSettings(config: JSONObject): JSONObject =
+    JSONObject(config.toString()).apply { retiredSUMHConfigKeys.forEach(::remove) }
+
 internal data class SUMHConfigBackup(val config: JSONObject, val hidePaths: List<String>) {
     fun toJson(): String = JSONObject()
         .put("format", FORMAT)
         .put("version", VERSION)
-        .put("config", config)
+        .put("config", withoutRetiredSettings(config))
         .put("hide_paths", JSONArray(hidePaths))
         .toString(2)
 
@@ -23,7 +32,7 @@ internal data class SUMHConfigBackup(val config: JSONObject, val hidePaths: List
                 "Unexpected backup fields"
             }
             require(root.get("format") == FORMAT && root.get("version") == VERSION) { "Unsupported SUMH backup version" }
-            val config = root.getJSONObject("config")
+            val config = withoutRetiredSettings(root.getJSONObject("config"))
             validateConfig(config)
             val entries = root.getJSONArray("hide_paths")
             val paths = (0 until entries.length()).map { index ->
@@ -32,7 +41,7 @@ internal data class SUMHConfigBackup(val config: JSONObject, val hidePaths: List
                 path
             }
             require(paths.distinct().size == paths.size) { "Duplicate hidden paths" }
-            return SUMHConfigBackup(JSONObject(config.toString()), paths)
+            return SUMHConfigBackup(config, paths)
         }
 
         fun create(config: JSONObject, hidePaths: List<String>): SUMHConfigBackup =
@@ -41,12 +50,11 @@ internal data class SUMHConfigBackup(val config: JSONObject, val hidePaths: List
 }
 
 private val booleanKeys = setOf(
-    "overlay_writable", "debug", "verbose", "enable_kernel_debug", "enable_stealth",
-    "enable_overlay_xattr_hide", "enable_mount_hide", "enable_maps_spoof",
-    "enable_statfs_spoof", "enable_kernel_build_spoof", "overlayfs_enabled", "magic_mount_enabled",
+    "overlay_writable", "debug", "verbose", "enable_kernel_debug", "enable_maps_spoof",
+    "enable_kernel_build_spoof", "overlayfs_enabled", "magic_mount_enabled",
 )
 private val stringKeys = setOf(
-    "mountsource", "work_dir", "mirror_dir", "fs_type", "mount_hide_mode",
+    "mountsource", "work_dir", "mirror_dir", "fs_type",
     "kernel_build_release", "kernel_build_version", "kernel_build_apply_stage", "mount_backend",
 )
 private val arrayKeys = setOf("maps_rules", "kstat_rules", "partitions")
@@ -54,7 +62,7 @@ private val configKeys = booleanKeys + stringKeys + arrayKeys + "mirror_img_size
 
 internal fun validateConfig(config: JSONObject) {
     val keys = config.keys().asSequence().toSet()
-    require(keys.isNotEmpty() && keys.all { it in configKeys }) { "Unknown or empty SUMH configuration" }
+    require(keys.all { it in configKeys }) { "Unknown SUMH configuration" }
     for (key in keys) {
         val value = config.get(key)
         require(when (key) {
@@ -71,7 +79,6 @@ internal fun validateConfig(config: JSONObject) {
     require(string("mirror_dir")?.let { it.isEmpty() || it.startsWith('/') } != false) { "Invalid mirror directory" }
     require(string("fs_type")?.let { it in setOf("", "auto", "tmpfs", "ext4", "erofs") } != false) { "Invalid filesystem type" }
     require(string("mount_backend")?.let { it.isEmpty() || it in SUMHManager.mountModes } != false) { "Invalid mount backend" }
-    require(string("mount_hide_mode")?.let { it in setOf("", "normal", "aggressive") } != false) { "Invalid mount hide mode" }
     require(string("kernel_build_apply_stage")?.let { it in setOf("post-fs-data", "boot-completed") } != false) { "Invalid kernel build stage" }
     for (key in listOf("kernel_build_release", "kernel_build_version")) {
         string(key)?.let { value ->
@@ -114,7 +121,7 @@ internal fun validateConfig(config: JSONObject) {
 }
 
 internal fun validateSUMHRestore(backup: SUMHConfigBackup, current: JSONObject) {
-    val merged = JSONObject(current.toString())
+    val merged = withoutRetiredSettings(current)
     backup.config.keys().forEach { key -> merged.put(key, backup.config.get(key)) }
     validateConfig(merged)
     require(!merged.optBoolean("enable_kernel_build_spoof") ||

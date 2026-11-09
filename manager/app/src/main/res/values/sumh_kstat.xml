@@ -6,7 +6,6 @@
     <string name="sumh_kstat_active_count">Installed snapshot rules: %1$d</string>
     <string name="sumh_kstat_active_unknown">Installed snapshot rules: unknown</string>
     <string name="sumh_kstat_generation">Runtime generation: %1$s</string>
-    <string name="sumh_kstat_source">Source: %1$s</string>
     <string name="sumh_kstat_add">Add rule</string>
     <string name="sumh_kstat_edit">Edit rule</string>
     <string name="sumh_kstat_details">Rule details</string>

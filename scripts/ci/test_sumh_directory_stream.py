@@ -93,7 +93,7 @@ static struct dentry target = { &target_inode, { "target", 6 }, 1 };
 static struct dentry positive = { &target_inode, { "dup", 3 }, 1 };
 static struct dentry negative = { NULL, { "negative", 8 }, 1 };
 static struct sumh_merge_entry merge = { "/dir", NULL, &target };
-static int sumh_ioctl_tgid, sumh_rule_count = 1, sumh_enabled = 1, sumh_stealth_enabled;
+static int sumh_ioctl_tgid, sumh_rule_count = 1, sumh_enabled = 1;
 static int sumh_filldir_cache, current, sumh_fop_client_srcu, sumh_dh_srcu;
 static int rcu_depth, srcu_depth, allocations, releases, freed_names, path_calls;
 static int native_calls, client_calls, reschedules, bad_position, native_error;

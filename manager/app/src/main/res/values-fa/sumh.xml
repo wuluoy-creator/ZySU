@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">جستجو در گزارش‌ها</string>
     <string name="sumh_logs_actions">عملیات گزارش‌ها</string>
     <string name="sumh_maps_spoof">جعل Maps</string>
-    <string name="sumh_maps_spoof_desc">بازنگاشت مسیرها، شماره دستگاه‌ها و inode ناحیه‌های نگاشت‌شده حافظه</string>
     <string name="sumh_mirror_path">پایه مانت / مسیر mirror</string>
     <string name="sumh_mirror_path_desc">خالی بگذارید تا SUMHP پوشه را خودکار انتخاب کند.</string>
     <string name="sumh_mismatch_default">عدم تطابق پروتکل تشخیص داده شد. لطفاً کرنل یا ماژول را به‌روزرسانی کنید.</string>
     <string name="sumh_mount_config">پیکربندی مانت</string>
     <string name="sumh_mount_filter">فیلتر حالت‌های اتصال</string>
     <string name="sumh_mount_hide">پنهان‌سازی اتصال‌ها</string>
-    <string name="sumh_mount_hide_desc">پنهان کردن ورودی‌های ماژول در نمای اتصال‌ها</string>
     <string name="sumh_mount_mode">حالت مانت</string>
     <string name="sumh_mount_mode_auto">خودکار</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">نام نباید خالی باشد یا نویسه فاصله، ممیز وارونه یا نویسه کنترلی داشته باشد.</string>
     <string name="sumh_no_conflicts">تداخلی در اتصال‌ها پیدا نشد</string>
     <string name="sumh_overlay_xattr">پنهان کردن ویژگی‌های گسترش‌یافته OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">پنهان کردن نشانگرهای OverlayFS در نمای مجازی</string>
     <string name="sumh_retry_apply">تلاش دوباره برای اعمال</string>
     <string name="sumh_rule_maps_spoof">‏/proc/pid/maps ino/dev/pathname را جعل کن</string>
     <string name="sumh_rule_mount_hide">مانت‌های overlay را از /proc/mounts پنهان کن</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">ذخیره شد، اما اعمال روی هسته ناموفق بود: %1$s</string>
     <string name="sumh_saved_reboot">ذخیره شد؛ زیرسامانه اتصال پس از راه‌اندازی مجدد اعمال می‌شود</string>
     <string name="sumh_statfs_spoof">جعل Statfs</string>
-    <string name="sumh_statfs_spoof_desc">بازنگاشت اطلاعات نوع سامانه فایل</string>
     <string name="sumh_status_kernel_too_old">کرنل بسیار قدیمی است</string>
     <string name="sumh_status_module_too_old">نسخه پروتکل مدیر بسیار قدیمی است. مدیر را به‌روز کنید</string>
     <string name="sumh_status_not_present">موجود نیست</string>
     <string name="sumh_stealth">حالت مخفی</string>
-    <string name="sumh_stealth_desc">ردپای مانت را پنهان کن و شناسه‌های مانت را دوباره مرتب کن</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">مانت نشده</string>
     <string name="sumh_tempdir">نقطه مانت موقت</string>

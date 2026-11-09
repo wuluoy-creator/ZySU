@@ -80,7 +80,8 @@ import ui.screen.moreSettings.component.SwitchSettingItem
 fun SUMHConfigScreen(navigator: DestinationsNavigator) {
     var selectedSection by rememberSaveable { mutableStateOf(SUMHSection.Status) }
     var diagnosticSection by rememberSaveable { mutableStateOf(SUMHSection.Runtime) }
-    val mainSection = selectedSection.takeIf { it in SUMH_MAIN_SECTIONS } ?: SUMHSection.Diagnostics
+    val mainSection = if (selectedSection == SUMHSection.Kernel) SUMHSection.Isolation
+        else selectedSection.takeIf { it in SUMH_MAIN_SECTIONS } ?: SUMHSection.Diagnostics
     val diagnosticSections = listOf(SUMHSection.Runtime, SUMHSection.Logs, SUMHSection.Debug)
     var workspaceSaving by remember { mutableStateOf(false) }
     var backupBusy by remember { mutableStateOf(false) }

@@ -45,7 +45,6 @@
     <string name="sumh_status_kernel_too_old">Kernel quá cũ</string>
     <string name="sumh_status_not_present">Không hiện diện</string>
     <string name="sumh_stealth">Chế độ ẩn</string>
-    <string name="sumh_stealth_desc">Ẩn dấu vết gắn kết và sắp xếp lại các ID gắn kết</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Chưa gắn kết</string>
     <string name="sumh_tempdir">Điểm gắn kết tạm thời</string>
@@ -73,16 +72,13 @@
     <string name="sumh_logs_search">Tìm nhật ký</string>
     <string name="sumh_logs_actions">Thao tác nhật ký</string>
     <string name="sumh_maps_spoof">Giả mạo Maps</string>
-    <string name="sumh_maps_spoof_desc">Ánh xạ đường dẫn, số thiết bị và inode của vùng nhớ</string>
     <string name="sumh_mirror_path_desc">Để trống để SUMHP tự chọn thư mục.</string>
     <string name="sumh_mount_filter">Lọc chế độ gắn kết</string>
     <string name="sumh_mount_hide">Ẩn gắn kết</string>
-    <string name="sumh_mount_hide_desc">Ẩn các mục mô-đun trong khung nhìn gắn kết</string>
     <string name="sumh_mount_total">Gắn kết mô-đun</string>
     <string name="sumh_mountsource_invalid">Tên không được để trống hoặc chứa khoảng trắng, dấu gạch chéo ngược hay ký tự điều khiển.</string>
     <string name="sumh_no_conflicts">Không phát hiện xung đột gắn kết</string>
     <string name="sumh_overlay_xattr">Ẩn thuộc tính mở rộng của OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">Ẩn dấu hiệu OverlayFS trong khung nhìn ảo</string>
     <string name="sumh_retry_apply">Thử áp dụng lại</string>
     <string name="sumh_rule_save">Áp dụng chỉnh sửa</string>
     <string name="sumh_rule_user">Quy tắc người dùng</string>
@@ -90,7 +86,6 @@
     <string name="sumh_saved_apply_failed">Đã lưu nhưng không thể áp dụng vào nhân: %1$s</string>
     <string name="sumh_saved_reboot">Đã lưu. Backend gắn kết có hiệu lực sau khi khởi động lại</string>
     <string name="sumh_statfs_spoof">Giả mạo Statfs</string>
-    <string name="sumh_statfs_spoof_desc">Ánh xạ thông tin loại hệ thống tệp</string>
     <string name="sumh_status_module_too_old">Phiên bản giao thức trình quản lý quá cũ. Hãy cập nhật trình quản lý</string>
     <string name="sumh_user_hide_remove">Xóa quy tắc ẩn</string>
     <string name="sumh_disable_unsupported">Nhân này không hỗ trợ. Có thể tắt để xóa các thiết lập đã lưu.</string>

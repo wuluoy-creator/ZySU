@@ -10,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [35])
@@ -47,6 +48,41 @@ class SUMHConfigBackupTest {
             SUMHConfigBackup.parse(backup(JSONObject().put("debug", true), listOf("/a", "/a")))
         }
         assertFailsWith<Exception> { SUMHConfigBackup.parse(backup(JSONObject().put("debug", true), listOf("relative"))) }
+    }
+
+    @Test
+    fun backupsDiscardRetiredProtectionFieldsWithoutReadingTheirValues() {
+        for (legacyValue in listOf(false, true, "invalid", JSONObject.NULL, JSONArray())) {
+            val raw = JSONObject().put("debug", true).apply {
+                retiredSUMHConfigKeys.forEach { put(it, legacyValue) }
+            }
+            val parsed = SUMHConfigBackup.parse(backup(raw))
+            assertEquals(setOf("debug"), parsed.config.keys().asSequence().toSet())
+            assertTrue(parsed.config.getBoolean("debug"))
+            val exported = SUMHConfigBackup.create(raw, emptyList())
+            assertEquals(setOf("debug"), exported.config.keys().asSequence().toSet())
+            val directlySerialized = JSONObject(SUMHConfigBackup(raw, emptyList()).toJson()).getJSONObject("config")
+            assertEquals(setOf("debug"), directlySerialized.keys().asSequence().toSet())
+            retiredSUMHConfigKeys.forEach { assertEquals(legacyValue, raw.get(it), it) }
+            validateSUMHRestore(parsed, raw)
+        }
+    }
+
+    @Test
+    fun backupWithOnlyRetiredSettingsBecomesAConfigurationNoOp() {
+        val raw = JSONObject().apply { retiredSUMHConfigKeys.forEach { put(it, false) } }
+        val parsed = SUMHConfigBackup.parse(backup(raw, listOf("/data/hidden")))
+        assertEquals(0, parsed.config.length())
+        assertEquals(listOf("/data/hidden"), parsed.hidePaths)
+        validateSUMHRestore(parsed, raw)
+        assertEquals(0, SUMHConfigBackup.parse(parsed.toJson()).config.length())
+    }
+
+    @Test
+    fun retiredFieldsAreRejectedAsLiveConfigurationUpdates() {
+        for (key in retiredSUMHConfigKeys) {
+            assertFailsWith<IllegalArgumentException> { validateConfig(JSONObject().put(key, true)) }
+        }
     }
 
     @Test

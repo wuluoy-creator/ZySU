@@ -30,6 +30,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [35], qualifiers = "w360dp-h760dp-xhdpi")
@@ -157,10 +159,10 @@ class SUMHRuleInteractionTest {
 
     @Test
     @Config(qualifiers = "zh-rCN-w360dp-h760dp-xhdpi")
-    fun standardPageKeepsOnlyIndependentFeatureSwitches() {
+    fun standardPageContainsKernelSpoofingWithoutAutomaticFeatureSwitches() {
         compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
             SettingsTab(
-                config = SUMHUiAdapter.SUMHPConfig(enableMountHide = true,
+                config = SUMHUiAdapter.SUMHPConfig(
                     enableKernelBuildSpoof = true, kernelBuildRelease = "6.1.75-custom"),
                 sumhStatus = SUMHUiAdapter.SUMHStatus.AVAILABLE,
                 features = SUMHUiAdapter.FeaturesResult(0, SUMHManagedFeature.entries.map { it.capability }),
@@ -176,22 +178,90 @@ class SUMHRuleInteractionTest {
             R.string.sumh_mount_hide,
             R.string.sumh_overlay_xattr,
             R.string.sumh_statfs_spoof,
-        ).forEach { title -> compose.onNodeWithText(compose.activity.getString(title)).performScrollTo().assertIsDisplayed() }
+        ).forEach { title -> compose.onNodeWithText(compose.activity.getString(title)).assertDoesNotExist() }
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_spoof)).assertDoesNotExist()
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_spoof)).assertDoesNotExist()
+        compose.onAllNodes(isToggleable()).assertCountEquals(0)
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_spoof))
+            .performScrollTo().assertIsDisplayed()
     }
 
     @Test
-    fun statfsShowsItsMountHideDependency() {
-        val config = SUMHUiAdapter.SUMHPConfig(enableMountHide = false)
+    fun standardPageDoesNotOfferAutomaticFeatureCleanup() {
+        val config = SUMHUiAdapter.SUMHPConfig()
         compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
             SettingsTab(config = config, sumhStatus = SUMHUiAdapter.SUMHStatus.AVAILABLE,
-                features = SUMHUiAdapter.FeaturesResult(0, SUMHManagedFeature.entries.map { it.capability }),
+                features = SUMHUiAdapter.FeaturesResult(0, emptyList()),
                 controlsEnabled = true, runtimeApplyPending = false, onRetryApply = {}, onConfigChanged = {},
                 section = SUMHSection.Isolation)
         } } }
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_statfs_requires_mount_hide), substring = true)
-            .performScrollTo().assertIsDisplayed()
+            .assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_features_cleanup)).assertDoesNotExist()
+        compose.onAllNodes(isToggleable()).assertCountEquals(0)
+    }
+
+    @Test
+    @Config(qualifiers = "zh-rCN-w375dp-h760dp-xhdpi")
+    fun kernelSpoofSavesDirectlyAndEmptyFieldsRestoreOriginalValues() {
+        val config = mutableStateOf(SUMHUiAdapter.SUMHPConfig(
+            enableKernelBuildSpoof = false, kernelBuildRelease = "6.1.75-saved",
+        ))
+        compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
+            SettingsTab(config.value, SUMHUiAdapter.SUMHStatus.AVAILABLE,
+                SUMHUiAdapter.FeaturesResult(0, listOf("kernel_build_spoof")),
+                true, false, {}, { config.value = it }, SUMHSection.Isolation)
+        } } }
+        val title = compose.activity.getString(R.string.sumh_kernel_build_spoof)
+        val release = hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_kernel_build_release))
+        val version = hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_kernel_build_version))
+        val save = compose.activity.getString(R.string.sumh_rule_save)
+        compose.onNodeWithText(title).performClick()
+        compose.onNode(release).assertEditableText("6.1.75-saved")
+        compose.onNode(release).performTextReplacement(" 6.1.75-custom ")
+        compose.onNode(version).performTextReplacement(" #1 SMP PREEMPT ")
+        compose.onAllNodes(isToggleable()).assertCountEquals(0)
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_apply_stage)).assertDoesNotExist()
+        capture("kernel-spoof-edit")
+        compose.onNodeWithText(save).assertIsEnabled().performClick()
+        compose.onNode(isDialog()).assertDoesNotExist()
+        assertTrue(config.value.enableKernelBuildSpoof)
+        assertEquals("6.1.75-custom", config.value.kernelBuildRelease)
+        assertEquals("#1 SMP PREEMPT", config.value.kernelBuildVersion)
+        assertEquals("post-fs-data", config.value.kernelBuildApplyStage)
+
+        compose.onNodeWithText(title).performClick()
+        compose.onNode(release).performTextReplacement("")
+        compose.onNode(version).performTextReplacement("")
+        compose.onNodeWithText(save).assertIsEnabled().performClick()
+        compose.onNode(isDialog()).assertDoesNotExist()
+        assertFalse(config.value.enableKernelBuildSpoof)
+        assertEquals("", config.value.kernelBuildRelease)
+        assertEquals("", config.value.kernelBuildVersion)
+    }
+
+    @Test
+    @Config(qualifiers = "zh-rCN-w760dp-h375dp-land-xhdpi")
+    fun kernelSpoofRejectsInvalidInputAndKeepsDraftWhenSaveFails() {
+        RuntimeEnvironment.setFontScale(1.5f)
+        var attempts = 0
+        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface(Modifier.fillMaxSize()) {
+            SettingsTab(SUMHUiAdapter.SUMHPConfig(), SUMHUiAdapter.SUMHStatus.AVAILABLE,
+                SUMHUiAdapter.FeaturesResult(0, listOf("kernel_build_spoof")),
+                true, false, {}, { attempts++ }, SUMHSection.Isolation)
+        } } }
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_spoof)).performClick()
+        val release = hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_kernel_build_release))
+        val save = compose.activity.getString(R.string.sumh_rule_save)
+        compose.onNode(release).performTextReplacement("invalid release")
+        compose.onNodeWithText(save).assertIsNotEnabled()
+        compose.onNode(release).performTextReplacement("6.1.75-custom")
+        compose.onNodeWithText(save).assertIsDisplayed().performClick()
+        assertEquals(1, attempts)
+        compose.onNode(isDialog()).assertExists()
+        compose.onNode(release).assertEditableText("6.1.75-custom")
+        capture("kernel-spoof-landscape-dark-large-text")
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_rules_cancel)).assertIsDisplayed().performClick()
+        compose.onNode(isDialog()).assertDoesNotExist()
     }
 
     @Test
@@ -274,6 +344,7 @@ class SUMHRuleInteractionTest {
                 loadRules = { (0..100).map { ActiveRule("hide", "/data/$it") } })
         } } }
         compose.onNode(hasScrollToIndexAction()).performScrollToIndex(80)
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasSetTextAction())
         compose.onNode(hasSetTextAction()).performTextReplacement("/data/1")
         compose.onNode(hasText("/data/1") and !hasSetTextAction()).assertIsDisplayed()
         compose.onNode(hasSetTextAction()).performTextReplacement("no match")

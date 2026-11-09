@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">חיפוש ביומנים</string>
     <string name="sumh_logs_actions">פעולות יומן</string>
     <string name="sumh_maps_spoof">זיוף Maps</string>
-    <string name="sumh_maps_spoof_desc">מיפוי מחדש של נתיבים, מספרי התקנים וערכי inode באזורי זיכרון ממופים</string>
     <string name="sumh_mirror_path">בסיס עיגון / נתיב mirror</string>
     <string name="sumh_mirror_path_desc">יש להשאיר ריק כדי ש-SUMHP יבחר תיקייה אוטומטית.</string>
     <string name="sumh_mismatch_default">זוהתה אי-התאמת פרוטוקול. אנא עדכן את הליבה או את המודול.</string>
     <string name="sumh_mount_config">תצורת עיגון</string>
     <string name="sumh_mount_filter">סינון מצבי עיגון</string>
     <string name="sumh_mount_hide">הסתרת עיגונים</string>
-    <string name="sumh_mount_hide_desc">הסתרת רשומות מודולים בתצוגת העיגונים</string>
     <string name="sumh_mount_mode">מצב עיגון</string>
     <string name="sumh_mount_mode_auto">אוטומטי</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">השם אינו יכול להיות ריק או לכלול תווי רווח, לוכסן הפוך או תווי בקרה.</string>
     <string name="sumh_no_conflicts">לא נמצאו התנגשויות עיגון</string>
     <string name="sumh_overlay_xattr">הסתרת מאפיינים מורחבים של OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">הסתרת סימוני OverlayFS בתצוגה הווירטואלית</string>
     <string name="sumh_retry_apply">ניסיון החלה נוסף</string>
     <string name="sumh_rule_maps_spoof">זייף /proc/pid/maps ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">הסתר עיגוני overlay מ-/proc/mounts</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">נשמר, אך ההחלה על הליבה נכשלה: %1$s</string>
     <string name="sumh_saved_reboot">נשמר. מנוע העיגון ייכנס לתוקף לאחר הפעלה מחדש</string>
     <string name="sumh_statfs_spoof">זיוף Statfs</string>
-    <string name="sumh_statfs_spoof_desc">מיפוי מחדש של מידע על סוג מערכת הקבצים</string>
     <string name="sumh_status_kernel_too_old">הליבה ישנה מדי</string>
     <string name="sumh_status_module_too_old">גרסת הפרוטוקול של המנהל ישנה מדי. יש לעדכן את המנהל</string>
     <string name="sumh_status_not_present">לא קיים</string>
     <string name="sumh_stealth">מצב התגנבות</string>
-    <string name="sumh_stealth_desc">הסתר עקבות עיגון וסדר מחדש את מזהי העיגון</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">לא מעוגן</string>
     <string name="sumh_tempdir">נקודת עיגון זמנית</string>

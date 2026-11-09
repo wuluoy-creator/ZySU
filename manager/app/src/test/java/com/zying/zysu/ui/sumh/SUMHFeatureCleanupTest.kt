@@ -22,8 +22,6 @@ class SUMHFeatureCleanupTest {
     fun cleanupKeepsSupportedSettingsAndCustomConfiguration() {
         val original = JSONObject().put("future_setting", "keep me")
         val config = SUMHUiAdapter.SUMHPConfig(
-            enableStealth = true,
-            enableMountHide = true,
             enableMapsSpoof = true,
             enableKernelBuildSpoof = true,
             kernelBuildRelease = "6.1.75-custom",
@@ -45,8 +43,9 @@ class SUMHFeatureCleanupTest {
         assertEquals(setOf(SUMHManagedFeature.Maps, SUMHManagedFeature.KernelBuild), targets)
         assertFalse(cleaned.enableMapsSpoof)
         assertFalse(cleaned.enableKernelBuildSpoof)
-        assertTrue(cleaned.enableMountHide)
-        assertTrue(cleaned.enableStealth)
+        assertTrue(cleaned.configuredSUMHFeatures().containsAll(
+            SUMHManagedFeature.entries.filter { it.alwaysEnabled },
+        ))
         assertEquals(config, cleaned.copy(enableMapsSpoof = true, enableKernelBuildSpoof = true))
         assertSame(original, cleaned.original)
         assertEquals("keep me", cleaned.original.getString("future_setting"))

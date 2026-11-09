@@ -6,7 +6,6 @@
     <string name="sumh_kstat_active_count">已安装快照规则：%1$d</string>
     <string name="sumh_kstat_active_unknown">已安装快照规则：未知</string>
     <string name="sumh_kstat_generation">运行时代次：%1$s</string>
-    <string name="sumh_kstat_source">来源：%1$s</string>
     <string name="sumh_kstat_add">添加规则</string>
     <string name="sumh_kstat_edit">编辑规则</string>
     <string name="sumh_kstat_details">规则详情</string>

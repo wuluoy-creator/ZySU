@@ -36,7 +36,8 @@ enum class SUMHSection(val displayNameRes: Int) {
     Logs(R.string.sumh_workspace_logs),
     Debug(R.string.sumh_workspace_debug),
     Maps(R.string.sumh_workspace_maps),
-    Kernel(R.string.sumh_workspace_kernel),
+    // Retained for saved navigation state from versions with a separate kernel tab.
+    Kernel(R.string.sumh_workspace_isolation),
     Runtime(R.string.sumh_workspace_runtime),
     Diagnostics(R.string.sumh_workspace_diagnostics),
     Kstat(R.string.sumh_workspace_kstat),
@@ -280,7 +281,6 @@ fun SUMHWorkspace(
                             config = config,
                             sumhStatus = status,
                             features = features,
-                            runtimeRules = if (rulesIncomplete) null else rules,
                             managedKstatStatus = system.managedKstat,
                             controlsEnabled = dataReady && loadError == null && !saving && !isLoading,
                             runtimeApplyPending = runtimeApplyPending,
@@ -303,6 +303,7 @@ fun SUMHWorkspace(
                                 if (userRulesSaving && !working) userRulesRefresh++
                                 userRulesSaving = working
                             }, kernelAvailable = status == Controller.SUMHStatus.AVAILABLE,
+                            contentPadding = contentPadding,
                         )
                         SUMHSection.Runtime, SUMHSection.Diagnostics -> RulesTab(
                             activeRules = rules,

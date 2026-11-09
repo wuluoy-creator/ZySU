@@ -378,8 +378,8 @@ int main(void) {
     struct kstatfs output;
     struct pt_regs regs = {0};
 
-    /* Retaining modules must still dispatch the statfs view. Both feature
-     * switches are required; the module-content SPOOF scope is not. */
+    /* Retaining modules must still dispatch the statfs view automatically.
+     * Neither optional feature state nor module-content SPOOF scope gates it. */
     reset();
     sumh_feature_enabled_mask = SUMH_FEATURE_STATFS_SPOOF | SUMH_FEATURE_MOUNT_HIDE;
     CHECK(sumh_view_pre(&sumh_view_statfs_probe, &regs) == 1);
@@ -391,7 +391,9 @@ int main(void) {
     mount_view_target = 1;
     for (int flags = 0; flags < 3; flags++) {
         sumh_feature_enabled_mask = flags;
-        CHECK(sumh_view_pre(&sumh_view_statfs_probe, &regs) == 0);
+        CHECK(sumh_view_pre(&sumh_view_statfs_probe, &regs) == 1);
+        CHECK(regs.pc == (__UINTPTR_TYPE__)sumh_view_statfs);
+        sumh_view_active = 0; regs.pc = 0;
     }
     sumh_feature_enabled_mask = SUMH_FEATURE_STATFS_SPOOF | SUMH_FEATURE_MOUNT_HIDE;
     regs.pstate = PSR_I_BIT;
@@ -495,7 +497,7 @@ struct sumh_inject_entry { const char *dir; };
 struct sumh_merge_entry { const char *src, *resolved_src; struct dentry *target_dentry; };
 static struct sumh_merge_entry merge;
 static int sumh_ioctl_tgid, sumh_rule_count = 1, sumh_enabled = 1;
-static int sumh_stealth_enabled, sumh_filldir_cache, current;
+static int sumh_filldir_cache, current;
 static int rcu_depth, bad_dget, freed, allocated_count, allocation_attempts;
 static int policy_scope = SUMH_POLICY_SCOPE_VIEW, allow_hide, hide_checks;
 static int allocation_fails, path_calls, path_fails;
@@ -593,11 +595,9 @@ int main(void) {
     CHECK(w && w->dir_has_hidden && w->spoof_allowed && !w->view_allowed);
     sumh_iterate_finish_wrapper(w);
 
-    /* Preserve the stealth /dev exception and its scope restriction. */
+    /* The stealth /dev exception is fixed and still scope-restricted. */
     mapping.flags = 0;
     parent.d_name.name = "dev";
-    CHECK(!sumh_iterate_prepare_wrapper(&first, &ctx));
-    sumh_stealth_enabled = 1;
     w = sumh_iterate_prepare_wrapper(&first, &ctx);
     CHECK(w && w->spoof_allowed && w->dir_path_len == 4);
     CHECK(!w->dir_has_hidden && !w->dir_has_inject && !path_calls);
@@ -610,7 +610,6 @@ int main(void) {
     CHECK(allocation_attempts == 3 && allocated_count == 3 && freed == 3);
 
     parent.d_name.name = "system";
-    sumh_stealth_enabled = 0;
     mapping.flags = 3;
     policy_scope = SUMH_POLICY_SCOPE_NONE;
     CHECK(!sumh_iterate_prepare_wrapper(&first, &ctx));

@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Protokolle durchsuchen</string>
     <string name="sumh_logs_actions">Protokollaktionen</string>
     <string name="sumh_maps_spoof">Maps-Tarnung</string>
-    <string name="sumh_maps_spoof_desc">Pfad, Gerätenummer und Inode zugeordneter Speicherbereiche abbilden</string>
     <string name="sumh_mirror_path">Mount-Basis / Spiegelpfad</string>
     <string name="sumh_mirror_path_desc">Leer lassen, damit SUMHP das Verzeichnis automatisch auswählt.</string>
     <string name="sumh_mismatch_default">Protokoll-Nichtübereinstimmung erkannt. Bitte aktualisiere Kernel oder Modul.</string>
     <string name="sumh_mount_config">Mount-Konfiguration</string>
     <string name="sumh_mount_filter">Mount-Modi filtern</string>
     <string name="sumh_mount_hide">Mounts verbergen</string>
-    <string name="sumh_mount_hide_desc">Moduleinträge in der Mount-Ansicht verbergen</string>
     <string name="sumh_mount_mode">Mount-Modus</string>
     <string name="sumh_mount_mode_auto">Automatisch</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">Der Name darf nicht leer sein und keine Leerzeichen, Rückstriche oder Steuerzeichen enthalten.</string>
     <string name="sumh_no_conflicts">Keine Mount-Konflikte gefunden</string>
     <string name="sumh_overlay_xattr">Erweiterte OverlayFS-Attribute verbergen</string>
-    <string name="sumh_overlay_xattr_desc">OverlayFS-Markierungen in der virtuellen Ansicht verbergen</string>
     <string name="sumh_retry_apply">Erneut anwenden</string>
     <string name="sumh_rule_maps_spoof">ino/dev/pathname in /proc/pid/maps fälschen</string>
     <string name="sumh_rule_mount_hide">Overlay-Mounts vor /proc/mounts verbergen</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Gespeichert, aber Anwendung auf den Kernel fehlgeschlagen: %1$s</string>
     <string name="sumh_saved_reboot">Gespeichert. Das Mount-Backend wird nach einem Neustart wirksam.</string>
     <string name="sumh_statfs_spoof">Statfs-Tarnung</string>
-    <string name="sumh_statfs_spoof_desc">Informationen zum Dateisystemtyp abbilden</string>
     <string name="sumh_status_kernel_too_old">Kernel zu alt</string>
     <string name="sumh_status_module_too_old">Die Protokollversion des Managers ist zu alt. Bitte den Manager aktualisieren.</string>
     <string name="sumh_status_not_present">Nicht vorhanden</string>
     <string name="sumh_stealth">Tarnmodus</string>
-    <string name="sumh_stealth_desc">Mount-Spuren verbergen und Mount-IDs neu ordnen</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Nicht eingehängt</string>
     <string name="sumh_tempdir">Temporärer Einhängepunkt</string>

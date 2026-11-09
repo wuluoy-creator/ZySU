@@ -1,10 +1,36 @@
 package com.zying.zysu.ui.sumh.util
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SUMHKernelBuildTest {
+    @Test
+    fun savingFieldsDeterminesWhetherAnOverrideIsNeeded() {
+        val releaseOnly = kernelBuildOverride(" 6.1.75-custom ", " ")!!
+        assertTrue(releaseOnly.enabled)
+        assertEquals("6.1.75-custom", releaseOnly.release)
+        assertEquals("", releaseOnly.version)
+
+        val versionOnly = kernelBuildOverride("", " #1 SMP PREEMPT ")!!
+        assertTrue(versionOnly.enabled)
+        assertEquals("#1 SMP PREEMPT", versionOnly.version)
+
+        val original = kernelBuildOverride(" ", " ")!!
+        assertFalse(original.enabled)
+        assertEquals("", original.release)
+        assertEquals("", original.version)
+    }
+
+    @Test
+    fun savingRejectsInvalidKernelFields() {
+        assertNull(kernelBuildOverride("6.1.75 custom", "#1 SMP"))
+        assertNull(kernelBuildOverride("6.1.75", "#1\u0000 SMP"))
+        assertNull(kernelBuildOverride("构".repeat(22), ""))
+    }
+
     @Test
     fun eitherFieldCanKeepItsOriginalValue() {
         assertTrue(validKernelBuildOverride(true, "6.1.75-custom", ""))

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="sumh_rules_edit">Edit path</string>
-    <string name="sumh_rules_edit_settings">Edit settings</string>
     <string name="sumh_rules_save">Save</string>
     <string name="sumh_rules_done">Done</string>
     <string name="sumh_rules_select">Select</string>
@@ -23,4 +22,6 @@
     <string name="sumh_rules_reset_draft">Restore original path</string>
     <string name="sumh_rules_continue_import">Continue unfinished paths</string>
     <string name="sumh_rules_import_retry_hint">Unfinished paths can be retried even if already saved in configuration. Completed paths will not be submitted again.</string>
+    <string name="sumh_kstat_empty">No Kstat rules yet. Add a rule to customize file metadata.</string>
+    <string name="sumh_maps_empty">No Maps rules yet. Add or import a rule to replace mapped paths.</string>
 </resources>

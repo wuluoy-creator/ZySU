@@ -39,14 +39,12 @@
     <string name="sumh_logs_search">Szukaj w dziennikach</string>
     <string name="sumh_logs_actions">Działania na dzienniku</string>
     <string name="sumh_maps_spoof">Maskowanie maps</string>
-    <string name="sumh_maps_spoof_desc">Zastępuj ścieżki, numery urządzeń i numery inode obszarów pamięci</string>
     <string name="sumh_mirror_path">Baza montowania / ścieżka kopii lustrzanej</string>
     <string name="sumh_mirror_path_desc">Pozostaw puste, aby SUMHP automatycznie wybrało katalog.</string>
     <string name="sumh_mismatch_default">Wykryto niezgodność protokołu. Zaktualizuj jądro lub moduł.</string>
     <string name="sumh_mount_config">Konfiguracja montowania</string>
     <string name="sumh_mount_filter">Filtruj tryby montowania</string>
     <string name="sumh_mount_hide">Ukrywanie montowań</string>
-    <string name="sumh_mount_hide_desc">Ukrywaj wpisy modułów w widoku montowań</string>
     <string name="sumh_mount_mode">Tryb montowania</string>
     <string name="sumh_mount_mode_auto">Automatyczny</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -58,7 +56,6 @@
     <string name="sumh_mountsource_invalid">Nazwa nie może być pusta ani zawierać białych znaków, ukośników odwrotnych lub znaków sterujących.</string>
     <string name="sumh_no_conflicts">Nie znaleziono konfliktów montowania</string>
     <string name="sumh_overlay_xattr">Ukrywaj rozszerzone atrybuty OverlayFS</string>
-    <string name="sumh_overlay_xattr_desc">Ukrywaj znaczniki OverlayFS w widoku wirtualnym</string>
     <string name="sumh_retry_apply">Spróbuj zastosować ponownie</string>
     <string name="sumh_rule_maps_spoof">Fałszuj ino/dev/pathname w /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Ukryj montowania overlay przed /proc/mounts</string>
@@ -76,12 +73,10 @@
     <string name="sumh_saved_apply_failed">Zapisano, ale nie udało się zastosować w jądrze: %1$s</string>
     <string name="sumh_saved_reboot">Zapisano; mechanizm montowania zacznie działać po ponownym uruchomieniu</string>
     <string name="sumh_statfs_spoof">Maskowanie Statfs</string>
-    <string name="sumh_statfs_spoof_desc">Zastępuj informacje o typie systemu plików</string>
     <string name="sumh_status_kernel_too_old">Jądro zbyt stare</string>
     <string name="sumh_status_module_too_old">Wersja protokołu menedżera jest zbyt stara. Zaktualizuj menedżer.</string>
     <string name="sumh_status_not_present">Nieobecne</string>
     <string name="sumh_stealth">Tryb ukryty</string>
-    <string name="sumh_stealth_desc">Ukryj ślady montowania i uporządkuj identyfikatory montowań</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Niezamontowane</string>
     <string name="sumh_tempdir">Tymczasowy punkt montowania</string>

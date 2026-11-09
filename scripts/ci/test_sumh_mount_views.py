@@ -218,9 +218,9 @@ int main(void) {
     fake_mi_active = 0;
     CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_NONE);
     fake_mi_active = 1;
+    /* Optional feature state cannot disable the built-in mount view. */
     sumh_feature_enabled_mask = SUMH_FEATURE_MAPS_SPOOF;
-    CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_NONE);
-    sumh_feature_enabled_mask |= SUMH_FEATURE_MOUNT_HIDE;
+    CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_MOUNTINFO);
     select_name(&file, "mounts");
     CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_MOUNTS);
     sb.s_magic = 0;

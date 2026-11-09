@@ -39,7 +39,6 @@ import com.zying.zysu.ui.sumh.util.validateSUMHMapsPathRule
 import com.zying.zysu.ui.sumh.util.mapsRulesWithinBudget
 import com.zying.zysu.ui.sumh.util.updateSUMHMapsPathRule
 import com.zying.zysu.ui.sumh.util.SUMH_MAX_MAPS_PATH_RULES
-import ui.screen.moreSettings.component.MoreSettingsItemPosition
 
 @Composable
 internal fun ManagedMapsControls(
@@ -48,9 +47,10 @@ internal fun ManagedMapsControls(
     support: SUMHFeatureSupport,
     mapsEnabled: Boolean,
     onRulesChanged: (List<MapsPathRule>) -> Unit,
-    position: MoreSettingsItemPosition = MoreSettingsItemPosition.Last,
+    headingActions: (@Composable RowScope.() -> Unit)? = null,
     onRetryApply: () -> Unit = {},
     runtimeApplyPending: Boolean = false,
+    additionalActions: @Composable ColumnScope.() -> Unit = {},
 ) {
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var originalTarget by rememberSaveable { mutableStateOf<String?>(null) }
@@ -112,66 +112,75 @@ internal fun ManagedMapsControls(
         )
     }
 
-    SUMHControlGroup(position) {
-        Text(stringResource(R.string.sumh_maps_path_saved, rules.size), style = MaterialTheme.typography.bodyLarge)
-        Text(stringResource(R.string.sumh_maps_path_description), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val availability = when (support) {
-            SUMHFeatureSupport.KernelUnavailable -> R.string.sumh_features_kernel_unavailable
-            SUMHFeatureSupport.Unknown -> R.string.sumh_features_support_unknown
-            SUMHFeatureSupport.Unsupported -> R.string.sumh_maps_path_unsupported
-            SUMHFeatureSupport.Supported -> if (!mapsEnabled) R.string.sumh_maps_path_disabled else null
-        }
-        availability?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        rules.forEach { rule ->
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.sumh_maps_path_target), style = MaterialTheme.typography.labelMedium)
-                    Text(rule.targetPath, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    Text(stringResource(R.string.sumh_maps_path_replacement), style = MaterialTheme.typography.labelMedium)
-                    Text(rule.replacementPath, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SUMHRuleOverview(stringResource(R.string.sumh_maps_rules_page), headingActions) {
+            Text(stringResource(R.string.sumh_maps_path_saved, rules.size), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.sumh_maps_path_description), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val availability = when (support) {
+                SUMHFeatureSupport.KernelUnavailable -> R.string.sumh_features_kernel_unavailable
+                SUMHFeatureSupport.Unknown -> R.string.sumh_features_support_unknown
+                SUMHFeatureSupport.Unsupported -> R.string.sumh_maps_path_unsupported
+                SUMHFeatureSupport.Supported -> if (!mapsEnabled) R.string.sumh_maps_path_disabled else null
+            }
+            availability?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (limitReached) Text(stringResource(R.string.sumh_maps_path_limit), style = MaterialTheme.typography.bodySmall)
+            SUMHRuleActions {
+                FilledTonalButton(
+                    onClick = { if (canEdit) { originalTarget = null; showEditor = true } },
+                    enabled = canEdit && !limitReached,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) {
+                    YukiIcon(Icons.Filled.Add, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.sumh_maps_path_add))
                 }
-                IconButton(onClick = { originalTarget = rule.targetPath; showEditor = true }, enabled = canEdit) {
-                    YukiIcon(Icons.Filled.Edit, stringResource(R.string.sumh_maps_path_edit_label, rule.targetPath))
+                OutlinedButton(
+                    onClick = { showImport = true },
+                    enabled = canEdit,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) {
+                    YukiIcon(Icons.Filled.Upload, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.sumh_maps_import_title))
                 }
-                IconButton(onClick = { removeTarget = rule.targetPath }, enabled = enabled) {
-                    YukiIcon(Icons.Filled.Delete, stringResource(R.string.sumh_maps_path_remove_label, rule.targetPath))
+                if (rules.isNotEmpty() && !runtimeApplyPending) OutlinedButton(
+                    onClick = onRetryApply,
+                    enabled = canEdit && mapsEnabled,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) {
+                    YukiIcon(Icons.Filled.Refresh, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.sumh_maps_path_apply))
                 }
             }
+            additionalActions()
         }
-        if (limitReached) Text(stringResource(R.string.sumh_maps_path_limit), style = MaterialTheme.typography.bodySmall)
-        FilledTonalButton(
-            onClick = { if (canEdit) { originalTarget = null; showEditor = true } },
-            enabled = canEdit && !limitReached,
-            modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp),
-            shape = MaterialTheme.shapes.small,
-        ) {
-            YukiIcon(Icons.Filled.Add, null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.sumh_maps_path_add))
+        if (rules.isEmpty()) {
+            SUMHRuleEmptyState(stringResource(R.string.sumh_maps_empty))
         }
-        OutlinedButton(
-            onClick = { showImport = true },
-            enabled = canEdit,
-            modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp),
-            shape = MaterialTheme.shapes.small,
-        ) {
-            YukiIcon(Icons.Filled.Upload, null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.sumh_maps_import_title))
-        }
-        if (rules.isNotEmpty() && !runtimeApplyPending) OutlinedButton(
-            onClick = onRetryApply,
-            enabled = canEdit && mapsEnabled,
-            modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp),
-            shape = MaterialTheme.shapes.small,
-        ) {
-            YukiIcon(Icons.Filled.Refresh, null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.sumh_maps_path_apply))
+        rules.forEach { rule ->
+            key(rule.targetPath) {
+                SUMHRuleCard {
+                    Text(stringResource(R.string.sumh_maps_path_target), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(rule.targetPath, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.sumh_maps_path_replacement), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(rule.replacementPath, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        IconButton(onClick = { originalTarget = rule.targetPath; showEditor = true }, enabled = canEdit) {
+                            YukiIcon(Icons.Filled.Edit, stringResource(R.string.sumh_maps_path_edit_label, rule.targetPath))
+                        }
+                        IconButton(onClick = { removeTarget = rule.targetPath }, enabled = enabled) {
+                            YukiIcon(Icons.Filled.Delete, stringResource(R.string.sumh_maps_path_remove_label, rule.targetPath))
+                        }
+                    }
+                }
+            }
         }
     }
 }
