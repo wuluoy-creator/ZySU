@@ -210,9 +210,9 @@ void request_reboot();
 // `touch` this codebase used it for did.
 bool touch_file(const std::filesystem::path& path);
 
-// Read a single entry out of a zip into memory. miniz is already linked for the
-// AnyKernel3 flasher, so pulling one small member out of an archive needs
-// neither an `unzip` on PATH nor a scratch directory to land it in.
+// Read a single entry out of a zip into memory. Store/Deflate use miniz; other
+// compression methods fall back to the installed BusyBox with size/CRC checks.
+// Call ensure_binaries first. No scratch directory or unzip on PATH is needed.
 std::optional<std::string> read_zip_entry(const std::string& zip_path, const char* entry_name);
 
 // Command execution

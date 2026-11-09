@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <limits>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "miniz.h"
@@ -786,7 +787,45 @@ std::optional<std::string> read_zip_entry(const std::string& zip_path, const cha
         out.emplace(static_cast<const char*>(data), size);
         mz_free(data);
     } else {
-        LOGE("zip: %s has no readable %s", zip_path.c_str(), entry_name);
+        const mz_zip_error error = mz_zip_get_last_error(&archive);
+        if (error == MZ_ZIP_UNSUPPORTED_METHOD) {
+            // The installer uses our BusyBox, which also supports XZ and BZIP2.
+            // Keep metadata reads compatible with it without retrying corrupt,
+            // missing, or encrypted entries through a different extractor.
+            const int index = mz_zip_reader_locate_file(&archive, entry_name, nullptr, 0);
+            mz_zip_archive_file_stat entry{};
+            if (index < 0 ||
+                !mz_zip_reader_file_stat(&archive, static_cast<mz_uint>(index), &entry)) {
+                LOGE("zip: cannot stat %s in %s: %s", entry_name, zip_path.c_str(),
+                     mz_zip_get_error_string(mz_zip_get_last_error(&archive)));
+            } else {
+                LOGI("zip: reading %s with BusyBox (compression method %u)", entry_name,
+                     static_cast<unsigned>(entry.m_method));
+                // BusyBox's unzip parses options among filenames; protect relative
+                // archive paths starting with '-' without invoking a shell.
+                const std::string unzip_path = zip_path.front() == '-' ? "./" + zip_path : zip_path;
+                auto result = exec_command({BUSYBOX_PATH, "unzip", "-p", unzip_path, entry_name},
+                                           std::chrono::seconds(30));
+                if (result.exit_code != 0 || result.error_number != 0) {
+                    LOGE("zip: BusyBox failed reading %s from %s (exit %d, errno %d): %s",
+                         entry_name, zip_path.c_str(), result.exit_code, result.error_number,
+                         result.stderr_str.c_str());
+                } else if (result.stdout_str.size() != entry.m_uncomp_size) {
+                    LOGE("zip: size mismatch reading %s from %s", entry_name, zip_path.c_str());
+                } else if (mz_crc32(
+                               MZ_CRC32_INIT,
+                               reinterpret_cast<const unsigned char*>(result.stdout_str.data()),
+                               result.stdout_str.size()) != entry.m_crc32) {
+                    // BusyBox checks ZIP CRCs for Deflate, but not for XZ/BZIP2.
+                    LOGE("zip: CRC mismatch reading %s from %s", entry_name, zip_path.c_str());
+                } else {
+                    out.emplace(std::move(result.stdout_str));
+                }
+            }
+        } else {
+            LOGE("zip: cannot read %s from %s: %s", entry_name, zip_path.c_str(),
+                 mz_zip_get_error_string(error));
+        }
     }
     mz_zip_reader_end(&archive);
     close(source.fd);

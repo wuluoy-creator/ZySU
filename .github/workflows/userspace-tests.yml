@@ -78,6 +78,10 @@ jobs:
         run: |
           python3 userspace/ksud/tests/run_module_host_tests.py --cxx clang++
           sh userspace/ksud/tests/installer_zip_error_test.sh
+      - name: Module ZIP compression compatibility
+        run: |
+          git clone --depth 1 --branch 3.0.2 https://github.com/richgel999/miniz.git "$RUNNER_TEMP/ksud-test-miniz"
+          python3 userspace/ksud/tests/run_zip_entry_host_tests.py --miniz-dir "$RUNNER_TEMP/ksud-test-miniz" --cc clang --cxx clang++
       - name: Preinit runner, synchronization and boot-loop recovery
         run: |
           python3 scripts/ci/test_preinit.py --cc clang
