@@ -203,23 +203,6 @@ internal fun SuperUserPage(navigator: DestinationsNavigator) {
                         AuthorizationLoadError(viewModel.isRefreshing || busy) { scope.launch { viewModel.fetchAppList(forceRefresh = true) } }
                     }
                 }
-                item(key = "list-tools") {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.authorization_result_count, displayedGroups.size), style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                stringResource(if (viewModel.showBatchActions) R.string.authorization_selection_hint else R.string.authorization_manage_hint),
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        if (!viewModel.showBatchActions) {
-                            IconButton(onClick = { showOptions = true }, enabled = !busy) { YukiIcon(Icons.Filled.Sort, stringResource(R.string.sort_options)) }
-                            TextButton(onClick = viewModel::toggleBatchMode, enabled = displayedGroups.isNotEmpty() && !busy) {
-                                Text(stringResource(R.string.authorization_select))
-                            }
-                        }
-                    }
-                }
                 items(displayedGroups, key = { it.uid }) { group ->
                     AuthorizationAppRow(
                         group = group,

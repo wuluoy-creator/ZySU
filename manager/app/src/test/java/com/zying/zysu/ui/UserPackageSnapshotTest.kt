@@ -11,6 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [35])
@@ -38,6 +39,14 @@ class UserPackageSnapshotTest {
 
     class UnavailableUsers {
         fun getUsers(): List<User> = throw SecurityException("Hidden API unavailable")
+    }
+
+    class RecoveringUsers(private val entries: List<User>) {
+        var available = false
+        fun getUsers(): List<User> {
+            check(available) { "System user service restarting" }
+            return entries
+        }
     }
 
     private fun packages(userId: Int) = listOf(PackageInfo().apply {
@@ -70,5 +79,53 @@ class UserPackageSnapshotTest {
     @Test fun unavailableHiddenApiFallsBackToAssociatedProfiles() {
         val snapshot = loadUserPackageSnapshot(UnavailableUsers(), { listOf(10, 0, 10) }, ::packages)
         assertEquals(listOf(12345, 1012345), snapshot.map { it.applicationInfo!!.uid })
+    }
+
+    @Test fun failedUserQueryCannotBecomeAPartialSnapshot() {
+        assertFailsWith<IllegalStateException> {
+            loadUserPackageSnapshot(Users(listOf(User(0), User(10))), { emptyList() }) {
+                if (it == 10) error("Package manager restarting") else packages(it)
+            }
+        }
+    }
+
+    @Test fun emptyUserQueryIsRejectedAndCanRecoverOnTheNextLoad() {
+        val users = Users(listOf(User(0), User(10)))
+        assertFailsWith<IllegalStateException> {
+            loadUserPackageSnapshot(users, { emptyList() }) {
+                if (it == 10) emptyList() else packages(it)
+            }
+        }
+        assertEquals(2, loadUserPackageSnapshot(users, { emptyList() }, ::packages).size)
+    }
+
+    @Test fun missingUsersCannotBecomeASuccessfulEmptySnapshot() {
+        assertFailsWith<IllegalStateException> {
+            loadUserPackageSnapshot(UnavailableUsers(), { emptyList() }, ::packages)
+        }
+    }
+
+    @Test fun emptyAllUserResponseCannotFallBackToAPartialSnapshot() {
+        var profileFallbacks = 0
+        assertFailsWith<IllegalStateException> {
+            loadUserPackageSnapshot(Users(emptyList()), { profileFallbacks++; listOf(0) }, ::packages)
+        }
+        assertEquals(0, profileFallbacks)
+    }
+
+    @Test fun transientUserServiceFailureDoesNotFallBackOrLoseIndependentUsers() {
+        val users = RecoveringUsers(listOf(User(0), User(12)))
+        var profileFallbacks = 0
+        val profiles = { profileFallbacks++; listOf(0) }
+        val failure = assertFailsWith<IllegalStateException> {
+            loadUserPackageSnapshot(users, profiles, ::packages)
+        }
+        assertEquals("System user service restarting", failure.cause?.message)
+        assertEquals(0, profileFallbacks)
+
+        users.available = true
+        val snapshot = loadUserPackageSnapshot(users, profiles, ::packages)
+        assertEquals(listOf(12345, 1212345), snapshot.map { it.applicationInfo!!.uid })
+        assertEquals(0, profileFallbacks)
     }
 }

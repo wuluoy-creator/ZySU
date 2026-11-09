@@ -45,8 +45,9 @@ class KsuService : RootService() {
         }
 
         override fun getPackages(start: Int, maxCount: Int): List<PackageInfo> {
+            require(start >= 0 && maxCount > 0)
             val list = allPackages
-            val end = (start + maxCount).coerceAtMost(list.size)
+            val end = (start.toLong() + maxCount).coerceAtMost(list.size.toLong()).toInt()
             return if (start >= list.size) emptyList()
             else list.subList(start, end)
         }
@@ -107,16 +108,18 @@ class KsuService : RootService() {
     private fun getInstalledPackagesAsUser(userId: Int): List<PackageInfo> {
         return try {
             queryInstalledPackagesAsUser(userId)
-        } catch (e: Throwable) {
-            Log.e(TAG, "getInstalledPackagesAsUser", e)
-            emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "getInstalledPackagesAsUser: user=$userId", e)
+            // Do not publish/cache the other users as a complete snapshot when
+            // PackageManager is temporarily unavailable for this user.
+            throw IllegalStateException("Unable to query packages for user $userId", e)
         }
     }
 
     @SuppressLint("PrivateApi")
     private fun queryInstalledPackagesAsUser(userId: Int): List<PackageInfo> {
         val pm = packageManager
-        val method = pm.javaClass.getDeclaredMethod(
+        val method = pm.javaClass.getMethod(
             "getInstalledPackagesAsUser", Int::class.java, Int::class.java
         )
         @Suppress("UNCHECKED_CAST")

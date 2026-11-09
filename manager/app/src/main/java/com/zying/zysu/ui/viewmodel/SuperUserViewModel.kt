@@ -9,6 +9,7 @@ import android.os.Parcelable
 import android.util.Log
 import androidx.compose.runtime.*
 import androidx.core.content.edit
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zying.zysu.Natives
@@ -84,9 +85,21 @@ class SuperUserViewModel : ViewModel() {
         private var sharedIsRefreshing by mutableStateOf(false)
         private var sharedIsUpdatingPermissions by mutableStateOf(false)
         private val ksuServiceLock = Any()
+        private val ksuServiceConnectMutex = Mutex()
+        private val ksuServiceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         // Keep one process-wide binding so ordinary reads reuse the service package snapshot.
         private var ksuServiceBinder: IBinder? = null
         private var ksuServiceConnection: ServiceConnection? = null
+        private var ksuServiceStartTask: Shell.Task? = null
+        private var ksuServiceStartRunning = false
+
+        private fun unbindKsuService(connection: ServiceConnection) {
+            try {
+                com.topjohnwu.superuser.ipc.RootService.unbind(connection)
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to unbind KsuService", error)
+            }
+        }
 
         private fun clearKsuServiceConnection(connection: ServiceConnection) {
             synchronized(ksuServiceLock) {
@@ -101,36 +114,47 @@ class SuperUserViewModel : ViewModel() {
             private var continuation: CancellableContinuation<IBinder?>?
         ) : ServiceConnection {
             override fun onServiceDisconnected(name: ComponentName?) {
-                clearKsuServiceConnection(this)
-                resume(null)
+                fail()
             }
 
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 if (binder == null) {
-                    clearKsuServiceConnection(this)
+                    fail()
+                    return
                 } else {
-                    synchronized(ksuServiceLock) {
+                    val current = synchronized(ksuServiceLock) {
                         if (ksuServiceConnection === this) {
                             ksuServiceBinder = binder
-                        }
+                            ksuServiceStartTask = null
+                            true
+                        } else false
+                    }
+                    if (!current) {
+                        unbindKsuService(this)
+                        return
                     }
                 }
                 resume(binder)
             }
 
             override fun onNullBinding(name: ComponentName?) {
-                clearKsuServiceConnection(this)
-                resume(null)
+                fail()
             }
 
             override fun onBindingDied(name: ComponentName?) {
-                clearKsuServiceConnection(this)
-                resume(null)
+                fail()
             }
 
             fun fail() {
                 clearKsuServiceConnection(this)
+                unbindKsuService(this)
                 resume(null)
+            }
+
+            fun cancel() {
+                synchronized(this) { continuation = null }
+                clearKsuServiceConnection(this)
+                unbindKsuService(this)
             }
 
             private fun resume(binder: IBinder?) {
@@ -197,7 +221,7 @@ class SuperUserViewModel : ViewModel() {
     var currentSortType by mutableStateOf(loadCurrentSortType())
         private set
     val isRefreshing: Boolean get() = sharedIsRefreshing
-    /** True after the first successful package snapshot (including an empty snapshot). */
+    /** True after the first complete package snapshot. */
     val hasLoaded: Boolean get() = sharedHasLoaded
     /** Diagnostic for the last failed package load; the UI supplies localized recovery text. */
     val loadError: String? get() = sharedLoadError
@@ -435,40 +459,71 @@ class SuperUserViewModel : ViewModel() {
             }
         }
     }
-    private suspend fun connectKsuService(): IBinder? = withContext(Dispatchers.Main.immediate) {
-        var staleConnection: ServiceConnection? = null
-        val cachedBinder = synchronized(ksuServiceLock) {
-            ksuServiceBinder?.takeIf { it.isBinderAlive } ?: run {
-                ksuServiceBinder = null
-                staleConnection = ksuServiceConnection
-                ksuServiceConnection = null
-                null
-            }
-        }
-        if (cachedBinder != null) return@withContext cachedBinder
+    private suspend fun connectKsuService(): IBinder? = ksuServiceConnectMutex.withLock {
+        withTimeoutOrNull(15_000) {
+            withContext(Dispatchers.Main.immediate) {
+                var staleConnection: ServiceConnection? = null
+                val cachedBinder = synchronized(ksuServiceLock) {
+                    ksuServiceBinder?.takeIf { it.isBinderAlive } ?: run {
+                        ksuServiceBinder = null
+                        staleConnection = ksuServiceConnection
+                        ksuServiceConnection = null
+                        null
+                    }
+                }
+                if (cachedBinder != null) return@withContext cachedBinder
 
-        staleConnection?.let { connection ->
-            try {
-                com.topjohnwu.superuser.ipc.RootService.unbind(connection)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to unbind stale KsuService connection", e)
-            }
-        }
+                staleConnection?.let { connection ->
+                    try {
+                        com.topjohnwu.superuser.ipc.RootService.unbind(connection)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to unbind stale KsuService connection", e)
+                    }
+                }
 
-        suspendCancellableCoroutine<IBinder?> { continuation ->
-            val connection = KsuServiceConnection(continuation)
-            synchronized(ksuServiceLock) {
-                ksuServiceConnection = connection
-            }
-            val intent = Intent(ksuApp, KsuService::class.java)
-            try {
-                val task = com.topjohnwu.superuser.ipc.RootService.bindOrTask(
-                    intent, Shell.EXECUTOR, connection
-                )
-                task?.let { Shell.getShell().execTask(it) }
-            } catch (e: Exception) {
-                connection.fail()
-                Log.e(TAG, "Failed to bind KsuService", e)
+                suspendCancellableCoroutine<IBinder?> { continuation ->
+                    val connection = KsuServiceConnection(continuation)
+                    synchronized(ksuServiceLock) {
+                        ksuServiceConnection = connection
+                    }
+                    continuation.invokeOnCancellation {
+                        clearKsuServiceConnection(connection)
+                        ksuServiceScope.launch { connection.cancel() }
+                    }
+                    val intent = Intent(ksuApp, KsuService::class.java)
+                    try {
+                        val task = com.topjohnwu.superuser.ipc.RootService.bindOrTask(
+                            intent, ContextCompat.getMainExecutor(ksuApp), connection
+                        )
+                        // libsu keeps a pending-launch flag even if the launch fails.
+                        // Keep its task so a subsequent connection can restart it.
+                        if (task != null) ksuServiceStartTask = task
+                        val startTask = ksuServiceStartTask
+                        if (startTask != null && !ksuServiceStartRunning) {
+                            ksuServiceStartRunning = true
+                            ksuServiceScope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        val shell = KsuCli.SHELL
+                                        check(shell.isRoot) { "Root access is required to start the package service" }
+                                        shell.execTask(startTask)
+                                    }
+                                } catch (error: Exception) {
+                                    Log.e(TAG, "Failed to start KsuService", error)
+                                    val pending = synchronized(ksuServiceLock) {
+                                        if (ksuServiceBinder == null) ksuServiceConnection else null
+                                    }
+                                    (pending as? KsuServiceConnection)?.fail()
+                                } finally {
+                                    ksuServiceStartRunning = false
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        connection.fail()
+                        Log.e(TAG, "Failed to bind KsuService", e)
+                    }
+                }
             }
         }
     }
@@ -480,7 +535,7 @@ class SuperUserViewModel : ViewModel() {
             loadingProgress = 0f
             sharedLoadError = null
             try {
-                fetchAppListFromService(forceRefresh)
+                retryPackageLoad { retry -> fetchAppListFromService(forceRefresh || retry) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -599,36 +654,34 @@ class SuperUserViewModel : ViewModel() {
             throw IllegalStateException("Root access is required to load the app list")
         }
 
-        val binder = withTimeoutOrNull(15_000) { connectKsuService() }
+        val binder = connectKsuService()
             ?: throw IllegalStateException("Package service is unavailable")
 
         withContext(Dispatchers.IO) {
             val pm = ksuApp.packageManager
             val allPackages = IKsuInterface.Stub.asInterface(binder)
-            val total = if (forceRefresh) {
-                allPackages.refreshPackages()
-            } else {
-                allPackages.packageCount
-            }
-            val pageSize = 100
-            val result = mutableListOf<AppInfo>()
-
-            var start = 0
-            while (start < total) {
-                val page = allPackages.getPackages(start, pageSize)
-                if (page.isEmpty()) break
-
-                result += page.mapNotNull { packageInfo ->
-                    packageInfo.applicationInfo?.let { appInfo ->
-                        AppInfo(
-                            label = appInfo.loadLabel(pm).toString(),
-                            packageInfo = packageInfo,
-                            profile = null
-                        )
-                    }
+            // Backup refreshes the same service snapshot. Keep it stable across
+            // the count + page calls so a concurrent backup cannot mix snapshots.
+            val packageSnapshot = allowlistBackupMutex.withLock {
+                val total = if (forceRefresh) {
+                    allPackages.refreshPackages()
+                } else {
+                    allPackages.packageCount
                 }
-                start += page.size
-                loadingProgress = start.toFloat() / total
+                readPackagePages(total, allPackages::getPackages) { loadingProgress = it }
+            }
+            val result = packageSnapshot.map { packageInfo ->
+                val appInfo = requireNotNull(packageInfo.applicationInfo)
+                AppInfo(
+                    label = try {
+                        appInfo.loadLabel(pm).toString()
+                    } catch (error: Exception) {
+                        Log.w(TAG, "Unable to load label for ${packageInfo.packageName}", error)
+                        packageInfo.packageName
+                    },
+                    packageInfo = packageInfo,
+                    profile = null,
+                )
             }
 
             appListMutex.withLock {
