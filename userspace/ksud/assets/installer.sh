@@ -353,7 +353,7 @@ install_module() {
   fi
 
   # Extract prop file
-  unzip -o "$ZIPFILE" module.prop -d $TMPDIR >&2
+  unzip -o "$ZIPFILE" module.prop -d $TMPDIR >&2 || abort "! Unable to extract zip file!"
   [ ! -f $TMPDIR/module.prop ] && abort "! Unable to extract zip file!"
 
   local MODDIRNAME=modules
@@ -372,7 +372,7 @@ install_module() {
   mkdir -p $MODPATH
 
   if is_legacy_script; then
-    unzip -oj "$ZIPFILE" module.prop install.sh uninstall.sh 'common/*' -d $TMPDIR >&2
+    unzip -oj "$ZIPFILE" module.prop install.sh uninstall.sh 'common/*' -d $TMPDIR >&2 || abort "! Unable to extract zip file!"
 
     # Load install script
     . $TMPDIR/install.sh
@@ -398,7 +398,7 @@ install_module() {
 
     if ! grep -q '^SKIPUNZIP=1$' $MODPATH/customize.sh 2>/dev/null; then
       ui_print "- Extracting module files"
-      unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH >&2
+      unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH >&2 || abort "! Unable to extract zip file!"
 
       # Default permissions
       set_perm_recursive $MODPATH 0 0 0755 0644

@@ -501,21 +501,27 @@ fun flashModule(
     onStdout: (String) -> Unit,
     onStderr: (String) -> Unit
 ): Boolean {
-    val resolver = ksuApp.contentResolver
-    with(resolver.openInputStream(uri)) {
-        val file = File(ksuApp.cacheDir, "module.zip")
-        file.outputStream().use { output ->
-            this?.copyTo(output)
+    var file: File? = null
+    var success = false
+    var exitCode = 1
+    try {
+        val stagedFile = copyPatchInputToTemporaryFile(ksuApp.cacheDir, "module-", ".zip") {
+            ksuApp.contentResolver.openInputStream(uri)
         }
-        val cmd = "module install ${shellArg(file.absolutePath)}"
+        file = stagedFile
+        val cmd = "module install ${shellArg(stagedFile.absolutePath)}"
         val result = flashWithIO(ksudCmd(cmd), onStdout, onStderr)
-        Log.i("KernelSU", "install module $uri result: $result")
-
-        file.delete()
-
-        onFinish(result.isSuccess, result.code)
-        return result.isSuccess
+        success = result.isSuccess
+        exitCode = if (success) 0 else result.code.takeIf { it != 0 } ?: 1
+        Log.i(TAG, "install module $uri result: $result")
+    } catch (error: Exception) {
+        Log.e(TAG, "Failed to install module $uri", error)
+        onStderr("! Unable to install module: ${error.message ?: "Unknown error"}")
+    } finally {
+        file?.delete()
+        onFinish(success, exitCode)
     }
+    return success
 }
 
 fun runModuleAction(

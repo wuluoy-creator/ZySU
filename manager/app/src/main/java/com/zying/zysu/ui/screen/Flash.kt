@@ -227,6 +227,7 @@ fun FlashScreen(navigator: DestinationsNavigator, flashIt: FlashIt) {
                 }
                 logContent.append(it).append("\n")
             }, onStderr = {
+                text += "$it\n"
                 logContent.append(it).append("\n")
             })
         }
@@ -345,11 +346,7 @@ fun FlashScreen(navigator: DestinationsNavigator, flashIt: FlashIt) {
                 }
                 logContent.append(it).append("\n")
             }, onStderr = {
-                if (flashIt is FlashIt.FlashAk3 ||
-                    flashIt is FlashIt.FlashBoot || flashIt is FlashIt.DownloadBoot
-                ) {
-                    text += "$it\n"
-                }
+                text += "$it\n"
                 logContent.append(it).append("\n")
             })
         }

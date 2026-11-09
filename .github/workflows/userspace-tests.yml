@@ -5,6 +5,7 @@ on:
     branches: [main, dev, 'feat/*']
     paths:
       - 'userspace/ksud/src/**'
+      - 'userspace/ksud/assets/installer.sh'
       - 'userspace/ksud/tests/**'
       - 'userspace/ksud/scripts/**'
       - 'userspace/ksud/third_party/MagiskbootAlone'
@@ -21,6 +22,7 @@ on:
   pull_request:
     paths:
       - 'userspace/ksud/src/**'
+      - 'userspace/ksud/assets/installer.sh'
       - 'userspace/ksud/tests/**'
       - 'userspace/ksud/scripts/**'
       - 'userspace/ksud/third_party/MagiskbootAlone'
@@ -63,7 +65,9 @@ jobs:
       - name: Repack output integrity and I/O failures
         run: python3 userspace/ksud/tests/run_repack_host_tests.py --cxx clang++ --sanitize
       - name: Module management and configuration
-        run: python3 userspace/ksud/tests/run_module_host_tests.py --cxx clang++
+        run: |
+          python3 userspace/ksud/tests/run_module_host_tests.py --cxx clang++
+          sh userspace/ksud/tests/installer_zip_error_test.sh
       - name: Script deadlines and signal masks
         run: python3 userspace/ksud/tests/run_script_wait_host_tests.py --cxx clang++
       - name: Process execution and file I/O
