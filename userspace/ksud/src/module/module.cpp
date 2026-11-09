@@ -8,6 +8,7 @@
 #include "../utils.hpp"
 #include "metamodule.hpp"
 #include "module_utils.hpp"
+#include "preinit.hpp"
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -174,14 +175,6 @@ bool file_exists(const std::string& path) {
     return stat(path.c_str(), &st) == 0;
 }
 
-std::filesystem::path preinit_ksu_dir() {
-    std::error_code error;
-    if (std::filesystem::is_directory("/metadata/watchdog", error) && !error) {
-        return PREINIT_DIR_WATCHDOG;
-    }
-    return PREINIT_DIR_DEFAULT;
-}
-
 bool has_rc_extension(const std::filesystem::path& path) {
     return path.extension() == ".rc";
 }
@@ -275,7 +268,7 @@ bool collect_rc_files(const std::filesystem::path& dir, const std::string* modul
     return true;
 }
 
-void warn_regenerate_preinit_rc_failed(int ret) {
+void warn_regenerate_preinit_failed(int ret) {
     if (ret != 0) {
         LOGW("regenerate preinit rc failed: %d", ret);
     }
@@ -633,8 +626,50 @@ std::string get_metamodule_id() {
     return get_metamodule_id_impl();
 }
 
-int regenerate_preinit_rc() {
-    const std::filesystem::path preinit_dir = preinit_ksu_dir();
+std::filesystem::path preinit_ksu_dir() {
+    std::error_code error;
+    if (get_uapi_version() >= 6 && std::filesystem::is_directory("/metadata/vold", error))
+        return PREINIT_DIR_VOLD;
+    if (std::filesystem::is_directory("/metadata/watchdog", error) && !error) {
+        return PREINIT_DIR_WATCHDOG;
+    }
+    return PREINIT_DIR_DEFAULT;
+}
+
+namespace {
+
+preinit::Modules next_boot_modules() {
+    std::error_code ec;
+    preinit::Modules modules;
+    std::map<std::string, bool> skipped_modules;
+
+    for (const char* root : {MODULE_UPDATE_DIR, MODULE_DIR}) {
+        if (!std::filesystem::is_directory(root, ec))
+            continue;
+        for (auto it = std::filesystem::directory_iterator(root, ec);
+             it != std::filesystem::directory_iterator() && !ec; it.increment(ec)) {
+            const auto& entry = *it;
+            if (!std::filesystem::is_directory(entry.symlink_status(ec)))
+                continue;
+            const std::string id = entry.path().filename().string();
+            if (!validate_module_id(id))
+                continue;
+            if (file_exists((entry.path() / DISABLE_FILE_NAME).string()) ||
+                file_exists((entry.path() / REMOVE_FILE_NAME).string())) {
+                modules.erase(id);
+                skipped_modules[id] = true;
+                continue;
+            }
+            if (skipped_modules.count(id) == 0 && modules.count(id) == 0)
+                modules.emplace(id, entry.path());
+        }
+    }
+
+    return modules;
+}
+
+int regenerate_preinit_rc(const std::filesystem::path& preinit_dir, const preinit::Modules& modules,
+                          const char* context) {
     std::error_code ec;
     std::filesystem::create_directories(preinit_dir, ec);
     if (ec) {
@@ -652,31 +687,6 @@ int regenerate_preinit_rc() {
     }
 
     bool write_ok = collect_rc_files(std::filesystem::path(ADB_DIR) / "initrc.d", nullptr, out_fd);
-    std::map<std::string, std::filesystem::path> modules;
-    std::map<std::string, bool> skipped_modules;
-
-    for (const char* root : {MODULE_UPDATE_DIR, MODULE_DIR}) {
-        if (!std::filesystem::is_directory(root, ec))
-            continue;
-        for (auto it = std::filesystem::directory_iterator(root, ec);
-             it != std::filesystem::directory_iterator() && !ec; it.increment(ec)) {
-            const auto& entry = *it;
-            if (!entry.is_directory(ec))
-                continue;
-            const std::string id = entry.path().filename().string();
-            if (id.empty())
-                continue;
-            if (file_exists((entry.path() / DISABLE_FILE_NAME).string()) ||
-                file_exists((entry.path() / REMOVE_FILE_NAME).string())) {
-                modules.erase(id);
-                skipped_modules[id] = true;
-                continue;
-            }
-            if (skipped_modules.count(id) == 0 && modules.count(id) == 0)
-                modules.emplace(id, entry.path());
-        }
-    }
-
     for (const auto& [id, path] : modules) {
         if (!collect_rc_files(path / MODULE_INIT_RC_DIR, &id, out_fd)) {
             write_ok = false;
@@ -684,6 +694,8 @@ int regenerate_preinit_rc() {
         }
     }
 
+    if (fsync(out_fd) != 0)
+        write_ok = false;
     if (close(out_fd) != 0)
         write_ok = false;
     if (!write_ok) {
@@ -700,13 +712,30 @@ int regenerate_preinit_rc() {
         return 1;
     }
 
-    (void)lsetfilecon(out_path, METADATA_FILE_CON);
-
-    const std::filesystem::path stale_dir =
-        (preinit_dir == PREINIT_DIR_WATCHDOG) ? PREINIT_DIR_DEFAULT : PREINIT_DIR_WATCHDOG;
-    std::filesystem::remove(stale_dir / MODULES_RC_FILE, ec);
+    (void)lsetfilecon(out_path, context);
 
     return 0;
+}
+
+}  // namespace
+
+int regenerate_preinit() {
+    const auto directory = preinit_ksu_dir();
+    const char* context =
+        directory == PREINIT_DIR_VOLD ? "u:object_r:vold_metadata_file:s0" : METADATA_FILE_CON;
+    const auto modules = next_boot_modules();
+    const int rc = regenerate_preinit_rc(directory, modules, context);
+    std::vector<std::filesystem::path> stale;
+    for (const char* candidate : {PREINIT_DIR_VOLD, PREINIT_DIR_WATCHDOG, PREINIT_DIR_DEFAULT}) {
+        if (directory == candidate)
+            continue;
+        stale.emplace_back(candidate);
+        std::error_code ec;
+        std::filesystem::remove(stale.back() / MODULES_RC_FILE, ec);
+    }
+    const int synced = preinit::sync(directory, stale, modules, context, is_preinit_supported(),
+                                     PREINIT_STATUS_PATH);
+    return rc != 0 ? rc : synced;
 }
 
 int module_install(const std::string& zip_path) {
@@ -841,7 +870,12 @@ int module_install(const std::string& zip_path) {
     }
 
     LOGI("Module installed successfully");
-    warn_regenerate_preinit_rc_failed(regenerate_preinit_rc());
+    warn_regenerate_preinit_failed(regenerate_preinit());
+    const auto states = preinit::module_states(preinit_ksu_dir(), PREINIT_STATUS_PATH);
+    if (const auto state = states.find(mod_id);
+        state != states.end() && state->second.state != "ok")
+        printf("! preinit will not take effect: %s %s\n", state->second.state.c_str(),
+               state->second.message.c_str());
     return 0;
 }
 
@@ -869,7 +903,7 @@ int module_uninstall_impl(const std::string& id, bool refresh_metadata) {
 
     printf("Module %s marked for removal\n", id.c_str());
     if (refresh_metadata) {
-        warn_regenerate_preinit_rc_failed(regenerate_preinit_rc());
+        warn_regenerate_preinit_failed(regenerate_preinit());
     }
     return 0;
 }
@@ -900,7 +934,7 @@ int module_undo_uninstall(const std::string& id) {
     }
 
     printf("Undid uninstall for module %s\n", id.c_str());
-    warn_regenerate_preinit_rc_failed(regenerate_preinit_rc());
+    warn_regenerate_preinit_failed(regenerate_preinit());
     return 0;
 }
 
@@ -926,7 +960,7 @@ int module_enable(const std::string& id) {
     }
 
     printf("Module %s enabled\n", id.c_str());
-    warn_regenerate_preinit_rc_failed(regenerate_preinit_rc());
+    warn_regenerate_preinit_failed(regenerate_preinit());
     return 0;
 }
 
@@ -953,7 +987,7 @@ int module_disable_impl(const std::string& id, bool refresh_metadata) {
 
     printf("Module %s disabled\n", id.c_str());
     if (refresh_metadata) {
-        warn_regenerate_preinit_rc_failed(regenerate_preinit_rc());
+        warn_regenerate_preinit_failed(regenerate_preinit());
     }
     return 0;
 }
@@ -991,10 +1025,10 @@ int module_run_action(const std::string& id) {
 namespace {
 
 bool is_dedicated_prop_key(const std::string& key) {
-    static constexpr std::array<std::string_view, 16> kDedicatedKeys = {
-        "id",          "dir_id",     "name",       "version",  "versionCode", "author",
-        "description", "enabled",    "update",     "remove",   "web",         "action",
-        "mount",       "metamodule", "actionIcon", "webuiIcon"};
+    static constexpr std::array<std::string_view, 17> kDedicatedKeys = {
+        "id",          "dir_id",     "name",       "version",   "versionCode", "author",
+        "description", "enabled",    "update",     "remove",    "web",         "action",
+        "mount",       "metamodule", "actionIcon", "webuiIcon", "preinit"};
     return std::find(kDedicatedKeys.begin(), kDedicatedKeys.end(), key) != kDedicatedKeys.end();
 }
 
@@ -1092,6 +1126,8 @@ int module_list() {
     collect_module_infos(MODULE_DIR, false, modules, module_index);
     collect_module_infos(MODULE_UPDATE_DIR, true, modules, module_index);
 
+    const auto preinit_states = preinit::module_states(preinit_ksu_dir(), PREINIT_STATUS_PATH);
+
     // Output JSON array
     printf("[\n");
     for (size_t i = 0; i < modules.size(); i++) {
@@ -1116,6 +1152,9 @@ int module_list() {
         }
         if (!m.webuiIcon.empty()) {
             printf(",\n    \"webuiIcon\": \"%s\"", escape_json(m.webuiIcon).c_str());
+        }
+        if (const auto state = preinit_states.find(m.dir_id); state != preinit_states.end()) {
+            printf(",\n    \"preinit\": \"%s\"", escape_json(state->second.state).c_str());
         }
         for (const auto& [key, value] : m.extra_props) {
             printf(",\n    \"%s\": \"%s\"", escape_json(key).c_str(), escape_json(value).c_str());
@@ -1147,7 +1186,7 @@ int uninstall_all_modules() {
 
     closedir(dir);
     if (changed) {
-        warn_regenerate_preinit_rc_failed(regenerate_preinit_rc());
+        warn_regenerate_preinit_failed(regenerate_preinit());
     }
     return 0;
 }
@@ -1233,7 +1272,7 @@ int disable_all_modules() {
 
     closedir(dir);
     if (changed) {
-        warn_regenerate_preinit_rc_failed(regenerate_preinit_rc());
+        warn_regenerate_preinit_failed(regenerate_preinit());
     }
     return 0;
 }

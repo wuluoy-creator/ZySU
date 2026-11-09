@@ -3,6 +3,7 @@
 #include "linux/cred.h"
 #include "linux/printk.h"
 #include <linux/jump_label.h>
+#include <linux/fcntl.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -19,6 +20,7 @@
 #include "runtime/ksud.h"
 #include "selinux/selinux.h"
 #include "sulog/event.h"
+#include "preinit/preinit.h"
 
 /*
  * ksud execve hook: controlled by a static key so that the common case
@@ -66,15 +68,10 @@ static void ksu_handle_init_mark_tracker(const char __user *filename_user)
 	path[sizeof(path) - 1] = '\0';
 
 	if (unlikely(strcmp(path, KSUD_PATH) == 0)) {
-		pr_info("hook_manager: escape to root for init executing ksud: "
-			"%d\n",
-			current->pid);
 		escape_to_root_for_init();
 	} else if (likely(strstr(path, "/app_process") == NULL &&
 			  strstr(path, "/adbd") == NULL &&
 			  strstr(path, "/stub_zygote") == NULL)) {
-		pr_info("hook_manager: unmark %d exec %s\n", current->pid,
-			path);
 		ksu_clear_task_tracepoint_flag_if_needed(current);
 	}
 }
@@ -85,7 +82,7 @@ static long __nocfi ksu_hook_execve_common(int orig_nr,
 {
 	const char __user **filename_user =
 	    execveat ? (const char __user **)&PT_REGS_PARM2(regs)
-		     : (const char __user **)&PT_REGS_PARM1(regs);
+		     : (const char __user **)&PT_REGS_SYSCALL_PARM1(regs);
 	const char __user *const __user *argv_user =
 	    execveat ? (const char __user *const __user *)PT_REGS_PARM3(regs)
 		     : (const char __user *const __user *)PT_REGS_PARM2(regs);
@@ -101,6 +98,13 @@ static long __nocfi ksu_hook_execve_common(int orig_nr,
 		else
 			ksu_execve_hook_ksud(regs);
 	}
+
+	/* Android 17+ may use execveat; an fd-only exec has no path to swap. */
+	if (unlikely(current->pid == 1) &&
+	    (!execveat || !(PT_REGS_PARM5(regs) & AT_EMPTY_PATH)) &&
+	    ksu_preinit_handle_execve(filename_user, argv_user, orig_nr,
+				      (struct pt_regs *)regs, &ret))
+		return ret;
 
 	if (current_euid().val == 0)
 		pending_root_execve = ksu_sulog_capture_root_execve(

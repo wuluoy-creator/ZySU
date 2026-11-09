@@ -30,8 +30,8 @@ clean:
 check_symbol: tools/check_symbol.c
 	$(CC) tools/check_symbol.c -o check_symbol
 format:
-	git -C $(MDIR) ls-files -z -- "*.c" "*.h" | xargs -0 clang-format -i
+	git -C $(MDIR) ls-files -z -- "*.c" "*.h" ":(exclude)preinit/runner/nolibc/**" | xargs -0 clang-format -i
 check-format:
-	git -C $(MDIR) ls-files -z -- "*.c" "*.h" | xargs -0 clang-format --dry-run --Werror
+	git -C $(MDIR) ls-files -z -- "*.c" "*.h" ":(exclude)preinit/runner/nolibc/**" | xargs -0 clang-format --dry-run --Werror
 
 # Keep a new line here!! Because someone may append config

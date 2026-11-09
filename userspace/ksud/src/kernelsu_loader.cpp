@@ -1,5 +1,6 @@
 #include "kernelsu_loader.hpp"
 
+#include "core/ksucalls.hpp"
 #include "elf_symbols.hpp"
 #include "log.hpp"
 #include "utils.hpp"
@@ -110,6 +111,32 @@ bool patch_undefined_symbols(std::vector<uint8_t>* buffer) {
 
     if (unresolved_symbols.empty()) {
         return true;
+    }
+
+    // The scoped kernel interface also works when /proc/kallsyms is unavailable.
+    if (get_uapi_version() >= 6) {
+        std::vector<std::string> names;
+        names.reserve(unresolved_symbols.size());
+        for (const auto& [name, offsets] : unresolved_symbols) {
+            (void)offsets;
+            names.push_back(name);
+        }
+        if (const auto addresses = lookup_symbols(names)) {
+            for (size_t i = 0; i < names.size(); ++i) {
+                const auto address = (*addresses)[i];
+                if (address == 0)
+                    continue;
+                for (const size_t offset : unresolved_symbols.at(names[i])) {
+                    Sym symbol{};
+                    std::memcpy(&symbol, buffer->data() + offset, sizeof(symbol));
+                    symbol.st_shndx = SHN_ABS;
+                    symbol.st_value = static_cast<decltype(symbol.st_value)>(address);
+                    std::memcpy(buffer->data() + offset, &symbol, sizeof(symbol));
+                }
+            }
+            return true;
+        }
+        LOGW("loader: kernel symbol lookup failed, using /proc/kallsyms");
     }
 
     KptrGuard const guard;

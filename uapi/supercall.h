@@ -71,7 +71,8 @@ struct ksu_become_daemon_cmd {
 // The su prompt request/verdict ioctls are additive and feature-gated.
 // 4: bundled LKM provenance and UAPI-based version matching.
 // 5: EVENT_SERVICES with a start/skip result.
-#define KERNEL_SU_UAPI_VERSION 5
+// 6: preinit support and batch kernel symbol lookup.
+#define KERNEL_SU_UAPI_VERSION 6
 
 #define KSU_GET_INFO_FLAG_LKM (1U << 0)
 #define KSU_GET_INFO_FLAG_MANAGER (1U << 1)
@@ -79,6 +80,25 @@ struct ksu_become_daemon_cmd {
 #define KSU_GET_INFO_FLAG_PR_BUILD                                             \
   (1U << 3) // reserved (no PR-build concept yet)
 #define KSU_GET_INFO_FLAG_BUNDLED (1U << 4)
+#define KSU_GET_INFO_FLAG_PREINIT (1U << 5)
+
+/*
+ * Batch kernel image symbol lookup. Returns the number of symbols found; the
+ * address of a symbol that does not exist in the running kernel is set to 0.
+ * Matches like ksuinit's /proc/kallsyms walk: a kernel symbol name is cut at
+ * its first '$', else at ".llvm.", and the first match in kallsyms order wins.
+ * Module symbols are never returned.
+ */
+struct ksu_lookup_symbols_cmd {
+  __aligned_u64 names; /* Input: user pointer to `count` user pointers to
+                          null-terminated names */
+  __aligned_u64
+      addrs;   /* Output: user pointer to `count` __u64 symbol addresses */
+  __u32 count; /* Input: number of symbols, at most KSU_LOOKUP_SYMBOLS_MAX */
+  __u32 flags; /* Input: reserved for future use, must be 0 */
+};
+
+#define KSU_LOOKUP_SYMBOLS_MAX 1024
 
 struct ksu_get_info_cmd {
   __u32 version;
@@ -258,6 +278,7 @@ struct ksu_superkey_status_cmd {
 #define KSU_IOCTL_GET_SULOG_FD _IOC(_IOC_WRITE, 'K', 20, 0)
 #define KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT _IO('K', 21)
 #define KSU_IOCTL_GET_UAPI_VERSION _IOR('K', 22, __u32)
+#define KSU_IOCTL_LOOKUP_SYMBOLS _IOW('K', 23, struct ksu_lookup_symbols_cmd)
 /* Commands 50-64 are retired; do not reuse them. */
 #define KSU_IOCTL_GET_FULL_VERSION _IOC(_IOC_READ, 'K', 100, 0)
 #define KSU_IOCTL_HOOK_TYPE _IOC(_IOC_READ, 'K', 101, 0)

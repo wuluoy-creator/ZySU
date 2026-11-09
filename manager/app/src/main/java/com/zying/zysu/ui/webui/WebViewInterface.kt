@@ -1,6 +1,8 @@
 package com.zying.zysu.ui.webui
 
 import android.app.Activity
+import com.zying.zysu.ui.webui.file.KsuIO
+import com.zying.zysu.ui.webui.pm.KsuPm
 import android.content.pm.ApplicationInfo
 import android.text.TextUtils
 import android.view.Window
@@ -10,7 +12,6 @@ import android.widget.Toast
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.zying.zysu.ui.viewmodel.SuperUserViewModel
 import com.zying.zysu.ui.util.*
 import com.topjohnwu.superuser.CallbackList
 import com.topjohnwu.superuser.ShellUtils
@@ -26,6 +27,32 @@ open class WebViewInterface(
     protected val webView: WebView,
     private val moduleId: String,
 ) {
+    private val fileIO = KsuIO()
+    private val packages = KsuPm()
+    internal val downloads = WebUIDownloadInterface(activity, webView)
+    private var downloadSupport: WebUIDownloadSupport? = null
+
+    internal fun attachDownloads() {
+        downloadSupport = WebUIDownloadSupport(webView, downloads)
+    }
+
+    @JavascriptInterface
+    fun io() = fileIO
+
+    @JavascriptInterface
+    fun pm() = packages
+
+    @JavascriptInterface
+    fun download(url: String, fileName: String?, mimeType: String?) = downloads.download(url, fileName, mimeType)
+
+    fun destroy() {
+        // Renderer termination can destroy the WebView before its host is disposed.
+        runCatching { downloadSupport?.destroy() }
+        downloadSupport = null
+        downloads.destroy()
+        fileIO.destroy()
+    }
+
     private val modDir get() = "/data/adb/modules/$moduleId"
 
     @JavascriptInterface
@@ -192,9 +219,10 @@ open class WebViewInterface(
         return currentModuleInfo.toString()
     }
 
+    @Deprecated("Use pm().listPackages()")
     @JavascriptInterface
     fun listPackages(type: String): String {
-        val packageNames = SuperUserViewModel.apps
+        val packageNames = webUIApps()
             .filter { appInfo ->
                 val flags = appInfo.packageInfo.applicationInfo?.flags ?: 0
                 when (type.lowercase()) {
@@ -213,11 +241,12 @@ open class WebViewInterface(
         return jsonArray.toString()
     }
 
+    @Deprecated("Use pm().getPackagesInfo()")
     @JavascriptInterface
     fun getPackagesInfo(packageNamesJson: String): String {
         val packageNames = JSONArray(packageNamesJson)
         val jsonArray = JSONArray()
-        val appMap = SuperUserViewModel.apps.associateBy { it.packageName }
+        val appMap = webUIApps().associateBy { it.packageName }
         for (i in 0 until packageNames.length()) {
             val pkgName = packageNames.getString(i)
             val appInfo = appMap[pkgName]

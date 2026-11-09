@@ -26,6 +26,7 @@ sealed class WebUIEvent {
 
 class WebUIState {
     var webView: WebView? = null
+    var webViewInterface: WebViewInterface? = null
     var rootShell: Shell? = null
     lateinit var modDir: String
     var moduleName: String = ""
@@ -84,10 +85,13 @@ class WebUIState {
         }
         filePathCallback?.onReceiveValue(null)
         filePathCallback = null
+        webViewInterface?.destroy()
+        webViewInterface = null
         webView?.let { view ->
             (view.parent as? android.view.ViewGroup)?.removeView(view)
             view.stopLoading()
             view.removeJavascriptInterface("ksu")
+            view.removeJavascriptInterface("ksu_download")
             view.removeAllViews()
             view.destroy()
         }

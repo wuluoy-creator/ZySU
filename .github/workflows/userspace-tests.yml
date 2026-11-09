@@ -17,6 +17,11 @@ on:
       - 'kernel/feature/shell_su_adb_only.*'
       - 'kernel/feature/module_blacklist.*'
       - 'kernel/supercall/dispatch.c'
+      - 'kernel/preinit/**'
+      - 'kernel/infra/symbol_resolver.*'
+      - 'kernel/include/arch.h'
+      - 'kernel/runtime/ksud_integration.c'
+      - 'scripts/ci/test_preinit.py'
       - 'scripts/ci/test_boot_config.py'
       - '.github/workflows/userspace-tests.yml'
   pull_request:
@@ -34,6 +39,11 @@ on:
       - 'kernel/feature/shell_su_adb_only.*'
       - 'kernel/feature/module_blacklist.*'
       - 'kernel/supercall/dispatch.c'
+      - 'kernel/preinit/**'
+      - 'kernel/infra/symbol_resolver.*'
+      - 'kernel/include/arch.h'
+      - 'kernel/runtime/ksud_integration.c'
+      - 'scripts/ci/test_preinit.py'
       - 'scripts/ci/test_boot_config.py'
       - '.github/workflows/userspace-tests.yml'
   workflow_dispatch:
@@ -68,6 +78,10 @@ jobs:
         run: |
           python3 userspace/ksud/tests/run_module_host_tests.py --cxx clang++
           sh userspace/ksud/tests/installer_zip_error_test.sh
+      - name: Preinit runner, synchronization and boot-loop recovery
+        run: |
+          python3 scripts/ci/test_preinit.py --cc clang
+          python3 userspace/ksud/tests/run_preinit_host_tests.py --cxx clang++ --sanitize
       - name: Script deadlines and signal masks
         run: python3 userspace/ksud/tests/run_script_wait_host_tests.py --cxx clang++
       - name: Process execution and file I/O

@@ -8,6 +8,11 @@
 #endif // #if !defined(__aarch64__)
 
 #define __PT_PARM1_REG regs[0]
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0)
+#define __PT_SYSCALL_PARM1_REG orig_x0
+#else
+#define __PT_SYSCALL_PARM1_REG __PT_PARM1_REG
+#endif
 #define __PT_PARM2_REG regs[1]
 #define __PT_PARM3_REG regs[2]
 #define __PT_SYSCALL_PARM4_REG regs[3]
@@ -32,6 +37,7 @@
 #define __PT_REGS_CAST(x) (x)
 #endif // #ifndef __PT_REGS_CAST
 
+#define PT_REGS_SYSCALL_PARM1(x) (__PT_REGS_CAST(x)->__PT_SYSCALL_PARM1_REG)
 #define PT_REGS_PARM1(x) (__PT_REGS_CAST(x)->__PT_PARM1_REG)
 #define PT_REGS_PARM2(x) (__PT_REGS_CAST(x)->__PT_PARM2_REG)
 #define PT_REGS_PARM3(x) (__PT_REGS_CAST(x)->__PT_PARM3_REG)

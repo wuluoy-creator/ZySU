@@ -30,6 +30,7 @@ typedef int gfp_t;
 #define GFP_KERNEL 1
 #define EACCES 13
 #define EINVAL 22
+#define EAGAIN 11
 #define ENOMEM 12
 #define SECCLASS_PROCESS 2
 #define PROCESS__SETCURRENT 1
@@ -53,6 +54,7 @@ struct selinux_state { int unused; };
 static struct selinux_state selinux_state;
 static int set_error, dyn_error, ptrace_error, bounds_error;
 static int parse_error, live_error, prepare_fails, single_threaded;
+static int fast_result, fast_calls;
 static int parse_calls, prepare_calls, abort_calls, commit_calls, orig_calls;
 static int perm_calls, bounds_calls, rcu_depth, bad_call;
 static u32 committed_sid;
@@ -114,6 +116,10 @@ static int security_context_to_sid_with_policy(struct selinux_policy *policy,
     *live_rc = live_error;
     return parse_error;
 }
+static int security_context_to_sid_live(const char *value, u32 size, u32 *sid) {
+    if (perm_calls != 1 || size != 8 || strncmp(value, "u:r:t:s0", size)) bad_call++;
+    fast_calls++; parsed_size = size; *sid = 103; return fast_result;
+}
 static struct cred *prepare_creds(void) {
     prepare_calls++;
     new_cred = old_cred;
@@ -135,6 +141,7 @@ typedef int (*setprocattr_fn)(const char *, void *, size_t);
 static struct { setprocattr_fn original; } selinux_setprocattr_hook = { original };
 static void reset(void) {
     set_error = dyn_error = ptrace_error = bounds_error = 0;
+    fast_result = -EAGAIN; fast_calls = 0;
     parse_error = live_error = prepare_fails = 0;
     parse_calls = prepare_calls = abort_calls = commit_calls = orig_calls = 0;
     perm_calls = bounds_calls = rcu_depth = bad_call = 0;
@@ -213,6 +220,19 @@ int main(void) {
     CHECK(permission_log[1] == PROCESS__DYNTRANSITION);
     CHECK(permission_log[2] == PROCESS__PTRACE);
     CHECK(committed_sid == 103 && !orig_calls && !abort_calls && !rcu_depth && !bad_call);
+    /* Current metadata bypasses the dual parser; failures never prepare creds. */
+    reset(); fast_result = 0;
+    CHECK(my_setprocattr("current", context, 8) == 8);
+    CHECK(fast_calls == 1 && !parse_calls && commit_calls == 1 && !bad_call);
+    reset(); fast_result = -EINVAL;
+    CHECK(my_setprocattr("current", context, 8) == -EINVAL);
+    CHECK(fast_calls == 1 && !parse_calls && !prepare_calls && !bad_call);
+    reset(); fast_result = -ENOMEM;
+    CHECK(my_setprocattr("current", context, 8) == -ENOMEM);
+    CHECK(fast_calls == 1 && !parse_calls && !prepare_calls && !bad_call);
+    reset(); fast_result = 0;
+    CHECK(my_setprocattr("current", only_newline, 1) == -EINVAL);
+    CHECK(!fast_calls && !parse_calls && abort_calls == 1 && !bad_call);
     return 0;
 }
 """

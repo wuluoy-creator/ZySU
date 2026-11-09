@@ -235,6 +235,8 @@ bool inject_imgpatch_config_to_lkm(const std::string& lkm_path, bool allow_shell
 
     if (args.no_custom_rc)
         config.flags |= KSU_IMGPATCH_CONFIG_NO_CUSTOM_RC;
+    if (args.no_preinit)
+        config.flags |= KSU_IMGPATCH_CONFIG_NO_PREINIT;
     const auto forced = args.force_features();
     const auto blocked = args.block_modules();
     if (forced.size() >= sizeof(config.force_features) ||
@@ -242,7 +244,8 @@ bool inject_imgpatch_config_to_lkm(const std::string& lkm_path, bool allow_shell
         return false;
     memcpy(config.force_features, forced.c_str(), forced.size() + 1);
     memcpy(config.block_modules, blocked.c_str(), blocked.size() + 1);
-    const bool extended_config = args.no_custom_rc || !forced.empty() || !blocked.empty();
+    const bool extended_config =
+        args.no_custom_rc || args.no_preinit || !forced.empty() || !blocked.empty();
 
     std::vector<uint8_t> content;
     if (!read_file_bytes(lkm_path, &content)) {
@@ -260,7 +263,9 @@ bool inject_imgpatch_config_to_lkm(const std::string& lkm_path, bool allow_shell
 
         ksu_imgpatch_config candidate{};
         memcpy(&candidate, content.data() + offset, sizeof(candidate));
-        if ((candidate.version != KSU_IMGPATCH_CONFIG_VERSION && candidate.version != 2) ||
+        if ((candidate.version != KSU_IMGPATCH_CONFIG_VERSION && candidate.version != 3 &&
+             candidate.version != 2) ||
+            (candidate.version < 4 && args.no_preinit) ||
             (candidate.version == 2 && extended_config) || candidate.size != sizeof(candidate)) {
             incompatible_marker = true;
             continue;
@@ -565,6 +570,7 @@ void print_boot_patch_usage() {
            "  -s, --superkey <key>   set the SuperKey\n"
            "      --signature-bypass relax LKM signature checking\n"
            "      --allow-shell      keep a root shell available\n"
+           "      --no-preinit       skip module preinit actions\n"
            "      --no-custom-rc     skip the custom init.rc injection\n"
            "      --force-feature FEATURE=VALUE  force a configurable feature (repeatable)\n"
            "      --block-module NAME[,NAME...]  block kernel modules (repeatable; default none)\n"
@@ -633,6 +639,8 @@ BootPatchArgs parse_boot_patch_args(const std::vector<std::string>& args) {
             take_value(result.out_name);
         } else if (arg == "--allow-shell") {
             result.allow_shell = true;
+        } else if (arg == "--no-preinit") {
+            result.no_preinit = true;
         } else if (arg == "--no-custom-rc") {
             result.no_custom_rc = true;
         } else if (arg == "--enable-adbd") {

@@ -56,6 +56,9 @@ constexpr uint32_t uapi_version() {
 bool is_lkm();
 bool is_lkm_bundled();
 bool is_late_load();
+bool is_preinit_supported();
+// Zero addresses denote symbols absent from the running kernel image.
+std::optional<std::vector<uint64_t>> lookup_symbols(const std::vector<std::string>& names);
 const char* runtime_mode();
 bool ensure_uapi_version_matched(std::string* error = nullptr);
 

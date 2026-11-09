@@ -21,18 +21,9 @@
 
 struct selinux_policy *backup_sepolicy;
 
-static struct policydb *get_policydb(void)
-{
-	struct policydb *db;
-	struct selinux_policy *policy = rcu_dereference_protected(
-	    selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
-	db = &policy->policydb;
-	return db;
-}
-
 static DEFINE_MUTEX(ksu_rules);
 
-static void reset_avc_cache(void);
+static void reset_avc_cache(u32 seqno);
 
 static void backup_original_sepolicy_once(void)
 {
@@ -75,7 +66,9 @@ static void backup_original_sepolicy_once(void)
 
 void apply_kernelsu_rules(void)
 {
+	struct selinux_policy *pol, *old_pol;
 	struct policydb *db;
+	bool new_backup;
 
 	if (!getenforce()) {
 		pr_info("SELinux permissive or disabled, apply rules!\n");
@@ -84,9 +77,29 @@ void apply_kernelsu_rules(void)
 	mutex_lock(&ksu_rules);
 	mutex_lock(&selinux_state.policy_mutex);
 
-	backup_original_sepolicy_once();
+	old_pol = rcu_dereference_protected(
+	    selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
+	pol = ksu_dup_sepolicy(old_pol);
+	if (IS_ERR(pol)) {
+		pr_err("ksu_dup_sepolicy err: %ld\n", PTR_ERR(pol));
+		goto out_unlock;
+	}
 
-	db = get_policydb();
+	new_backup = !backup_sepolicy;
+	backup_original_sepolicy_once();
+	db = &pol->policydb;
+	pol->latest_granting = old_pol->latest_granting + 1;
+	/* A repeated application must not mark types added by KSU as stock. */
+	if (!new_backup) {
+		if (!ksu_advance_original_types(db, &old_pol->policydb,
+						old_pol->latest_granting,
+						pol->latest_granting))
+			pr_warn("failed to carry original type metadata\n");
+	} else if (!ksu_set_original_types(
+		       db, backup_sepolicy ? &old_pol->policydb : NULL,
+		       pol->latest_granting)) {
+		pr_warn("failed to save original type metadata\n");
+	}
 
 	ksu_permissive(db, KERNEL_SU_DOMAIN);
 	ksu_typeattribute(db, KERNEL_SU_DOMAIN, "mlstrustedsubject");
@@ -162,6 +175,11 @@ void apply_kernelsu_rules(void)
 
 	// https://android-review.googlesource.com/c/platform/system/logging/+/3725346
 	ksu_dontaudit(db, "untrusted_app", KERNEL_SU_DOMAIN, "dir", "getattr");
+	rcu_assign_pointer(selinux_state.policy, pol);
+	synchronize_rcu();
+	ksu_destroy_sepolicy(old_pol);
+	reset_avc_cache(pol->latest_granting);
+out_unlock:
 	mutex_unlock(&selinux_state.policy_mutex);
 	mutex_unlock(&ksu_rules);
 }
@@ -423,17 +441,17 @@ extern int avc_ss_reset(struct selinux_avc *avc, u32 seqno);
 #endif // #if (LINUX_VERSION_CODE >= KERNEL_VERSI...
 // reset avc cache table, otherwise the new rules will not take effect if
 // already denied
-static void reset_avc_cache(void)
+static void reset_avc_cache(u32 seqno)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
-	avc_ss_reset(0);
-	selnl_notify_policyload(0);
-	selinux_status_update_policyload(0);
+	avc_ss_reset(seqno);
+	selnl_notify_policyload(seqno);
+	selinux_status_update_policyload(seqno);
 #else
 	struct selinux_avc *avc = selinux_state.avc;
-	avc_ss_reset(avc, 0);
-	selnl_notify_policyload(0);
-	selinux_status_update_policyload(&selinux_state, 0);
+	avc_ss_reset(avc, seqno);
+	selnl_notify_policyload(seqno);
+	selinux_status_update_policyload(&selinux_state, seqno);
 #endif // #if (LINUX_VERSION_CODE >= KERNEL_VERSI...
 	selinux_xfrm_notify_policyload();
 }
@@ -527,11 +545,16 @@ int handle_sepolicy(void __user *user_data, u64 data_len)
 		cmd_index++;
 	}
 
+	pol->latest_granting = old_pol->latest_granting + 1;
+	if (!ksu_advance_original_types(db, &old_pol->policydb,
+					old_pol->latest_granting,
+					pol->latest_granting))
+		pr_warn("failed to carry original type metadata\n");
 	rcu_assign_pointer(selinux_state.policy, pol);
 	synchronize_rcu();
 	ksu_destroy_sepolicy(old_pol);
 
-	reset_avc_cache();
+	reset_avc_cache(pol->latest_granting);
 	ret = success_cmd_count;
 	goto out_unlock;
 

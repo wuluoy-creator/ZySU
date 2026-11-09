@@ -13,6 +13,22 @@ internal class WebUIXBridge(
     override var name = "ksu"
     private val bridge = WebViewInterface(activity, view, moduleId)
 
+    init { bridge.attachDownloads() }
+
+    override fun onDestroy() {
+        bridge.destroy()
+        super.onDestroy()
+    }
+
+    @JavascriptInterface
+    fun io() = bridge.io()
+
+    @JavascriptInterface
+    fun pm() = bridge.pm()
+
+    @JavascriptInterface
+    fun download(url: String, fileName: String?, mimeType: String?) = bridge.download(url, fileName, mimeType)
+
     @JavascriptInterface
     fun exec(command: String): String = bridge.exec(command)
 
@@ -35,9 +51,11 @@ internal class WebUIXBridge(
     @JavascriptInterface
     fun moduleInfo(): String = bridge.moduleInfo()
 
+    @Suppress("DEPRECATION")
     @JavascriptInterface
     fun listPackages(type: String): String = bridge.listPackages(type)
 
+    @Suppress("DEPRECATION")
     @JavascriptInterface
     fun getPackagesInfo(packages: String): String = bridge.getPackagesInfo(packages)
 

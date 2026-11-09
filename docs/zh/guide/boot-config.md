@@ -33,7 +33,8 @@ ksud boot-patch-v2 --boot boot.img --output patched-boot.img \
 NO_NEW_PRIVS 和只读状态 ID 不接受强制配置，避免改变固定策略或锁住 SUMH 的路径重绑定。
 
 ramdisk 修补通过 `/ksu_config` 传递配置；直接 LKM 注入使用本地 512 字节
-ImgPatch 配置块，版本升至 3，不改变现有引导胶囊格式。旧版 2 配置块只接受原有选项，
+ImgPatch 配置块，当前版本为 4，不改变现有引导胶囊格式。版本 3 引入强制功能与模块屏蔽，
+版本 4 增加 `--no-preinit`，参见[模块 preinit](module-preinit.md)。旧版 2/3 配置块仅接受其支持的选项，
 启用新选项时须更新 LKM；修补器会拒绝不兼容配置，不会静默丢弃。
 
 内核在 SELinux 初始化后应用强制值，post-fs-data 再重试尚未成功的配置；晚加载也会应用。

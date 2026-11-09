@@ -38,7 +38,7 @@ constexpr std::array<std::uint8_t, 4> kArm64Magic = {'A', 'R', 'M', 0x64};
 constexpr std::size_t kKallsymsAlignment = 8;
 constexpr std::size_t kKallsymsTokenCount = 256;
 constexpr std::size_t kKallsymsTokenIndexSize = kKallsymsTokenCount * 2;
-constexpr std::size_t kKallsymsMaxTokenLength = 256;
+constexpr std::size_t kKallsymsMaxTokenLength = 512;
 constexpr std::size_t kKallsymsMarkerSearchWindow = std::size_t{4} * 1024 * 1024;
 constexpr std::size_t kKallsymsNameTailSearch = 0x40000;
 constexpr std::size_t kKallsymsMinMarkers = 8;
@@ -699,7 +699,7 @@ std::optional<TokenTable> parse_kallsyms_token_table_at(const std::uint8_t* imag
         const std::size_t search_size = std::min(maximum, available);
         const auto* const terminator =
             std::find(image + position, image + position + search_size, 0);
-        if (terminator == image + position + search_size || terminator == image + position) {
+        if (terminator == image + position + search_size) {
             return std::nullopt;
         }
         const std::size_t length = static_cast<std::size_t>(terminator - (image + position));

@@ -19,6 +19,7 @@ ZySU 是基于 KernelSU、从 SukiSU-Ultra 分叉的 Android root 方案，包�
 
 | 文档 | 内容 |
 | --- | --- |
+| [模块 preinit](guide/module-preinit.md) | SELinux 加载前动作、metadata 同步与启动失败恢复 |
 | [ksud 命令行](../ksud-cli.md) | 命令树、参数、权限、模块与启动镜像操作 |
 | [Ramdisk 编辑协议](../ramdisk-editor-protocol.md) | Manager 与 ksud 的二进制协议、请求和错误处理 |
 | [Userspace 架构与验证](../userspace-optimization.md) | 原生组件、构建约束、主机回归入口 |
@@ -41,6 +42,7 @@ SUMHP 已内置于 ksud。自动挂载按适用条件选择 OverlayFS 或 Magic 
 | [环境状态与可观测性](guide/environment-observability.md) | 设置值、有效值、运行时证据与错误定位 |
 | [启动配置与 Shell 来源限制](guide/boot-config.md) | 强制功能值、模块屏蔽默认关闭、配置兼容和回归验证 |
 | [Manager 识别与扫描验证](guide/manager-scan-validation.md) | 内核侧管理器发现、APK 签名缓存与扫描调度 |
+| [KernelSU 21 项提交适配记录](guide/upstream-20261109.md) | 逐项处理、本地兼容、回归结果与验证边界 |
 
 验证文档提供可复现步骤，不表示这些步骤已在读者设备上执行。报告问题时附上固件与内核信息、组件版本、所选后端、完整操作步骤和相关日志。
 

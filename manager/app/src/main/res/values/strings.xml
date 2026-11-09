@@ -712,4 +712,10 @@
     <string name="install_block_modules_list" tools:ignore="MissingTranslation">Modules to block</string>
     <string name="install_block_modules_summary" tools:ignore="MissingTranslation">Comma-separated module names. Empty means block nothing. Detected names are suggestions and only apply when this option is checked.</string>
     <string name="install_block_modules_invalid" tools:ignore="MissingTranslation">Use letters, digits and underscores only: 1–64 characters per name, and at most 255 characters for the complete list.</string>
+    <string name="module_preinit_no_space" tools:ignore="MissingTranslation">preinit skipped: not enough space on /metadata</string>
+    <string name="module_preinit_error" tools:ignore="MissingTranslation">preinit skipped: invalid preinit directory</string>
+    <string name="module_preinit_bootloop" tools:ignore="MissingTranslation">preinit disabled after repeated boot failures</string>
+    <string name="module_preinit_unsupported" tools:ignore="MissingTranslation">preinit skipped: not supported by the current kernel</string>
+    <string name="webui_downloads" tools:ignore="MissingTranslation">WebUI downloads</string>
+    <string name="webui_download_saved" tools:ignore="MissingTranslation">Saved to Downloads: %1$s</string>
 </resources>

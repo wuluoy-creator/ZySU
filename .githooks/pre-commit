@@ -13,7 +13,8 @@ ENDIF_SCRIPT="$REPO_ROOT/.githooks/fix_endif_comments.py"
 # 找出已暂存的 C/C++ 文件（新增/复制/修改）
 STAGED_FILES=$(
   git diff --cached --name-only --diff-filter=ACM |
-    grep -E '\.(c|cc|cpp|cxx|h|hh|hpp)$' || true
+    grep -E '\.(c|cc|cpp|cxx|h|hh|hpp)$' |
+    grep -v '^kernel/preinit/runner/nolibc/' || true
 )
 
 if [ -z "${STAGED_FILES}" ]; then

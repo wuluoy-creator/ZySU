@@ -123,10 +123,10 @@ bool ensure_file_exists(const std::string& path) {
 bool ensure_dir_exists(const std::string&) {
     return true;
 }
-int regenerate_preinit_rc() {
+int regenerate_preinit() {
     return ++rc_refreshes, 0;
 }
-void warn_regenerate_preinit_rc_failed(int) {}
+void warn_regenerate_preinit_failed(int) {}
 template <typename... Args>
 void log(const char*, Args...) {}
 #define LOGE(...) log(__VA_ARGS__)

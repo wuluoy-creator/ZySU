@@ -77,6 +77,8 @@ BootPatchV2Args parse_args(const std::vector<std::string>& args) {
             result.signature_bypass = true;
         } else if (argument == "--allow-shell") {
             result.allow_shell = true;
+        } else if (argument == "--no-preinit") {
+            result.no_preinit = true;
         } else if (argument == "--no-custom-rc") {
             result.no_custom_rc = true;
         } else if (argument == "--force-feature" || argument == "--block-module") {
@@ -492,11 +494,11 @@ int boot_patch_v2(const std::vector<std::string>& args) {
         (device_mode && (!parsed.boot.empty() || !parsed.output.empty()))) {
         LOGE("Usage: ksud boot-patch-v2 --boot <boot.img> [--module <kernelsu.ko>] "
              "--output <patched.img> [--superkey <key>] [--signature-bypass] "
-             "[--allow-shell] [--enable-adbd] [--force] [--no-custom-rc] "
+             "[--allow-shell] [--enable-adbd] [--force] [--no-custom-rc] [--no-preinit] "
              "[--force-feature FEATURE=VALUE] [--block-module NAME[,NAME...]]\n"
              "       ksud boot-patch-v2 --flash [--ota] [--module <kernelsu.ko>] "
              "[--superkey <key>] [--signature-bypass] [--allow-shell] "
-             "[--enable-adbd] [--no-custom-rc] [--force-feature FEATURE=VALUE] "
+             "[--enable-adbd] [--no-custom-rc] [--no-preinit] [--force-feature FEATURE=VALUE] "
              "[--block-module NAME[,NAME...]]");
         return 1;
     }

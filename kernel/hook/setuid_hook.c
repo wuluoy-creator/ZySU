@@ -42,8 +42,6 @@ static const struct ksu_feature_handler enhanced_security_handler = {
  */
 int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
 {
-	pr_info("handle_setresuid from %d to %d\n", old_uid, new_uid);
-
 	// if old process is root, ignore it.
 	if (old_uid != 0) {
 		// disallow any non-ksu domain escalation from non-root to root!
@@ -82,7 +80,7 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
 
 		/* Running in process context via TSR dispatcher, so we can
 		 * install the fd directly without task_work. */
-		pr_info("install fd for manager: %d\n", new_uid);
+
 		ksu_install_fd();
 		return 0;
 	}

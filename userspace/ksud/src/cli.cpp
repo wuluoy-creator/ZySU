@@ -17,6 +17,7 @@
 #include "log.hpp"
 #include "module/module.hpp"
 #include "module/module_config.hpp"
+#include "module/preinit.hpp"
 #include "profile/profile.hpp"
 #include "sepolicy/sepolicy.hpp"
 #include "su.hpp"
@@ -123,6 +124,11 @@ int cmd_module(const std::vector<std::string>& args) {
         return module_run_action(args[1]);
     } else if (subcmd == "list") {
         return module_list();
+    } else if (subcmd == "preinit" && args.size() == 2) {
+        if (args[1] == "reset")
+            return preinit::reset_bootcount(preinit_ksu_dir());
+        preinit::print_status(preinit_ksu_dir(), PREINIT_STATUS_PATH);
+        return 0;
     } else if (subcmd == "config") {
         // Handle module config subcommands
         if (args.size() < 2) {
@@ -139,7 +145,7 @@ int cmd_module(const std::vector<std::string>& args) {
 int cmd_initrc(const std::vector<std::string>& args) {
     const std::string& subcmd = args[0];
     if (subcmd == "refresh") {
-        return regenerate_preinit_rc();
+        return regenerate_preinit();
     }
 
     terminal::errorf("Unknown initrc subcommand: %s\n", subcmd.c_str());

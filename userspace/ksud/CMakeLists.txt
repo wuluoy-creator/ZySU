@@ -312,6 +312,8 @@ set(KSUD_OUR_SOURCES
     src/core/su_path.cpp
     src/core/su_transition.cpp
     src/core/restorecon.cpp
+    src/module/preinit.cpp
+    src/module/preinit_platform.cpp
     src/module/module.cpp
     src/module/module_config.cpp
     src/module/metamodule.cpp
@@ -418,8 +420,11 @@ add_dependencies(ksud_our_objs ksud_version)
 target_include_directories(ksud_our_objs PRIVATE ${KSUD_INCLUDE_DIRS})
 target_compile_definitions(ksud_our_objs PRIVATE ${KSUD_DEFINES})
 target_compile_features(ksud_our_objs PUBLIC cxx_std_17)
-# Daemon sources do not use exceptions; omit landing pads and unwind metadata.
+# Omit landing pads for the daemon; preinit catches filesystem failures at its
+# module boundary so a bad copy cannot abort metadata synchronization.
 target_compile_options(ksud_our_objs PRIVATE ${KSUD_DEVIRT_FLAGS} -fno-exceptions)
+set_source_files_properties(src/module/preinit.cpp src/module/preinit_platform.cpp
+    PROPERTIES COMPILE_OPTIONS -fexceptions)
 zysu_enable_clang_tidy(ksud_our_objs CXX)
 
 # Generated compressed asset bytes are compiled into ksud, but are not useful

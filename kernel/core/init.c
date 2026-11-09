@@ -24,6 +24,7 @@
 #include "sumh_bootstrap.h"
 #include "hook/lsm_hook.h"
 #include "infra/symbol_resolver.h"
+#include "preinit/preinit.h"
 #include "klog.h" // IWYU pragma: keep
 #include "ksu.h"
 #include "runtime/ksud_boot.h"
@@ -52,6 +53,9 @@ module_param(allow_shell, bool, 0);
 
 bool ksu_no_custom_rc = false;
 module_param_named(norc, ksu_no_custom_rc, bool, 0);
+
+bool ksu_preinit_enabled = true;
+module_param_named(preinit, ksu_preinit_enabled, bool, 0);
 
 bool ksu_bundled;
 module_param_named(bundled, ksu_bundled, bool, 0);
@@ -133,6 +137,9 @@ static int __init kernelsu_init(void)
 	}
 
 	ksu_init_symbol_resolver();
+	ret = ksu_selinux_inode_init();
+	if (ret)
+		return ret;
 
 	ksu_cred = prepare_creds();
 	if (!ksu_cred) {
@@ -201,6 +208,7 @@ static int __init kernelsu_init(void)
 	} else {
 		ksu_throne_tracker_init();
 		ksu_ksud_init();
+		ksu_preinit_init();
 	}
 
 #ifndef CONFIG_KSU_DEBUG
@@ -218,8 +226,10 @@ static void kernelsu_exit(void)
 	ksu_sumh_exit();
 	ksu_supercalls_exit();
 
-	if (!ksu_late_loaded)
+	if (!ksu_late_loaded) {
 		ksu_ksud_exit();
+		ksu_preinit_exit();
+	}
 
 	// Wait for any in-flight RCU readers (e.g. handlers traversing
 	// allow_list) before releasing the data structures they access.

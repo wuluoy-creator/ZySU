@@ -29,12 +29,12 @@ class KsuService : RootService() {
         }
 
     private fun loadAllPackages(): List<PackageInfo> {
-        val tmp = arrayListOf<PackageInfo>()
-        for (user in (getSystemService(USER_SERVICE) as UserManager).userProfiles) {
-            val userId = user.getUserIdCompat()
-            tmp += getInstalledPackagesAsUser(userId)
-        }
-        return tmp
+        val users = getSystemService(USER_SERVICE) as UserManager
+        return loadUserPackageSnapshot(
+            users,
+            { users.userProfiles.map { it.getUserIdCompat() } },
+            ::getInstalledPackagesAsUser,
+        )
     }
 
     internal inner class Stub : IKsuInterface.Stub() {

@@ -20,9 +20,16 @@ import com.zying.zysu.ui.util.listModules
 import com.zying.zysu.ui.util.setTaskDescriptionLabel
 import com.zying.zysu.ui.viewmodel.SuperUserViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.File
+
+// Javascript bridge calls run on WebView's worker thread. The shared loader joins
+// an active scan and reuses the service snapshot, including all Android users.
+internal fun webUIApps(): List<SuperUserViewModel.AppInfo> = runBlocking {
+    SuperUserViewModel.loadAppsForWebUI()
+}
 
 @SuppressLint("SetJavaScriptEnabled")
 internal suspend fun prepareWebView(activity: Activity, moduleId: String, state: WebUIState) {
@@ -47,10 +54,6 @@ internal suspend fun prepareWebView(activity: Activity, moduleId: String, state:
                 state.uiEvent = WebUIEvent.Error(activity.getString(R.string.module_unavailable, name))
             }
             return@withContext
-        }
-
-        if (SuperUserViewModel.apps.isEmpty()) {
-            SuperUserViewModel().fetchAppList()
         }
 
         val shell = createRootShell(true)
@@ -136,9 +139,10 @@ internal suspend fun prepareWebView(activity: Activity, moduleId: String, state:
                     }
                 }
 
-                webView.addJavascriptInterface(
-                    KsuWebViewInterface(activity, webView, moduleId, state), "ksu"
-                )
+                val bridge = KsuWebViewInterface(activity, webView, moduleId, state)
+                state.webViewInterface = bridge
+                webView.addJavascriptInterface(bridge, "ksu")
+                bridge.attachDownloads()
                 state.uiEvent = WebUIEvent.WebViewReady
             }
         } finally {

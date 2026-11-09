@@ -20,6 +20,7 @@
 #include "policy/allowlist.h"
 #include "policy/app_profile.h"
 #include "arch.h"
+#include "util.h"
 #include "policy/feature.h"
 #include "hook/syscall_hook.h"
 #include "klog.h" // IWYU pragma: keep
@@ -92,15 +93,6 @@ bool ksu_sucompat_exec_enabled(void)
 	return READ_ONCE(ksu_su_compat_enabled) && !ksu_sucompat_vfs_active();
 }
 
-static void __user *userspace_stack_buffer(const void *d, size_t len)
-{
-	// To avoid having to mmap a page in userspace, just write below the
-	// stack pointer.
-	char __user *p = (void __user *)current_user_stack_pointer() - len;
-
-	return copy_to_user(p, d, len) ? NULL : p;
-}
-
 static char __user *ksud_user_path(void)
 {
 	static const char ksud_path[] = KSUD_PATH;
@@ -150,7 +142,7 @@ static int resolve_exec_path(const char __user *filename_user, bool execveat,
 	if (!filename_user || !path)
 		return -EFAULT;
 	if (execveat) {
-		dfd = (int)PT_REGS_PARM1(regs);
+		dfd = (int)PT_REGS_SYSCALL_PARM1(regs);
 		flags = (int)PT_REGS_PARM5(regs);
 		if (flags & ~(AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW))
 			return -EINVAL;
@@ -293,7 +285,7 @@ ksu_handle_execve_sucompat_common(const char __user **filename_user,
 			goto do_orig_execve;
 		if (!READ_ONCE(ksu_su_compat_enabled))
 			goto do_orig_execve;
-		if (execveat && ((int)PT_REGS_PARM1(regs) != AT_FDCWD ||
+		if (execveat && ((int)PT_REGS_SYSCALL_PARM1(regs) != AT_FDCWD ||
 				 (int)PT_REGS_PARM5(regs) != 0))
 			goto do_orig_execve;
 		if (!is_su_path(*filename_user))
@@ -336,7 +328,7 @@ ksu_handle_execve_sucompat_common(const char __user **filename_user,
 	pending_sucompat =
 	    ksu_sulog_capture_sucompat(*filename_user, argv_user, GFP_KERNEL);
 	exec_regs = *regs;
-	PT_REGS_PARM1(&exec_regs) = tmp_fd;
+	PT_REGS_SYSCALL_PARM1(&exec_regs) = tmp_fd;
 	PT_REGS_PARM2(&exec_regs) = (unsigned long)empty_path;
 	PT_REGS_PARM3(&exec_regs) = (unsigned long)argv_user;
 	PT_REGS_SYSCALL_PARM4(&exec_regs) = envp;

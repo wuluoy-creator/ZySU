@@ -707,4 +707,10 @@
     <string name="install_block_modules_list">要屏蔽的模块</string>
     <string name="install_block_modules_summary">用逗号分隔模块名，留空则不屏蔽。检测到的模块仅为建议，勾选此项后才会生效。</string>
     <string name="install_block_modules_invalid">模块名仅允许字母、数字和下划线，每项 1–64 个字符，整个列表最多 255 个字符。</string>
+    <string name="module_preinit_no_space">preinit 未生效：/metadata 空间不足</string>
+    <string name="module_preinit_error">preinit 未生效：preinit 目录无效</string>
+    <string name="module_preinit_bootloop">多次启动失败，preinit 已停用</string>
+    <string name="module_preinit_unsupported">preinit 未生效：当前内核不支持</string>
+    <string name="webui_downloads">WebUI 下载</string>
+    <string name="webui_download_saved">已保存到下载目录：%1$s</string>
 </resources>

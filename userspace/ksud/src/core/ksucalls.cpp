@@ -9,6 +9,7 @@
 #include <sys/syscall.h>
 #include <sys/ucontext.h>
 #include <unistd.h>
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <csignal>
@@ -347,6 +348,34 @@ bool ensure_uapi_version_matched(std::string* error) {
 
 int grant_root() {
     return ksuctl(KSU_IOCTL_GRANT_ROOT, nullptr);
+}
+
+bool is_preinit_supported() {
+    return (get_flags() & KSU_GET_INFO_FLAG_PREINIT) != 0;
+}
+
+std::optional<std::vector<uint64_t>> lookup_symbols(const std::vector<std::string>& names) {
+    std::vector<uint64_t> addresses(names.size());
+    for (size_t start = 0; start < names.size();) {
+        const auto count = std::min<size_t>(names.size() - start, KSU_LOOKUP_SYMBOLS_MAX);
+        std::vector<uint64_t> pointers;
+        pointers.reserve(count);
+        for (size_t i = start; i < start + count; ++i) {
+            if (names[i].find('\0') != std::string::npos) {
+                errno = EINVAL;
+                return std::nullopt;
+            }
+            pointers.push_back(reinterpret_cast<uint64_t>(names[i].c_str()));
+        }
+        ksu_lookup_symbols_cmd command{};
+        command.names = reinterpret_cast<uint64_t>(pointers.data());
+        command.addrs = reinterpret_cast<uint64_t>(addresses.data() + start);
+        command.count = static_cast<uint32_t>(count);
+        if (ksuctl(KSU_IOCTL_LOOKUP_SYMBOLS, &command) < 0)
+            return std::nullopt;
+        start += count;
+    }
+    return addresses;
 }
 
 int set_ksu_no_new_privs() {

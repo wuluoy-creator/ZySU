@@ -18,6 +18,7 @@ namespace ksud {
 struct KsuConfigArgs {
     bool allow_shell = false;
     bool no_custom_rc = false;
+    bool no_preinit = false;
     std::map<uint32_t, uint64_t> forced_features;
     std::vector<std::string> blocked_modules;
 
@@ -110,6 +111,8 @@ struct KsuConfigArgs {
             append("allow_shell=1");
         if (no_custom_rc)
             append("norc=1");
+        if (no_preinit)
+            append("preinit=0");
         if (!forced_features.empty())
             append("force_feature=" + force_features());
         if (!blocked_modules.empty())

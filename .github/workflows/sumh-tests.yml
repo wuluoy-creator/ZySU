@@ -6,9 +6,11 @@ on:
     paths:
       - 'kernel/sumh/**'
       - 'kernel/feature/selinux_hide.c'
-      - 'kernel/selinux/sepolicy.c'
+      - 'kernel/selinux/**'
+      - 'kernel/infra/btf_parser.*'
+      - 'kernel/infra/file_wrapper.c'
       - 'uapi/feature.h'
-      - 'scripts/ci/test_selinux_hide_*.py'
+      - 'scripts/ci/test_selinux_*.py'
       - 'scripts/ci/test_sepolicy_avtab.py'
       - 'userspace/ksud/sumhp/**'
       - 'userspace/ksud/src/cli_args.cpp'
@@ -34,9 +36,11 @@ on:
     paths:
       - 'kernel/sumh/**'
       - 'kernel/feature/selinux_hide.c'
-      - 'kernel/selinux/sepolicy.c'
+      - 'kernel/selinux/**'
+      - 'kernel/infra/btf_parser.*'
+      - 'kernel/infra/file_wrapper.c'
       - 'uapi/feature.h'
-      - 'scripts/ci/test_selinux_hide_*.py'
+      - 'scripts/ci/test_selinux_*.py'
       - 'scripts/ci/test_sepolicy_avtab.py'
       - 'userspace/ksud/sumhp/**'
       - 'userspace/ksud/src/cli_args.cpp'
@@ -82,6 +86,8 @@ jobs:
           python3 scripts/ci/test_sumh_directory_stream.py --cc clang
           python3 scripts/ci/test_sumh_mount_views.py --cc clang
           python3 scripts/ci/test_sumh_native_namespace.py --cc clang
+          python3 scripts/ci/test_selinux_btf.py --cc clang
+          python3 scripts/ci/test_selinux_policy_updates.py --cc clang
           python3 scripts/ci/test_selinux_hide_status.py --cc clang
           python3 scripts/ci/test_selinux_hide_context.py --cc clang
           python3 scripts/ci/test_selinux_hide_setprocattr.py --cc clang

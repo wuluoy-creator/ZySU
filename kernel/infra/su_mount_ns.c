@@ -97,7 +97,7 @@ try_setns:
 	}
 
 	fd_install(fd, ns_file);
-	ret = ksu_sys_setns(fd, CLONE_NEWNS);
+	ret = ksyscall(setns, fd, CLONE_NEWNS);
 
 	ksu_close_fd(fd);
 
@@ -128,9 +128,9 @@ static void ksu_mnt_ns_individual(void)
 	long ret;
 	int pm_ret;
 
-	ret = ksys_unshare(CLONE_NEWNS);
+	ret = ksyscall(unshare, CLONE_NEWNS);
 	if (ret) {
-		pr_warn("call ksys_unshare failed: %ld\n", ret);
+		pr_warn("call sys_unshare failed: %ld\n", ret);
 		return;
 	}
 

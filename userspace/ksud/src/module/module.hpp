@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
@@ -29,7 +30,8 @@ int uninstall_all_modules();
 int prune_modules();
 int disable_all_modules();
 int handle_updated_modules();
-int regenerate_preinit_rc();
+std::filesystem::path preinit_ksu_dir();
+int regenerate_preinit();
 
 // Script execution
 struct ScriptWait {

@@ -9,6 +9,7 @@
 #include <linux/err.h>
 #include <linux/cred.h>
 #include <linux/ptrace.h>
+#include <linux/uaccess.h>
 
 #include "arch.h"
 
@@ -31,7 +32,7 @@ static_assert(1 == 0, "Unsupported architecture!");
 	({                                                                     \
 		extern long KSU_SYS_PREFIX(name)(const struct pt_regs *);      \
 		struct pt_regs __ksu_regs = {0};                               \
-		PT_REGS_PARM1(&__ksu_regs) = (unsigned long)(a);               \
+		PT_REGS_SYSCALL_PARM1(&__ksu_regs) = (unsigned long)(a);       \
 		PT_REGS_PARM2(&__ksu_regs) = (unsigned long)(b);               \
 		PT_REGS_PARM3(&__ksu_regs) = (unsigned long)(c);               \
 		PT_REGS_SYSCALL_PARM4(&__ksu_regs) = (unsigned long)(d);       \
@@ -58,8 +59,16 @@ static_assert(1 == 0, "Unsupported architecture!");
 	__ksyscall_exp(ksyscall_,                                              \
 		       __ksyscall_count_args(__VA_ARGS__))(__VA_ARGS__)
 
+static inline void __user *userspace_stack_buffer(const void *d, size_t len)
+{
+	// To avoid having to mmap a page in userspace, just write below the
+	// stack pointer.
+	char __user *p = (void __user *)current_user_stack_pointer() - len;
+
+	return copy_to_user(p, d, len) ? NULL : p;
+}
+
 #define ksu_close_fd(fd) ({ ksyscall(close, fd); })
-#define ksu_sys_setns(fd, flags) ({ ksyscall(setns, fd, flags); })
 
 static inline struct file *ksu_filp_open_nonotify(const char *path, int flags)
 {

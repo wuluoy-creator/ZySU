@@ -1254,6 +1254,11 @@ int uninstall(const std::optional<std::string>& magiskboot_path) {
     if (fs_error)
         LOGW("Failed to remove %s: %s", DAEMON_PATH, fs_error.message().c_str());
     fs_error.clear();
+    for (const auto* directory : {PREINIT_DIR_VOLD, PREINIT_DIR_WATCHDOG, PREINIT_DIR_DEFAULT}) {
+        std::filesystem::remove_all(directory, fs_error);
+        if (fs_error)
+            LOGW("Failed to remove %s: %s", directory, fs_error.message().c_str());
+    }
     std::filesystem::remove_all(MODULE_DIR, fs_error);
     if (fs_error)
         LOGW("Failed to remove %s: %s", MODULE_DIR, fs_error.message().c_str());

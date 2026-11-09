@@ -11,6 +11,7 @@
 #include "module/metamodule.hpp"
 #include "module/module.hpp"
 #include "module/module_config.hpp"
+#include "module/preinit.hpp"
 #include "profile/profile.hpp"
 #include "sulog.hpp"
 #include "umount.hpp"
@@ -187,7 +188,7 @@ int on_post_fs_data() {
 
     // Refresh custom init rc for the next boot. This also covers manual edits in
     // /data/adb/initrc.d.
-    if (regenerate_preinit_rc() != 0) {
+    if (regenerate_preinit() != 0) {
         LOGW("regenerate preinit rc failed");
     }
 
@@ -273,6 +274,7 @@ void on_boot_completed() {
 
     // Report to kernel
     report_boot_complete();
+    preinit::on_boot_completed(preinit_ksu_dir());
     sumhp::embedded_boot_completed();
 
     // Final retry for late properties and earlier write failures.

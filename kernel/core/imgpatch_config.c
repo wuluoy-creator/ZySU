@@ -11,6 +11,7 @@
 #include "klog.h" // IWYU pragma: keep
 #include "ksu.h"
 #include "policy/allowlist.h"
+#include "preinit/preinit.h"
 #include "policy/feature.h"
 #include "feature/module_blacklist.h"
 #include "uapi/imgpatch_config.h"
@@ -140,7 +141,7 @@ int ksu_imgpatch_config_apply(void)
 
 	config = imgpatch_config_store;
 	if (config.magic != KSU_IMGPATCH_CONFIG_MAGIC ||
-	    (config.version != 2 &&
+	    (config.version != 2 && config.version != 3 &&
 	     config.version != KSU_IMGPATCH_CONFIG_VERSION) ||
 	    config.size != sizeof(config)) {
 		pr_err("imgpatch config header is invalid\n");
@@ -161,6 +162,9 @@ int ksu_imgpatch_config_apply(void)
 		ksu_feature_parse_forced(config.force_features);
 		ksu_module_blacklist_parse(config.block_modules);
 	}
+	if (config.version >= 4)
+		ksu_preinit_enabled =
+		    !(config.flags & KSU_IMGPATCH_CONFIG_NO_PREINIT);
 	ksu_no_custom_rc = !!(config.flags & KSU_IMGPATCH_CONFIG_NO_CUSTOM_RC);
 	ksu_bundled = !!(config.flags & KSU_IMGPATCH_CONFIG_BUNDLED);
 	allow_shell = !!(config.flags & KSU_IMGPATCH_CONFIG_ALLOW_SHELL);

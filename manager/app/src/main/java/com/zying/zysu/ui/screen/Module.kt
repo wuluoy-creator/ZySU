@@ -1328,6 +1328,15 @@ fun ModuleItem(
                 textDecoration = textDecoration,
             )
 
+            module.preinitWarning()?.let { warning ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
             if (!isHideTagRow) {
                 val showMountStrategy = mountInfo != null && mountConfigEnabled && !module.metamodule
                 Spacer(Modifier.height(8.dp))

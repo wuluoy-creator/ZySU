@@ -61,7 +61,8 @@ struct FixtureSymbol {
 };
 
 std::pair<std::vector<std::uint8_t>, std::uint64_t> build_kallsyms_fixture(
-    const std::string& layout) {
+    const std::string& layout, const std::vector<std::uint8_t>* first_token = nullptr,
+    bool corrupt_index = false) {
     constexpr std::uint64_t kBase = 0xffffffc008000000ULL;
     constexpr std::size_t kImageSize = 0x200000;
     constexpr std::size_t kCount = 2049;
@@ -80,14 +81,20 @@ std::pair<std::vector<std::uint8_t>, std::uint64_t> build_kallsyms_fixture(
     std::vector<std::uint16_t> token_offsets;
     for (std::size_t value = 0; value <= 0xff; ++value) {
         token_offsets.push_back(static_cast<std::uint16_t>(token_table.size()));
-        token_table.push_back(value >= 0x20 && value <= 0x7e ? static_cast<std::uint8_t>(value)
-                                                             : static_cast<std::uint8_t>('x'));
+        if (value == 0 && first_token) {
+            token_table.insert(token_table.end(), first_token->begin(), first_token->end());
+        } else {
+            token_table.push_back(value >= 0x20 && value <= 0x7e ? static_cast<std::uint8_t>(value)
+                                                                 : static_cast<std::uint8_t>('x'));
+        }
         token_table.push_back(0);
     }
     std::vector<std::uint8_t> token_index(512);
     for (std::size_t index = 0; index < token_offsets.size(); ++index) {
         put_u16(token_index, index * 2, token_offsets[index]);
     }
+    if (corrupt_index)
+        put_u16(token_index, 0, 1);
 
     std::vector<std::uint8_t> names;
     std::vector<std::uint32_t> markers;
@@ -230,6 +237,27 @@ void test_kallsyms_layout(const std::string& layout) {
     assert(normalized.value().address == fixture.second + 0x2000 + (1024ULL * 0x20));
 }
 
+void test_kallsyms_token_bounds() {
+    for (const auto* layout : {"pre-6.4", "6.4+"}) {
+        for (const std::size_t length : {0, 257, 512, 513}) {
+            const std::vector<std::uint8_t> token(length, 'a');
+            auto fixture = build_kallsyms_fixture(layout, &token);
+            auto recovered =
+                lkm::recover_arm64_kallsyms(fixture.first.data(), fixture.first.size());
+            assert(static_cast<bool>(recovered) == (length <= 512));
+            if (recovered) {
+                assert(recovered.value().count == 2049);
+                assert(recovered.value().symbols.resolve("_text").value().address ==
+                       fixture.second);
+            }
+        }
+        for (const auto& token : {std::vector<std::uint8_t>{0x80}, std::vector<std::uint8_t>{}}) {
+            auto fixture = build_kallsyms_fixture(layout, &token, token.empty());
+            assert(!lkm::recover_arm64_kallsyms(fixture.first.data(), fixture.first.size()));
+        }
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -239,6 +267,7 @@ int main() {
         test_checked_arithmetic();
         test_kallsyms_layout("pre-6.4");
         test_kallsyms_layout("6.4+");
+        test_kallsyms_token_bounds();
         return 0;
     } catch (...) {
         return 1;

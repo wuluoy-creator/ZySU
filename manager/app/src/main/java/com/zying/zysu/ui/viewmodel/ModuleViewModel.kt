@@ -85,6 +85,7 @@ class ModuleViewModel : ViewModel() {
         val actionIconPath: String? = null,
         val webUiIconPath: String? = null,
         var config: ModuleConfig? = null,
+        val preinit: String = "",
 
     )
 
@@ -164,6 +165,7 @@ class ModuleViewModel : ViewModel() {
                             obj.optString("dir_id", obj.getString("id")),
                             obj.optString("actionIcon").takeIf { it.isNotBlank() },
                             obj.optString("webuiIcon").takeIf { it.isNotBlank() },
+                            preinit = obj.optString("preinit"),
                         )
                     }.toList()
 

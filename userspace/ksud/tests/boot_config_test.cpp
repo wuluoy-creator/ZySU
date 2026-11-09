@@ -105,15 +105,23 @@ int main() {
     assert(!maximum.add_block_modules("e"));
     assert(maximum.block_modules() == full);
 
-    const std::vector<std::string> args = {
-        "--allow-shell",  "--no-custom-rc", "--force-feature", "6=1", "--force-feature", "sulog=1",
-        "--block-module", "mkp,vr",         "--block-module",  "vr"};
+    const std::vector<std::string> args = {"--allow-shell",
+                                           "--no-custom-rc",
+                                           "--no-preinit",
+                                           "--force-feature",
+                                           "6=1",
+                                           "--force-feature",
+                                           "sulog=1",
+                                           "--block-module",
+                                           "mkp,vr",
+                                           "--block-module",
+                                           "vr"};
     const auto ramdisk = legacy::parse_boot_patch_args(args);
     const auto image = direct::parse_args(args);
     assert(ramdisk.valid && image.valid);
     assert(ramdisk.module_params() == image.module_params());
     assert(ramdisk.module_params() ==
-           "allow_shell=1 norc=1 force_feature=2:1,6:1 block_modules=mkp,vr");
+           "allow_shell=1 norc=1 preinit=0 force_feature=2:1,6:1 block_modules=mkp,vr");
     assert(!apply_ramdisk_config(ramdisk) && ramdisk_has_config);
     assert(ramdisk_config == ramdisk.module_params());
     assert(!apply_ramdisk_config({}) && !ramdisk_has_config);
@@ -142,6 +150,14 @@ int main() {
     assert(inject_imgpatch_config_to_lkm("module", false, false, false, {}));
     stored = read_config();
     assert(!stored.flags && !stored.force_features[0] && !stored.block_modules[0]);
+
+    reset_module(3);
+    assert(!inject_imgpatch_config_to_lkm("module", true, false, false, image));
+    assert(writes == 0 && read_config().version == 3);
+    auto old_image = image;
+    old_image.no_preinit = false;
+    assert(inject_imgpatch_config_to_lkm("module", true, false, false, old_image));
+    assert(read_config().version == 3);
 
     reset_module(2);
     assert(inject_imgpatch_config_to_lkm("module", true, false, false, {}));

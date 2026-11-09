@@ -47,6 +47,13 @@ class SuperUserViewModel : ViewModel() {
         private const val TAG = "SuperUserViewModel"
         const val SHELL_UID = 2000
         private val appsLock = Any()
+        private val webUiLoader by lazy { SuperUserViewModel() }
+
+        suspend fun loadAppsForWebUI(): List<AppInfo> {
+            webUiLoader.fetchAppList(useCache = true)
+            return apps
+        }
+
         var apps by mutableStateOf<List<AppInfo>>(emptyList())
         private val _isAppListLoaded = MutableStateFlow(false)
         val isAppListLoaded = _isAppListLoaded.asStateFlow()
@@ -466,8 +473,9 @@ class SuperUserViewModel : ViewModel() {
         }
     }
 
-    suspend fun fetchAppList(forceRefresh: Boolean = false) {
+    suspend fun fetchAppList(forceRefresh: Boolean = false, useCache: Boolean = false) {
         fetchAppListMutex.withLock {
+            if (useCache && sharedHasLoaded) return@withLock
             sharedIsRefreshing = true
             loadingProgress = 0f
             sharedLoadError = null

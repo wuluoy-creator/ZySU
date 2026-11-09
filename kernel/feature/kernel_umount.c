@@ -28,6 +28,7 @@
 #include "feature/kernel_umount.h"
 #include "klog.h" // IWYU pragma: keep
 #include "ksu.h"
+#include "util.h"
 #include "sumh_proc_read_hooks.h"
 #include "runtime/ksud_boot.h"
 #include "runtime/ksud.h"
@@ -429,7 +430,7 @@ static void umount_tw_func(struct callback_head *cb)
 	if (READ_ONCE(ksu_unshare_mnt_enabled) &&
 	    !(current->flags & PF_EXITING) && current->fs && current->nsproxy) {
 		/* Clone the remaining mounts only after all detach attempts. */
-		int ret = ksys_unshare(CLONE_NEWNS);
+		int ret = ksyscall(unshare, CLONE_NEWNS);
 
 		if (ret)
 			pr_warn_ratelimited("unshare_mnt: pid %d failed: %d\n",
