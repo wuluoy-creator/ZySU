@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_feature_running">内核中已生效</string>
+    <string name="sumh_feature_not_running">内核中未生效</string>
+    <string name="sumh_feature_runtime_unknown">内核运行状态未知</string>
+</resources>

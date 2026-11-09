@@ -25,7 +25,7 @@ class SUMHConfigEffectsTest {
     fun mountChangesRequireRebootWithoutApplyingKernelFeatures() {
         for (key in listOf(
             "work_dir", "mountsource", "fs_type", "mirror_dir", "mount_backend",
-            "overlayfs_enabled", "magic_mount_enabled", "partitions",
+            "mirror_img_size_mb", "overlay_writable", "overlayfs_enabled", "magic_mount_enabled", "partitions",
         )) {
             val plan = planSUMHConfigSave(setOf(key), kernelAvailable = true)
             assertTrue(plan.effects.rebootRequired, key)

@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">Verbose</string>
     <string name="sumh_logs_filter_warn">Babala</string>
     <string name="sumh_logs_kernel">Kernel Log</string>
-    <string name="sumh_maps_add_failed">Nabigong idagdag ang maps rule</string>
-    <string name="sumh_maps_add_success">Naidagdag ang maps rule</string>
-    <string name="sumh_maps_clear_failed">Nabigong i-clear ang mga maps rule</string>
-    <string name="sumh_maps_cleared">Na-clear ang mga maps rule</string>
-    <string name="sumh_maps_spoof_dev">Spoof na dev</string>
-    <string name="sumh_maps_spoof_ino">Spoof na inode</string>
-    <string name="sumh_maps_spoof_path">Spoof na path</string>
-    <string name="sumh_maps_target_dev">Target na dev (0=anuman)</string>
-    <string name="sumh_maps_target_ino">Target na inode</string>
-    <string name="sumh_maps_title">Maps spoof (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">Mount base / mirror path</string>
     <string name="sumh_mismatch_default">May natukoy na protocol mismatch. Mangyaring i-update ang kernel o module.</string>
-    <string name="sumh_module_rules_add">Magdagdag</string>
-    <string name="sumh_module_rules_placeholder">/path/sa/loob/ng/system/o/vendor</string>
-    <string name="sumh_module_rules_title">Mga custom na panuntunan para sa module na ito</string>
     <string name="sumh_mount_config">Mount config</string>
     <string name="sumh_mount_mode">Mount mode</string>
     <string name="sumh_mount_mode_auto">Auto</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">Burahin ang mga log ng daemon? Hindi mababago ang mga log ng kernel.</string>
     <string name="sumh_logs_search">Maghanap sa mga log</string>
     <string name="sumh_logs_actions">Mga aksyon sa log</string>
-    <string name="sumh_maps_add_action">Idagdag</string>
-    <string name="sumh_maps_desc">Itago ang tunay na inode, device at path sa maps ng proseso.</string>
     <string name="sumh_maps_spoof">Pagpapanggap ng Maps</string>
     <string name="sumh_maps_spoof_desc">I-map ang path, numero ng device at inode ng mga rehiyon ng memorya</string>
     <string name="sumh_mirror_path_desc">Iwang blangko upang awtomatikong pumili ng directory ang SUMHP.</string>
     <string name="sumh_mount_filter">Salain ayon sa mode ng mount</string>
     <string name="sumh_mount_hide">Itago ang mga mount</string>
     <string name="sumh_mount_hide_desc">Itago ang mga entry ng module sa view ng mount</string>
-    <string name="sumh_mount_mode_hide">Itago</string>
     <string name="sumh_mount_total">Mga mount ng module</string>
     <string name="sumh_mountsource_invalid">Hindi maaaring blangko ang pangalan o maglaman ng whitespace, backslash o mga control character.</string>
     <string name="sumh_no_conflicts">Walang natagpuang salungatan sa mount</string>

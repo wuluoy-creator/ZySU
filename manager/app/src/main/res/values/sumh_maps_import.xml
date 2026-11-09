@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation,PluralsCandidate">
+    <string name="sumh_maps_import_title">Import path rules</string>
+    <string name="sumh_maps_import_format">One rule per line: target path, a Tab, then replacement path. Empty lines and lines starting with # are ignored. Path spaces are preserved.</string>
+    <string name="sumh_maps_import_input">Path rules</string>
+    <string name="sumh_maps_import_preview">Preview: %1$d new, %2$d replacements, %3$d errors</string>
+    <string name="sumh_maps_import_empty">Enter at least one changed rule.</string>
+    <string name="sumh_maps_import_line_error">Line %1$d: %2$s</string>
+    <string name="sumh_maps_import_format_error">Use exactly one Tab between the two paths.</string>
+    <string name="sumh_maps_import_duplicate">This target appears more than once in the import.</string>
+    <string name="sumh_maps_import_replacements">Existing targets to replace</string>
+    <string name="sumh_maps_import_allow_replace">Replace these saved rules</string>
+    <string name="sumh_maps_import_confirm">Import</string>
+</resources>

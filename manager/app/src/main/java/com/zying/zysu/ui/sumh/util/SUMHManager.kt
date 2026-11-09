@@ -49,6 +49,16 @@ object SUMHManager {
         val mounts: MountState,
     )
     data class RuleSnapshot(val system: JSONObject, val hideRules: List<String>)
+    data class BackupSnapshot(val config: JSONObject, val hidePaths: List<String>)
+    data class BackupRestoreResult(
+        val configPersisted: Boolean,
+        val configApplied: Boolean,
+        val addedPaths: Int,
+        val removedPaths: Int,
+        val errors: List<String>,
+        val runtimePending: Boolean,
+        val rebootRequired: Boolean,
+    )
 
     private suspend fun <T> read(block: () -> T): T = withContext(Dispatchers.IO) {
         operations.withLock { block() }
@@ -125,6 +135,74 @@ object SUMHManager {
 
     suspend fun listHideRules(): List<String> = read { readHideRules() }
 
+    suspend fun backupSnapshot(): BackupSnapshot = read {
+        BackupSnapshot(objectResult("config", "show", "--stored"), readHideRules())
+    }
+
+    internal suspend fun restoreBackup(backup: SUMHConfigBackup, expected: BackupSnapshot): BackupRestoreResult =
+        withContext(NonCancellable + Dispatchers.IO) {
+            operations.withLock {
+                val current = BackupSnapshot(objectResult("config", "show", "--stored"), readHideRules())
+                check(sumhJsonEqual(current.config, expected.config) && current.hidePaths == expected.hidePaths) {
+                    "SUMH settings changed; preview the backup again"
+                }
+                validateSUMHRestore(backup, current.config)
+                val changedKeys = backup.config.keys().asSequence().filter { key ->
+                    !current.config.has(key) || !sumhJsonEqual(current.config.get(key), backup.config.get(key))
+                }.toSet()
+                val effects = sumhConfigEffects(changedKeys)
+                val errors = mutableListOf<String>()
+                var persisted = changedKeys.isEmpty()
+                var applied = false
+                var added = 0
+                var removed = 0
+                try {
+                    if (changedKeys.isNotEmpty()) {
+                        try {
+                            command("config", "merge-json", backup.config.toString())
+                            persisted = true
+                        } catch (error: Exception) {
+                            errors += "Configuration: ${error.message.orEmpty()}"
+                        }
+                    }
+                    if (persisted && effects.runtimeRequired) {
+                        try {
+                            if (kernelSnapshot().optBoolean("sumh_available")) {
+                                command("config", "apply")
+                                applied = true
+                            }
+                        } catch (error: Exception) {
+                            errors += "Runtime apply: ${error.message.orEmpty()}"
+                        }
+                    }
+                    if (persisted) {
+                        val old = current.hidePaths.toSet()
+                        val desired = backup.hidePaths.toSet()
+                        for (path in backup.hidePaths.filterNot { it in old }) {
+                            try { command("hide", "add", path); added++ }
+                            catch (error: Exception) { errors += "Add $path: ${error.message.orEmpty()}" }
+                        }
+                        for (path in current.hidePaths.filterNot { it in desired }) {
+                            try {
+                                requireSUMHHideRemoval(path, old, kernelSnapshot())
+                                command("hide", "remove", path)
+                                removed++
+                            } catch (error: Exception) { errors += "Remove $path: ${error.message.orEmpty()}" }
+                        }
+                        try {
+                            val stored = readHideRules().toSet()
+                            added = backup.hidePaths.count { it !in old && it in stored }
+                            removed = current.hidePaths.count { it !in desired && it !in stored }
+                        } catch (error: Exception) {
+                            errors += "Verify hidden paths: ${error.message.orEmpty()}"
+                        }
+                    }
+                } finally { changes.value++ }
+                BackupRestoreResult(persisted, applied, added, removed, errors,
+                    persisted && effects.runtimeRequired && !applied, persisted && effects.rebootRequired)
+            }
+        }
+
     internal suspend fun kernelBuild(): KernelBuildState = read {
         val result = objectResult("sumh", "kernel-build", "show")
         KernelBuildState(
@@ -144,6 +222,12 @@ object SUMHManager {
         val mountState = readMountState(config, system)
         val mounts = objectResult("api", "mounts")
         mounts.keys().forEach { key -> system.put(key, mounts.get(key)) }
+        if (mountState.available) {
+            val kstatStatus = try { objectResult("sumh", "kstat", "status") }
+                catch (_: Exception) { null }
+            if (SUMHUiAdapter.parseManagedKstatStatus(kstatStatus) != null)
+                system.put("managed_kstat_status", kstatStatus)
+        }
         val hides = readHideRules()
         Snapshot(
             system, config,
@@ -214,6 +298,16 @@ object SUMHManager {
         check(previous != null) { "Module is no longer mountable" }
         if (mode != previous.mode || rules != previous.rules)
             command("module", "configure", id, mode, moduleRulesJson(rules).toString())
+    }
+
+    suspend fun saveModuleMode(id: String, mode: String) = mutate {
+        require(mode in mountModes)
+        val meta = objectResult("api", "meta", "--control-only")
+        check(meta.optString("external_mount_owner").isEmpty()) { "An external metamodule owns mounting" }
+        check(meta.optBoolean("module_configure")) { "Update ksud and restart the SUMHP controller to save module settings atomically" }
+        val previous = parseModules(objectResult("module", "list", "--all"))[id]
+        check(previous != null) { "Module is no longer mountable" }
+        if (mode != previous.mode) command("module", "set-mode", id, mode)
     }
 
     suspend fun saveHide(path: String, remove: Boolean = false) = mutate {

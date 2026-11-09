@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">Terperinci</string>
     <string name="sumh_logs_filter_warn">Peringatan</string>
     <string name="sumh_logs_kernel">Log kernel</string>
-    <string name="sumh_maps_add_failed">Gagal menambahkan aturan maps</string>
-    <string name="sumh_maps_add_success">Aturan maps ditambahkan</string>
-    <string name="sumh_maps_clear_failed">Gagal menghapus aturan maps</string>
-    <string name="sumh_maps_cleared">Aturan maps dihapus</string>
-    <string name="sumh_maps_spoof_dev">Perangkat palsu</string>
-    <string name="sumh_maps_spoof_ino">inode palsu</string>
-    <string name="sumh_maps_spoof_path">Jalur palsu</string>
-    <string name="sumh_maps_target_dev">Perangkat target (0=apa saja)</string>
-    <string name="sumh_maps_target_ino">inode target</string>
-    <string name="sumh_maps_title">Pemalsuan Maps (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">Dasar pemasangan / jalur cermin</string>
     <string name="sumh_mismatch_default">Ketidakcocokan protokol terdeteksi. Silakan perbarui kernel atau modul.</string>
-    <string name="sumh_module_rules_add">Tambah</string>
-    <string name="sumh_module_rules_placeholder">/jalur/di/dalam/system/atau/vendor</string>
-    <string name="sumh_module_rules_title">Aturan kustom untuk modul ini</string>
     <string name="sumh_mount_config">Konfigurasi pemasangan</string>
     <string name="sumh_mount_mode">Mode pemasangan</string>
     <string name="sumh_mount_mode_auto">Otomatis</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">Bersihkan log daemon? Log kernel tidak akan berubah.</string>
     <string name="sumh_logs_search">Cari log</string>
     <string name="sumh_logs_actions">Tindakan log</string>
-    <string name="sumh_maps_add_action">Tambah</string>
-    <string name="sumh_maps_desc">Samarkan inode, perangkat, dan jalur dalam maps proses.</string>
     <string name="sumh_maps_spoof">Penyamaran Maps</string>
     <string name="sumh_maps_spoof_desc">Petakan jalur, nomor perangkat, dan inode area memori</string>
     <string name="sumh_mirror_path_desc">Biarkan kosong agar SUMHP memilih direktori secara otomatis.</string>
     <string name="sumh_mount_filter">Filter mode mount</string>
     <string name="sumh_mount_hide">Sembunyikan mount</string>
     <string name="sumh_mount_hide_desc">Sembunyikan entri modul dari tampilan mount</string>
-    <string name="sumh_mount_mode_hide">Sembunyikan</string>
     <string name="sumh_mount_total">Mount modul</string>
     <string name="sumh_mountsource_invalid">Nama tidak boleh kosong atau mengandung spasi, garis miring terbalik, maupun karakter kontrol.</string>
     <string name="sumh_no_conflicts">Tidak ditemukan konflik mount</string>

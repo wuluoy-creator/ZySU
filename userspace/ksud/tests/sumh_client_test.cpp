@@ -288,6 +288,163 @@ void test_managed_maps() {
     assert(calls.empty());
 }
 
+void test_managed_kstat() {
+    namespace sumh = sumhp::sumh;
+    sumh::KstatRule valid;
+    valid.target_path = "/target";
+    valid.field_mask = SUMH_KSTAT_FIELD_ALL;
+    valid.spoofed_ino = 456;
+    valid.spoofed_dev = 0;
+    valid.spoofed_size = 0;
+    valid.spoofed_mtime_sec = 47;
+    valid.spoofed_mtime_nsec = 9;
+    for (const auto& path : {std::string(), std::string("relative"), std::string("/bad\n"),
+                             std::string("/bad\0suffix", 11)}) {
+        auto rule = valid;
+        rule.target_path = path;
+        assert(!sumh::replace_managed_kstat_rules({rule}) && errno == EINVAL);
+    }
+    auto rule = valid;
+    rule.target_path = "/" + std::string(SUMH_MAX_LEN_PATHNAME - 1, 'x');
+    assert(!sumh::replace_managed_kstat_rules({rule}) && errno == ENAMETOOLONG);
+    rule = valid;
+    rule.field_mask = 0;
+    assert(!sumh::replace_managed_kstat_rules({rule}) && errno == EINVAL);
+    rule.field_mask = SUMH_KSTAT_FIELD_ALL;
+    rule.spoofed_mtime_nsec = 1000000000L;
+    assert(!sumh::replace_managed_kstat_rules({rule}) && errno == EINVAL);
+    assert(!sumh::replace_managed_kstat_rules({valid, valid}) && errno == EINVAL);
+    assert(!sumh::replace_managed_kstat_rules(
+        std::vector<sumh::KstatRule>(SUMH_MANAGED_KSTAT_MAX_RULES + 1, valid)));
+    assert(errno == E2BIG);
+    expect_features(0);
+    assert(sumh::replace_managed_kstat_rules({}));
+    expect_features(0);
+    assert(!sumh::replace_managed_kstat_rules({valid}) && errno == EOPNOTSUPP);
+    expect_error(SUMH_IOC_GET_FEATURES, EACCES);
+    assert(!sumh::replace_managed_kstat_rules({}) && errno == EACCES);
+    expect_features(SUMH_FEATURE_MANAGED_KSTAT);
+    expect(SUMH_IOC_SET_MANAGED_KSTAT, [](void* value) {
+        const auto& arg = *static_cast<sumh_managed_kstat_arg*>(value);
+        assert(arg.size == sizeof(arg) && arg.count == 1 && arg.rules != 0);
+        assert(arg.reserved[0] == 0 && arg.reserved[1] == 0);
+        const auto* rules = reinterpret_cast<const sumh_managed_kstat_rule*>(
+            static_cast<std::uintptr_t>(arg.rules));
+        assert(std::string(rules[0].values.target_pathname) == "/target");
+        assert(rules[0].field_mask == SUMH_KSTAT_FIELD_ALL && rules[0].reserved == 0);
+        assert(rules[0].values.spoofed_ino == 456 && rules[0].values.spoofed_dev == 0);
+        assert(rules[0].values.spoofed_size == 0 && rules[0].values.spoofed_mtime_sec == 47);
+        assert(rules[0].values.spoofed_mtime_nsec == 9);
+        assert(rules[0].values.is_static == 0 && rules[0].values.err == 0);
+        return 0;
+    });
+    assert(sumh::replace_managed_kstat_rules({valid}));
+    auto identity = valid;
+    identity.field_mask = SUMH_KSTAT_FIELD_DEV | SUMH_KSTAT_FIELD_INO;
+    identity.spoofed_mtime_sec = 0;
+    identity.spoofed_mtime_nsec = 0;
+    expect_features(SUMH_FEATURE_MANAGED_KSTAT);
+    expect(SUMH_IOC_SET_MANAGED_KSTAT, [](void* value) {
+        const auto& arg = *static_cast<sumh_managed_kstat_arg*>(value);
+        const auto* rules = reinterpret_cast<const sumh_managed_kstat_rule*>(
+            static_cast<std::uintptr_t>(arg.rules));
+        assert(arg.count == 1 &&
+               rules[0].field_mask == (SUMH_KSTAT_FIELD_DEV | SUMH_KSTAT_FIELD_INO));
+        assert(rules[0].values.spoofed_ino == 456 && rules[0].values.spoofed_size == 0);
+        return 0;
+    });
+    assert(sumh::replace_managed_kstat_rules({identity}));
+    auto custom = valid;
+    custom.field_mask = SUMH_KSTAT_FIELD_SIZE | SUMH_KSTAT_FIELD_MTIME;
+    custom.spoofed_size = 0;
+    custom.spoofed_mtime_sec = -1;
+    custom.spoofed_mtime_nsec = 0;
+    expect_features(SUMH_FEATURE_MANAGED_KSTAT);
+    expect(SUMH_IOC_SET_MANAGED_KSTAT, [](void* value) {
+        const auto& arg = *static_cast<sumh_managed_kstat_arg*>(value);
+        const auto* rules = reinterpret_cast<const sumh_managed_kstat_rule*>(
+            static_cast<std::uintptr_t>(arg.rules));
+        assert(arg.count == 1 &&
+               rules[0].field_mask == (SUMH_KSTAT_FIELD_SIZE | SUMH_KSTAT_FIELD_MTIME));
+        assert(rules[0].values.spoofed_size == 0 && rules[0].values.spoofed_mtime_sec == -1 &&
+               rules[0].values.spoofed_mtime_nsec == 0);
+        return 0;
+    });
+    assert(sumh::replace_managed_kstat_rules({custom}));
+    expect_features(SUMH_FEATURE_MANAGED_KSTAT);
+    expect_error(SUMH_IOC_SET_MANAGED_KSTAT, ENOMEM);
+    assert(!sumh::replace_managed_kstat_rules({valid}) && errno == ENOMEM);
+    expect_features(SUMH_FEATURE_MANAGED_KSTAT);
+    expect(SUMH_IOC_SET_MANAGED_KSTAT, [](void* value) {
+        const auto& arg = *static_cast<sumh_managed_kstat_arg*>(value);
+        assert(arg.count == 0 && arg.rules == 0);
+        return 0;
+    });
+    assert(sumh::replace_managed_kstat_rules({}));
+    assert((sumh::feature_names(SUMH_FEATURE_MANAGED_KSTAT) ==
+            std::vector<std::string>{"managed_kstat"}));
+    assert(calls.empty());
+}
+
+void test_raw_kstat() {
+    namespace sumh = sumhp::sumh;
+    sumh::RawKstat value;
+    assert(!sumh::raw_kstat("relative", value) && errno == EINVAL);
+    assert(!sumh::raw_kstat("/" + std::string(SUMH_USER_HIDE_PATH_MAX, 'x'), value) &&
+           errno == ENAMETOOLONG);
+    expect(SUMH_IOC_GET_RAW_KSTAT, [](void* data) {
+        auto& arg = *static_cast<sumh_raw_kstat_arg*>(data);
+        assert(arg.size == sizeof(arg) && arg.reserved == 0 && arg.reserved2 == 0);
+        assert(std::string(arg.source_path) == "/source");
+        arg.ino = 9007199254740993ULL;
+        arg.dev = 123;
+        arg.nlink = 2;
+        arg.size_bytes = 0;
+        arg.mtime_sec = -1;
+        arg.mtime_nsec = 13;
+        arg.blocks = 18446744073709551615ULL;
+        return 0;
+    });
+    assert(sumh::raw_kstat("/source", value));
+    assert(value.ino == 9007199254740993ULL && value.dev == 123 && value.nlink == 2);
+    assert(value.size == 0 && value.mtime_sec == -1 && value.mtime_nsec == 13);
+    assert(value.blocks == 18446744073709551615ULL);
+    expect(SUMH_IOC_GET_RAW_KSTAT, [](void* data) {
+        static_cast<sumh_raw_kstat_arg*>(data)->mtime_nsec = 1000000000;
+        return 0;
+    });
+    assert(!sumh::raw_kstat("/source", value) && errno == EPROTO);
+    expect_error(SUMH_IOC_GET_RAW_KSTAT, ENOENT);
+    assert(!sumh::raw_kstat("/missing", value) && errno == ENOENT);
+    assert(calls.empty());
+}
+
+void test_managed_kstat_status() {
+    namespace sumh = sumhp::sumh;
+    sumh::ManagedKstatStatus status{7, 11};
+    expect(SUMH_IOC_GET_MANAGED_KSTAT_STATUS, [](void* value) {
+        auto& arg = *static_cast<sumh_managed_kstat_status_arg*>(value);
+        assert(arg.size == sizeof(arg) && arg.count == 0 && arg.generation == 0);
+        assert(arg.reserved[0] == 0 && arg.reserved[1] == 0);
+        arg.count = 3;
+        arg.generation = 9007199254740993ULL;
+        return 0;
+    });
+    assert(sumh::managed_kstat_status(status));
+    assert(status.active_count == 3 && status.generation == 9007199254740993ULL);
+    expect(SUMH_IOC_GET_MANAGED_KSTAT_STATUS, [](void* value) {
+        static_cast<sumh_managed_kstat_status_arg*>(value)->count =
+            SUMH_MANAGED_KSTAT_MAX_RULES + 1;
+        return 0;
+    });
+    assert(!sumh::managed_kstat_status(status) && errno == EPROTO);
+    assert(status.active_count == 3 && status.generation == 9007199254740993ULL);
+    expect_error(SUMH_IOC_GET_MANAGED_KSTAT_STATUS, ENOTTY);
+    assert(!sumh::managed_kstat_status(status) && errno == ENOTTY);
+    assert(status.active_count == 3 && status.generation == 9007199254740993ULL);
+    assert(calls.empty());
+}
+
 void test_kernel_build() {
     namespace sumh = sumhp::sumh;
     const std::string release = "6.1.75-android14-11-g16c5f6cd5e9b-ab12268515";
@@ -441,6 +598,9 @@ int main() {
     test_feature_errors();
     test_maps_paths();
     test_managed_maps();
+    test_managed_kstat();
+    test_raw_kstat();
+    test_managed_kstat_status();
     test_kernel_build();
     test_hide_snapshot();
     test_active_modules();

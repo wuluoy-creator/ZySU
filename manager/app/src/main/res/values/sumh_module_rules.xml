@@ -1,15 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="sumh_module_rules_hint">Rules apply when this module uses SUMH. The most specific rule controls mapping; None leaves the original system path visible. Hide hides the target path and its children, even without module files; a deeper rule cannot restore a hidden parent. Spaces are preserved.</string>
-    <string name="sumh_module_rules_unavailable">SUMH is unavailable. Existing rules are retained; creating or changing a SUMH or Hide rule requires a supported kernel.</string>
     <string name="sumh_module_rules_reboot">Changes are saved for the next boot. Current mounts are unchanged until reboot.</string>
-    <string name="sumh_module_rules_legacy_mode">This legacy path mode uses SUMH mapping when the module runs with SUMH. It does not create a separate Overlay or Magic mount.</string>
-    <string name="sumh_module_rule_edit_label">Edit rule for %1$s</string>
-    <string name="sumh_module_rule_remove_label">Remove rule for %1$s</string>
-    <string name="sumh_module_rule_cancel_edit">Discard draft</string>
-    <string name="sumh_module_rule_canonical">Remove repeated slashes, . or .. components, and any trailing slash. Paths are not changed automatically.</string>
-    <string name="sumh_module_rule_duplicate">A rule already exists for this exact path. Edit that rule instead.</string>
-    <string name="sumh_module_rule_invalid_mode">A saved rule has an unsupported mode. Edit or remove it before saving.</string>
-    <string name="sumh_module_rule_limit">A module can have at most 256 path rules. Remove a rule before adding another.</string>
-    <string name="sumh_module_rule_budget">The combined rules are too large. Shorten paths or remove rules before saving.</string>
 </resources>

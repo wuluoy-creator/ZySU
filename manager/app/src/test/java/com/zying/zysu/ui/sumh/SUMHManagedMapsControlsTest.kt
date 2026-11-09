@@ -103,11 +103,56 @@ class SUMHManagedMapsControlsTest {
                 sumhStatus = SUMHUiAdapter.SUMHStatus.AVAILABLE,
                 features = SUMHUiAdapter.FeaturesResult(0, listOf("maps_spoof", "managed_maps")),
                 controlsEnabled = true, runtimeApplyPending = true, onRetryApply = {}, onConfigChanged = {},
-                onClearMapRules = {}, onAddMapRule = { _, _, _, _, _ -> }, section = SUMHSection.Isolation,
+                section = SUMHSection.Maps,
             )
         } } }
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_retry_apply)).assertIsDisplayed()
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_path_apply)).assertDoesNotExist()
+    }
+
+    @Test
+    fun addingPathRuleEnablesMapsWithoutASeparateSwitch() {
+        val initial = SUMHUiAdapter.SUMHPConfig()
+        var requested: SUMHUiAdapter.SUMHPConfig? = null
+        compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
+            SettingsTab(initial, SUMHUiAdapter.SUMHStatus.AVAILABLE,
+                SUMHUiAdapter.FeaturesResult(0, listOf("maps_spoof", "managed_maps")),
+                true, false, {}, { requested = it }, SUMHSection.Maps)
+        } } }
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_spoof)).assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_path_add)).performClick()
+        compose.onNode(hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_maps_path_target)))
+            .performTextReplacement("/data/target")
+        compose.onNode(hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_maps_path_replacement)))
+            .performTextReplacement("/system/replacement")
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_rules_save)).performClick()
+        assertEquals(true, requested?.enableMapsSpoof)
+        assertEquals(listOf(MapsPathRule("/data/target", "/system/replacement")), requested?.mapsRules)
+    }
+
+    @Test
+    fun savedDisabledRulesCanBeActivatedAndLastDeletionKeepsRuntimeFiltering() {
+        val savedRule = MapsPathRule("/data/target", "/system/replacement")
+        val config = mutableStateOf(SUMHUiAdapter.SUMHPConfig(mapsRules = listOf(savedRule)))
+        compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
+            SettingsTab(config.value, SUMHUiAdapter.SUMHStatus.AVAILABLE,
+                SUMHUiAdapter.FeaturesResult(0, listOf("maps_spoof", "managed_maps")),
+                true, false, {}, { config.value = it }, SUMHSection.Maps)
+        } } }
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_activate_saved))
+            .performScrollTo().performClick()
+        assertEquals(true, config.value.enableMapsSpoof)
+        compose.onNodeWithContentDescription(compose.activity.getString(
+            R.string.sumh_maps_path_remove_label, savedRule.targetPath)).performScrollTo().performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.delete)).performClick()
+        assertEquals(emptyList(), config.value.mapsRules)
+        assertEquals(true, config.value.enableMapsSpoof)
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_stop_filtering))
+            .performScrollTo().performClick()
+        assertEquals(true, config.value.enableMapsSpoof)
+        compose.onAllNodesWithText(compose.activity.getString(R.string.sumh_maps_stop_filtering)).onLast()
+            .performClick()
+        assertEquals(false, config.value.enableMapsSpoof)
     }
 
     @Test

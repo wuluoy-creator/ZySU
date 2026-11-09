@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="sumh_maps_rules_page">Maps path rules</string>
+    <string name="sumh_maps_activate_saved">Apply saved path rules</string>
+    <string name="sumh_maps_runtime_only">No saved path rules. Filtering may still be used by temporary runtime rules.</string>
+    <string name="sumh_maps_stop_filtering">Stop maps filtering</string>
+    <string name="sumh_maps_stop_confirm">Stop maps filtering for all rules, including temporary runtime rules?</string>
+    <string name="sumh_statfs_requires_mount_hide">Requires mount hiding to be enabled.</string>
+</resources>

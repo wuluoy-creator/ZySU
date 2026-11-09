@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">Terperinci</string>
     <string name="sumh_logs_filter_warn">Amaran</string>
     <string name="sumh_logs_kernel">Log Kernel</string>
-    <string name="sumh_maps_add_failed">Gagal menambah peraturan maps</string>
-    <string name="sumh_maps_add_success">Peraturan maps ditambah</string>
-    <string name="sumh_maps_clear_failed">Gagal mengosongkan peraturan maps</string>
-    <string name="sumh_maps_cleared">Peraturan maps dikosongkan</string>
-    <string name="sumh_maps_spoof_dev">Peranti palsu</string>
-    <string name="sumh_maps_spoof_ino">inode palsu</string>
-    <string name="sumh_maps_spoof_path">Laluan palsu</string>
-    <string name="sumh_maps_target_dev">Peranti sasaran (0=mana-mana)</string>
-    <string name="sumh_maps_target_ino">inode sasaran</string>
-    <string name="sumh_maps_title">Pemalsuan Maps (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">Asas lekapan / laluan cermin</string>
     <string name="sumh_mismatch_default">Ketidakpadanan protokol dikesan. Sila kemas kini kernel atau modul.</string>
-    <string name="sumh_module_rules_add">Tambah</string>
-    <string name="sumh_module_rules_placeholder">/laluan/dalam/system/atau/vendor</string>
-    <string name="sumh_module_rules_title">Peraturan tersuai untuk modul ini</string>
     <string name="sumh_mount_config">Konfigurasi lekapan</string>
     <string name="sumh_mount_mode">Mod lekapan</string>
     <string name="sumh_mount_mode_auto">Automatik</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">Kosongkan log daemon? Log kernel tidak akan berubah.</string>
     <string name="sumh_logs_search">Cari log</string>
     <string name="sumh_logs_actions">Tindakan log</string>
-    <string name="sumh_maps_add_action">Tambah</string>
-    <string name="sumh_maps_desc">Samarkan inode, peranti dan laluan dalam maps proses.</string>
     <string name="sumh_maps_spoof">Penyamaran Maps</string>
     <string name="sumh_maps_spoof_desc">Petakan laluan, nombor peranti dan inode kawasan memori</string>
     <string name="sumh_mirror_path_desc">Biarkan kosong supaya SUMHP memilih direktori secara automatik.</string>
     <string name="sumh_mount_filter">Tapis mod lekapan</string>
     <string name="sumh_mount_hide">Sembunyikan lekapan</string>
     <string name="sumh_mount_hide_desc">Sembunyikan entri modul daripada paparan lekapan</string>
-    <string name="sumh_mount_mode_hide">Sembunyikan</string>
     <string name="sumh_mount_total">Lekapan modul</string>
     <string name="sumh_mountsource_invalid">Nama tidak boleh kosong atau mengandungi ruang kosong, garis miring terbalik atau aksara kawalan.</string>
     <string name="sumh_no_conflicts">Tiada konflik lekapan ditemui</string>

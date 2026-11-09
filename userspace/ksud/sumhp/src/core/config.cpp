@@ -12,12 +12,14 @@
 #include <unistd.h>
 #include <algorithm>
 #include <cerrno>
+#include <charconv>
 #include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <string>
@@ -76,6 +78,7 @@ std::string default_config_json() {
   "mount_hide_mode": "normal",
   "enable_maps_spoof": false,
   "maps_rules": [],
+  "kstat_rules": [],
   "enable_statfs_spoof": false,
   "enable_kernel_build_spoof": false,
   "kernel_build_release": "",
@@ -152,7 +155,261 @@ bool validate_maps_path_rules(const std::vector<MapsPathRule>& rules, std::strin
     return true;
 }
 
+json::Value kstat_path_rules_json(const std::vector<KstatPathRule>& rules) {
+    JsonValue result;
+    result.type = JsonValue::Type::Array;
+    for (const auto& rule : rules) {
+        JsonValue item = JsonValue::object();
+        item.o["target_path"] = rule.target_path;
+        item.o["mode"] = rule.mode;
+        if (rule.mode == "custom") {
+            JsonValue fields = JsonValue::object();
+            for (const auto& [key, value] : rule.custom_fields) {
+                const auto separator = key.find('.');
+                if (separator == std::string::npos)
+                    fields.o[key] = value;
+                else
+                    fields[key.substr(0, separator)][key.substr(separator + 1)] = value;
+            }
+            item.o["fields"] = std::move(fields);
+        } else {
+            item.o["source_path"] = rule.source_path;
+        }
+        result.a.push_back(std::move(item));
+    }
+    return result;
+}
+
 namespace {
+bool valid_kstat_digits(const std::string& value, bool allow_negative) {
+    if (value.empty())
+        return false;
+    const bool negative = value.front() == '-';
+    if (negative && (!allow_negative || value.size() == 1 || value[1] == '0'))
+        return false;
+    const std::size_t start = negative ? 1 : 0;
+    if ((!negative && value.size() > 1 && value.front() == '0') ||
+        std::any_of(value.begin() + start, value.end(),
+                    [](char digit) { return digit < '0' || digit > '9'; }))
+        return false;
+    return true;
+}
+bool parse_kstat_unsigned(const std::string& value, std::uint64_t limit, std::uint64_t& result) {
+    if (!valid_kstat_digits(value, false))
+        return false;
+    const auto [end, ec] = std::from_chars(value.data(), value.data() + value.size(), result);
+    return ec == std::errc{} && end == value.data() + value.size() && result <= limit;
+}
+bool parse_kstat_signed(const std::string& value, std::int64_t& result) {
+    if (!valid_kstat_digits(value, true))
+        return false;
+    const auto [end, ec] = std::from_chars(value.data(), value.data() + value.size(), result);
+    return ec == std::errc{} && end == value.data() + value.size();
+}
+}  // namespace
+
+bool parse_kstat_custom_fields(const std::map<std::string, std::string>& fields,
+                               KstatCustomValues& values, std::string& error) {
+    if (fields.empty()) {
+        error = "custom kstat fields must not be empty";
+        return false;
+    }
+    KstatCustomValues parsed;
+    const auto u32_max = static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max());
+    const auto i64_max = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
+    const auto u64_max = std::numeric_limits<std::uint64_t>::max();
+    for (const auto& [key, value] : fields) {
+        const bool seconds = key == "atime.sec" || key == "mtime.sec" || key == "ctime.sec";
+        const bool nanos = key == "atime.nsec" || key == "mtime.nsec" || key == "ctime.nsec";
+        const bool unsigned64 = key == "ino" || key == "blocks";
+        const bool unsigned32 = key == "dev" || key == "nlink" || key == "blksize";
+        const bool size = key == "size";
+        if (!seconds && !nanos && !unsigned64 && !unsigned32 && !size) {
+            error = "unknown custom kstat field: " + key;
+            return false;
+        }
+        std::uint64_t unsigned_number = 0;
+        std::int64_t signed_number = 0;
+        const auto limit = nanos        ? 999999999ULL
+                           : unsigned64 ? u64_max
+                           : unsigned32 ? u32_max
+                                        : i64_max;
+        if (seconds ? !parse_kstat_signed(value, signed_number)
+                    : !parse_kstat_unsigned(value, limit, unsigned_number)) {
+            error = "invalid decimal value for custom kstat field: " + key;
+            return false;
+        }
+        if (key == "dev") {
+            parsed.field_mask |= SUMH_KSTAT_FIELD_DEV;
+            parsed.dev = static_cast<std::uint32_t>(unsigned_number);
+        } else if (key == "ino") {
+            parsed.field_mask |= SUMH_KSTAT_FIELD_INO;
+            parsed.ino = unsigned_number;
+        } else if (key == "nlink") {
+            parsed.field_mask |= SUMH_KSTAT_FIELD_NLINK;
+            parsed.nlink = static_cast<std::uint32_t>(unsigned_number);
+        } else if (key == "size") {
+            parsed.field_mask |= SUMH_KSTAT_FIELD_SIZE;
+            parsed.size = static_cast<std::int64_t>(unsigned_number);
+        } else if (key == "blksize") {
+            parsed.field_mask |= SUMH_KSTAT_FIELD_BLKSIZE;
+            parsed.blksize = static_cast<std::uint32_t>(unsigned_number);
+        } else if (key == "blocks") {
+            parsed.field_mask |= SUMH_KSTAT_FIELD_BLOCKS;
+            parsed.blocks = unsigned_number;
+        } else if (key == "atime.sec")
+            parsed.atime_sec = signed_number;
+        else if (key == "atime.nsec")
+            parsed.atime_nsec = static_cast<std::int64_t>(unsigned_number);
+        else if (key == "mtime.sec")
+            parsed.mtime_sec = signed_number;
+        else if (key == "mtime.nsec")
+            parsed.mtime_nsec = static_cast<std::int64_t>(unsigned_number);
+        else if (key == "ctime.sec")
+            parsed.ctime_sec = signed_number;
+        else if (key == "ctime.nsec")
+            parsed.ctime_nsec = static_cast<std::int64_t>(unsigned_number);
+    }
+    for (const auto& [name, bit] :
+         {std::pair{"atime", SUMH_KSTAT_FIELD_ATIME}, std::pair{"mtime", SUMH_KSTAT_FIELD_MTIME},
+          std::pair{"ctime", SUMH_KSTAT_FIELD_CTIME}}) {
+        const bool has_sec = fields.count(std::string(name) + ".sec") != 0;
+        const bool has_nsec = fields.count(std::string(name) + ".nsec") != 0;
+        if (has_sec != has_nsec) {
+            error = std::string("custom kstat ") + name + " requires sec and nsec";
+            return false;
+        }
+        if (has_sec)
+            parsed.field_mask |= bit;
+    }
+    values = parsed;
+    return true;
+}
+
+bool validate_kstat_path_rules(const std::vector<KstatPathRule>& rules, std::string& error) {
+    if (rules.size() > SUMH_MANAGED_KSTAT_MAX_RULES) {
+        error = "kstat_rules supports at most 32 rules";
+        return false;
+    }
+    std::set<std::string> targets;
+    std::size_t android_slash_escaping = 0;
+    for (std::size_t index = 0; index < rules.size(); ++index) {
+        const auto& rule = rules[index];
+        const auto valid_path = [](const std::string& path, std::size_t limit) {
+            return !path.empty() && path.front() == '/' && path.size() < limit &&
+                   path.find('\0') == std::string::npos &&
+                   path.find_first_of("\r\n") == std::string::npos;
+        };
+        if (!valid_path(rule.target_path, SUMH_MAX_LEN_PATHNAME) ||
+            (rule.mode != "custom" && !valid_path(rule.source_path, SUMH_USER_HIDE_PATH_MAX))) {
+            error = "invalid kstat rule paths at index " + std::to_string(index) +
+                    ": absolute, NUL/CR/LF-free paths required; target < 256 bytes, "
+                    "source < 4096 bytes";
+            return false;
+        }
+        if (rule.mode != "identity" && rule.mode != "full" && rule.mode != "custom") {
+            error = "invalid kstat rule mode at index " + std::to_string(index);
+            return false;
+        }
+        if (rule.mode == "custom") {
+            KstatCustomValues parsed;
+            if (!rule.source_path.empty()) {
+                error = "custom kstat rules must not set source_path";
+                return false;
+            }
+            if (!parse_kstat_custom_fields(rule.custom_fields, parsed, error)) {
+                return false;
+            }
+        } else if (!rule.custom_fields.empty()) {
+            error = "identity/full kstat rules must not set custom fields";
+            return false;
+        }
+        if (!targets.insert(rule.target_path).second) {
+            error = "duplicate kstat target path at index " + std::to_string(index);
+            return false;
+        }
+        android_slash_escaping +=
+            3 * static_cast<std::size_t>(
+                    std::count(rule.target_path.begin(), rule.target_path.end(), '/') +
+                    std::count(rule.source_path.begin(), rule.source_path.end(), '/'));
+    }
+    if (json_quote(stringify_json(kstat_path_rules_json(rules))).size() + android_slash_escaping >
+        MAPS_RULES_MAX_ENCODED_BYTES) {
+        error = "kstat_rules exceeds the 56 KiB encoded configuration budget";
+        return false;
+    }
+    return true;
+}
+
+namespace {
+bool parse_kstat_path_rules(const JsonValue& value, std::vector<KstatPathRule>& rules,
+                            std::string& error) {
+    if (!value.is_array()) {
+        error = "configuration field 'kstat_rules' must be an array";
+        return false;
+    }
+    std::vector<KstatPathRule> parsed;
+    for (const auto& item : value.a) {
+        if (!item.is_object() || item.o.size() != 3) {
+            error =
+                "kstat_rules entries require exactly target_path/mode and source_path or fields";
+            return false;
+        }
+        const auto* target = item.find("target_path");
+        const auto* mode = item.find("mode");
+        if (!target || !mode || !target->is_string() || !mode->is_string()) {
+            error = "kstat_rules entries require target_path/mode strings";
+            return false;
+        }
+        KstatPathRule rule;
+        rule.target_path = target->s;
+        rule.mode = mode->s;
+        if (rule.mode == "custom") {
+            const auto* fields = item.find("fields");
+            if (!fields || !fields->is_object()) {
+                error = "custom kstat rules require a fields object without source_path";
+                return false;
+            }
+            for (const auto& [key, field] : fields->o) {
+                if (key == "atime" || key == "mtime" || key == "ctime") {
+                    const auto* sec = field.find("sec");
+                    const auto* nsec = field.find("nsec");
+                    if (!field.is_object() || field.o.size() != 2 || !sec || !nsec ||
+                        !sec->is_string() || !nsec->is_string()) {
+                        error = "custom kstat times require sec and nsec strings";
+                        return false;
+                    }
+                    rule.custom_fields[key + ".sec"] = sec->s;
+                    rule.custom_fields[key + ".nsec"] = nsec->s;
+                } else {
+                    if (key != "dev" && key != "ino" && key != "nlink" && key != "size" &&
+                        key != "blksize" && key != "blocks") {
+                        error = "unknown custom kstat field: " + key;
+                        return false;
+                    }
+                    if (!field.is_string()) {
+                        error = "custom kstat scalar fields must be decimal strings";
+                        return false;
+                    }
+                    rule.custom_fields[key] = field.s;
+                }
+            }
+        } else {
+            const auto* source = item.find("source_path");
+            if (!source || !source->is_string()) {
+                error = "identity/full kstat rules require source_path string without fields";
+                return false;
+            }
+            rule.source_path = source->s;
+        }
+        parsed.push_back(std::move(rule));
+    }
+    if (!validate_kstat_path_rules(parsed, error))
+        return false;
+    rules = std::move(parsed);
+    return true;
+}
+
 bool parse_maps_path_rules(const JsonValue& value, std::vector<MapsPathRule>& rules,
                            std::string& error) {
     if (!value.is_array()) {
@@ -242,6 +499,11 @@ bool validate_config_patch(const json::Value& patch, std::string& error) {
         if (key == "maps_rules") {
             std::vector<MapsPathRule> rules;
             if (!parse_maps_path_rules(value, rules, error))
+                return false;
+        }
+        if (key == "kstat_rules") {
+            std::vector<KstatPathRule> rules;
+            if (!parse_kstat_path_rules(value, rules, error))
                 return false;
         }
     }
@@ -380,6 +642,11 @@ bool parse_config_json(const std::string& json, Config& config, std::string& err
         if (!parse_maps_path_rules(*value, maps_rules, error))
             return false;
     }
+    std::vector<KstatPathRule> kstat_rules;
+    if (const auto* value = root.find("kstat_rules")) {
+        if (!parse_kstat_path_rules(*value, kstat_rules, error))
+            return false;
+    }
 
     config.mount_source = json_string_or(&root, "mountsource", config.mount_source);
     config.work_dir = json_string_or(&root, "work_dir", config.work_dir);
@@ -401,6 +668,7 @@ bool parse_config_json(const std::string& json, Config& config, std::string& err
         config.mount_hide_mode = "normal";
     config.enable_maps_spoof = json_bool_or(&root, "enable_maps_spoof", config.enable_maps_spoof);
     config.maps_rules = std::move(maps_rules);
+    config.kstat_rules = std::move(kstat_rules);
     config.enable_statfs_spoof =
         json_bool_or(&root, "enable_statfs_spoof", config.enable_statfs_spoof);
     config.enable_kernel_build_spoof = build_enabled;
@@ -468,6 +736,80 @@ bool merge_config_json(const std::string& updates, std::string& error) {
         logging::set_debug_enabled(json_bool_or(&root, "debug", false) ||
                                    json_bool_or(&root, "verbose", false));
     return saved;
+}
+
+KstatRuleEditResult edit_kstat_path_rule(
+    const std::string& target_path, const KstatPathRule* replacement, Config& config,
+    std::string& error, const std::function<bool(const Config&, std::string&)>& apply) {
+    KstatRuleEditResult result;
+    if (replacement && replacement->target_path != target_path) {
+        error = "kstat replacement target does not match edited path";
+        return result;
+    }
+    ConfigFileLock lock;
+    if (!lock.acquire(error))
+        return result;
+    const auto input = ksud::read_file(runtime_config_file().string());
+    if (!input) {
+        error = "read config: " + std::string(std::strerror(errno));
+        return result;
+    }
+    JsonValue root;
+    if (!parse_json(*input, root, error) || !root.is_object()) {
+        if (error.empty())
+            error = "config root must be an object";
+        return result;
+    }
+    Config updated;
+    if (!parse_config_json(*input, updated, error))
+        return result;
+
+    auto& rules = updated.kstat_rules;
+    const auto first = std::find_if(rules.begin(), rules.end(), [&](const KstatPathRule& rule) {
+        return rule.target_path == target_path;
+    });
+    if (replacement) {
+        if (first == rules.end())
+            rules.push_back(*replacement);
+        else
+            *first = *replacement;
+    } else {
+        rules.erase(std::remove_if(
+                        rules.begin(), rules.end(),
+                        [&](const KstatPathRule& rule) { return rule.target_path == target_path; }),
+                    rules.end());
+    }
+    if (!validate_kstat_path_rules(rules, error))
+        return result;
+    prune_config_fields(root);
+    root.o["kstat_rules"] = kstat_path_rules_json(rules);
+    Config validated;
+    if (!parse_config_json(stringify_json(root), validated, error))
+        return result;
+    if (!save_config(stringify_json(root, 2) + "\n", error))
+        return result;
+    logging::set_debug_enabled(json_bool_or(&root, "debug", false) ||
+                               json_bool_or(&root, "verbose", false));
+    config = std::move(validated);
+    result.saved = true;
+    result.applied = apply(config, error);
+    if (!result.applied)
+        result.apply_errno = errno;
+    return result;
+}
+
+KstatRuleApplyResult apply_saved_kstat_rules(
+    Config& config, std::string& error,
+    const std::function<bool(const Config&, std::string&)>& apply) {
+    KstatRuleApplyResult result;
+    ConfigFileLock lock;
+    if (!lock.acquire(error) || !read_config_file(config, error))
+        return result;
+    result.loaded = true;
+    result.applied = apply(config, error);
+    if (!result.applied)
+        result.apply_errno = errno;
+    return result;
 }
 
 bool reset_kernel_build_config(std::string& error) {

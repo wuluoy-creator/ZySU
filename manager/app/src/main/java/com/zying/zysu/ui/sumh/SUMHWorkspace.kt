@@ -35,6 +35,11 @@ enum class SUMHSection(val displayNameRes: Int) {
     Rules(R.string.sumh_workspace_rules),
     Logs(R.string.sumh_workspace_logs),
     Debug(R.string.sumh_workspace_debug),
+    Maps(R.string.sumh_workspace_maps),
+    Kernel(R.string.sumh_workspace_kernel),
+    Runtime(R.string.sumh_workspace_runtime),
+    Diagnostics(R.string.sumh_workspace_diagnostics),
+    Kstat(R.string.sumh_workspace_kstat),
 }
 
 /** The host owns navigation and insets; status and debug may join a host's single scroll. */
@@ -214,26 +219,6 @@ fun SUMHWorkspace(
         }
     }
 
-    fun mutateMapRules(successMessage: Int, failureMessage: Int, clearing: Boolean = false, mutation: suspend () -> Boolean) {
-        if (saving || isLoading || !dataReady || loadError != null) return
-        if (!config.enableMapsSpoof || status != Controller.SUMHStatus.AVAILABLE ||
-            features?.names?.contains("maps_spoof") != true) return
-        configSaving = true
-        scope.launchUi(snackbar, start = CoroutineStart.UNDISPATCHED) {
-            val message = withContext(NonCancellable) {
-                try {
-                    if (mutation()) {
-                        if (clearing && config.mapsRules.isNotEmpty()) runtimeApplyPending = true
-                        successMessage
-                    } else failureMessage
-                } finally {
-                    configSaving = false
-                }
-            }
-            snackbar.showSnackbar(resources.getString(message))
-        }
-    }
-
     LaunchedEffect(refreshKey, section, resumeRefresh, userRulesRefresh) { loadData() }
     LaunchedEffect(section, showKernelLog, logRefresh) {
         if (section != SUMHSection.Logs) return@LaunchedEffect
@@ -290,24 +275,17 @@ fun SUMHWorkspace(
                             loading = isLoading,
                             loadError = loadError,
                         )
-                        SUMHSection.Mount, SUMHSection.Isolation, SUMHSection.Debug -> SettingsTab(
+                        SUMHSection.Mount, SUMHSection.Isolation, SUMHSection.Maps, SUMHSection.Kstat,
+                        SUMHSection.Kernel, SUMHSection.Debug -> SettingsTab(
                             config = config,
                             sumhStatus = status,
                             features = features,
+                            runtimeRules = if (rulesIncomplete) null else rules,
+                            managedKstatStatus = system.managedKstat,
                             controlsEnabled = dataReady && loadError == null && !saving && !isLoading,
                             runtimeApplyPending = runtimeApplyPending,
                             onRetryApply = ::retryApply,
                             onConfigChanged = ::saveConfig,
-                            onClearMapRules = {
-                                mutateMapRules(R.string.sumh_maps_cleared, R.string.sumh_maps_clear_failed, clearing = true) {
-                                    Controller.clearMapsRules()
-                                }
-                            },
-                            onAddMapRule = { ti, td, si, sd, path ->
-                                mutateMapRules(R.string.sumh_maps_add_success, R.string.sumh_maps_add_failed) {
-                                    Controller.addMapsRule(ti, td, si, sd, path)
-                                }
-                            },
                             section = section,
                             scrollable = !inlineContent,
                             header = { CompositionLocalProvider(LocalSnackbarHost provides snackbar) { settingsHeader() } },
@@ -318,14 +296,20 @@ fun SUMHWorkspace(
                                 }
                             },
                         )
-                        SUMHSection.Rules -> SUMHRulesWorkspace(
-                            rules, status, !configSaving && !externalSaving && !rulesRefreshing,
-                            dataReady && loadError == null && !saving && !isLoading && !rulesRefreshing,
-                            saving, snackbar,
+                        SUMHSection.Rules -> UserHideRulesScreen(
+                            enabled = !configSaving && !externalSaving && !rulesRefreshing,
+                            snackbar = snackbar,
                             onSavingChanged = { working ->
                                 if (userRulesSaving && !working) userRulesRefresh++
                                 userRulesSaving = working
-                            }, onRefresh = ::refreshRules, onClearAll = ::clearRules,
+                            }, kernelAvailable = status == Controller.SUMHStatus.AVAILABLE,
+                        )
+                        SUMHSection.Runtime, SUMHSection.Diagnostics -> RulesTab(
+                            activeRules = rules,
+                            sumhStatus = status,
+                            controlsEnabled = dataReady && loadError == null && !saving && !isLoading && !rulesRefreshing,
+                            onRefresh = ::refreshRules,
+                            onClearAll = ::clearRules,
                             rulesIncomplete = rulesIncomplete,
                         )
                         SUMHSection.Logs -> LogsTab(

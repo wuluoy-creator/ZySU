@@ -39,6 +39,7 @@ import com.zying.zysu.ui.component.YukiPanel
 import com.zying.zysu.ui.component.YukiIconBadge
 import com.zying.zysu.ui.sumh.SUMHSection
 import com.zying.zysu.ui.sumh.SUMHWorkspace
+import com.zying.zysu.ui.sumh.SUMHTabs
 import com.zying.zysu.ui.sumh.ConfigSection
 import com.zying.zysu.ui.util.LocalNavigationLeaveGuard
 import com.ramcosta.composedestinations.annotation.Destination
@@ -192,6 +193,9 @@ fun KernelPolicyScreen(navigator: DestinationsNavigator, initialPage: Int = 0) {
 @Composable
 fun MountIsolationScreen(navigator: DestinationsNavigator) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
+    val sections = listOf(SUMHSection.Mount, SUMHSection.Isolation, SUMHSection.Rules,
+        SUMHSection.Kstat, SUMHSection.Maps, SUMHSection.Kernel)
+    val section = sections.getOrElse(selected) { SUMHSection.Mount }
     var sumhSaving by remember { mutableStateOf(false) }
     var isolationSaving by remember { mutableStateOf(false) }
     val saving = sumhSaving || isolationSaving
@@ -207,21 +211,16 @@ fun MountIsolationScreen(navigator: DestinationsNavigator) {
         }
     }
     WorkspaceOperationGuard(saving, MountIsolationScreenDestination.route)
-    val labels = listOf(stringResource(R.string.nav_mount), stringResource(R.string.nav_isolation), stringResource(R.string.sumh_workspace_rules))
     WorkspaceScaffold(stringResource(R.string.settings_category_mount_isolation), navigator, navigationEnabled = !saving, tabs = {
-        WorkspaceTabs(labels, selected, { selected = it }, enabled = !saving)
+        SUMHTabs(section, enabled = !saving, sections = sections) { selected = sections.indexOf(it) }
     }) {
         KsuIsValid {
             SUMHWorkspace(
-                section = when (selected) {
-                    0 -> SUMHSection.Mount
-                    1 -> SUMHSection.Isolation
-                    else -> SUMHSection.Rules
-                },
+                section = section,
                 onSavingChanged = { sumhSaving = it },
                 externalSaving = isolationSaving,
                 settingsHeader = {
-                    if (selected == 1) isolationHeader(!sumhSaving)
+                    if (section == SUMHSection.Isolation) isolationHeader(!sumhSaving)
                 },
             )
         }

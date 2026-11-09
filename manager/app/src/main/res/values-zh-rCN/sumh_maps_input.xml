@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sumh_maps_input_hint">所有字段均为必填项，数值使用无符号十进制。目标设备为 0 时匹配所有设备。在本页面重新打开弹窗可继续编辑草稿。</string>
-    <string name="sumh_maps_input_number_error">请输入 0 至 18446744073709551615 的十进制整数。</string>
-    <string name="sumh_maps_input_device_error">请输入 0 至 4294967295 的编码设备号。</string>
-    <string name="sumh_maps_input_runtime">数值规则仅作用于当前运行的内核，重启或清空运行时规则后会被移除。同一 inode/device 下，数值规则优先于已保存的路径规则。已保存的路径规则会在启用 Maps 伪装时，随应用配置或启动恢复。</string>
     <string name="sumh_maps_input_path_absolute">请输入以 / 开头的绝对路径。</string>
-    <string name="sumh_maps_input_path_control">请移除路径中的换行符和控制字符。</string>
     <string name="sumh_maps_input_path_length">请将路径缩短至 255 个 UTF-8 字节以内。</string>
 </resources>

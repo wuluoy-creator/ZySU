@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">상세</string>
     <string name="sumh_logs_filter_warn">경고</string>
     <string name="sumh_logs_kernel">커널 로그</string>
-    <string name="sumh_maps_add_failed">maps 규칙을 추가하지 못했습니다</string>
-    <string name="sumh_maps_add_success">maps 규칙이 추가되었습니다</string>
-    <string name="sumh_maps_clear_failed">maps 규칙을 지우지 못했습니다</string>
-    <string name="sumh_maps_cleared">maps 규칙이 지워졌습니다</string>
-    <string name="sumh_maps_spoof_dev">위조 장치</string>
-    <string name="sumh_maps_spoof_ino">위조 inode</string>
-    <string name="sumh_maps_spoof_path">위조 경로</string>
-    <string name="sumh_maps_target_dev">대상 장치 (0=모두)</string>
-    <string name="sumh_maps_target_ino">대상 inode</string>
-    <string name="sumh_maps_title">Maps 스푸핑 (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">마운트 베이스 / 미러 경로</string>
     <string name="sumh_mismatch_default">프로토콜 불일치가 감지되었습니다. 커널 또는 모듈을 업데이트하세요.</string>
-    <string name="sumh_module_rules_add">추가</string>
-    <string name="sumh_module_rules_placeholder">/system 또는 /vendor 내부의 경로</string>
-    <string name="sumh_module_rules_title">이 모듈의 사용자 지정 규칙</string>
     <string name="sumh_mount_config">마운트 구성</string>
     <string name="sumh_mount_mode">마운트 모드</string>
     <string name="sumh_mount_mode_auto">자동</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">데몬 로그를 지울까요? 커널 로그는 변경되지 않습니다.</string>
     <string name="sumh_logs_search">로그 검색</string>
     <string name="sumh_logs_actions">로그 작업</string>
-    <string name="sumh_maps_add_action">추가</string>
-    <string name="sumh_maps_desc">프로세스 maps의 inode, 장치 및 경로를 위장합니다.</string>
     <string name="sumh_maps_spoof">Maps 위장</string>
     <string name="sumh_maps_spoof_desc">메모리 영역의 경로, 장치 번호 및 inode 매핑</string>
     <string name="sumh_mirror_path_desc">비워 두면 SUMHP가 디렉터리를 자동으로 선택합니다.</string>
     <string name="sumh_mount_filter">마운트 모드 필터</string>
     <string name="sumh_mount_hide">마운트 숨기기</string>
     <string name="sumh_mount_hide_desc">마운트 보기에서 모듈 항목 숨기기</string>
-    <string name="sumh_mount_mode_hide">숨기기</string>
     <string name="sumh_mount_total">모듈 마운트</string>
     <string name="sumh_mountsource_invalid">이름은 비워 둘 수 없으며 공백, 역슬래시 또는 제어 문자를 포함할 수 없습니다.</string>
     <string name="sumh_no_conflicts">마운트 충돌이 없습니다</string>

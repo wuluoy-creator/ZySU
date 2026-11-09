@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="sumh_workspace_status" tools:ignore="MissingTranslation">System status</string>
-    <string name="sumh_workspace_mount" tools:ignore="MissingTranslation">Mount settings</string>
-    <string name="sumh_workspace_isolation" tools:ignore="MissingTranslation">App isolation</string>
+    <string name="sumh_workspace_status" tools:ignore="MissingTranslation">Status</string>
+    <string name="sumh_workspace_mount" tools:ignore="MissingTranslation">Mount</string>
+    <string name="sumh_workspace_isolation" tools:ignore="MissingTranslation">Standard</string>
     <string name="sumh_group_mount_backends" tools:ignore="MissingTranslation">Mount backends</string>
     <string name="sumh_group_mount_storage" tools:ignore="MissingTranslation">Mount storage and paths</string>
     <string name="sumh_group_process_isolation" tools:ignore="MissingTranslation">Process isolation</string>
     <string name="sumh_group_mount_visibility" tools:ignore="MissingTranslation">Mount visibility</string>
     <string name="sumh_group_filesystem" tools:ignore="MissingTranslation">Filesystem information</string>
-    <string name="sumh_workspace_rules" tools:ignore="MissingTranslation">Rules</string>
-    <string name="sumh_workspace_logs" tools:ignore="MissingTranslation">Mount and isolation logs</string>
-    <string name="sumh_workspace_debug" tools:ignore="MissingTranslation">Mount and isolation diagnostics</string>
+    <string name="sumh_workspace_rules" tools:ignore="MissingTranslation">Hidden paths</string>
+    <string name="sumh_workspace_maps" tools:ignore="MissingTranslation">Maps rules</string>
+    <string name="sumh_workspace_kstat" tools:ignore="MissingTranslation">Kstat rules</string>
+    <string name="sumh_workspace_kernel" tools:ignore="MissingTranslation">Kernel info</string>
+    <string name="sumh_workspace_runtime" tools:ignore="MissingTranslation">Runtime rules</string>
+    <string name="sumh_workspace_diagnostics" tools:ignore="MissingTranslation">Diagnostics</string>
+    <string name="sumh_workspace_logs" tools:ignore="MissingTranslation">Logs</string>
+    <string name="sumh_workspace_debug" tools:ignore="MissingTranslation">Debug</string>
     <string name="sumh_workspace_rules_cleared" tools:ignore="MissingTranslation">All rules cleared</string>
     <string name="sumh_workspace_rules_clear_failed" tools:ignore="MissingTranslation">Failed to clear rules</string>
 </resources>

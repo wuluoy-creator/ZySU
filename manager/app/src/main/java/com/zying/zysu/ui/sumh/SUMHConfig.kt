@@ -41,7 +41,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,15 +54,11 @@ import com.zying.zysu.ui.component.YukiAlertDialog
 import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
 import com.zying.zysu.ui.screen.WorkspaceOperationGuard
+import com.zying.zysu.ui.screen.WorkspaceTabs
 import com.zying.zysu.ui.theme.isExpressiveUi
 import com.zying.zysu.ui.theme.UtilityPreviewTheme
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as SUMHManager
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter.SUMHStatus
-import com.zying.zysu.ui.sumh.util.SUMHMapsPathError
-import com.zying.zysu.ui.sumh.util.parseSUMHMapsNumber
-import com.zying.zysu.ui.sumh.util.parseSUMHMapsDevice
-import com.zying.zysu.ui.sumh.util.parseSUMHMapsRuleInput
-import com.zying.zysu.ui.sumh.util.validateSUMHMapsPath
 import com.zying.zysu.ui.theme.getCardColors
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardElevation
@@ -84,7 +79,13 @@ import ui.screen.moreSettings.component.SwitchSettingItem
 @Composable
 fun SUMHConfigScreen(navigator: DestinationsNavigator) {
     var selectedSection by rememberSaveable { mutableStateOf(SUMHSection.Status) }
-    var saving by remember { mutableStateOf(false) }
+    var diagnosticSection by rememberSaveable { mutableStateOf(SUMHSection.Runtime) }
+    val mainSection = selectedSection.takeIf { it in SUMH_MAIN_SECTIONS } ?: SUMHSection.Diagnostics
+    val diagnosticSections = listOf(SUMHSection.Runtime, SUMHSection.Logs, SUMHSection.Debug)
+    var workspaceSaving by remember { mutableStateOf(false) }
+    var backupBusy by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+    val saving = workspaceSaving || backupBusy
     WorkspaceOperationGuard(saving, SUMHConfigScreenDestination.route)
     Scaffold(
         topBar = {
@@ -94,14 +95,34 @@ fun SUMHConfigScreen(navigator: DestinationsNavigator) {
                     IconButton(onClick = { if (!saving) navigator.popBackStack() }, enabled = !saving) {
                         YukiIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
-                }
+                },
+                actions = {
+                    SUMHConfigBackupActions(
+                        enabled = !saving,
+                        onBusyChanged = { backupBusy = it },
+                        onRestored = { refreshKey++ },
+                    )
+                },
             )
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-            SUMHTabs(selectedSection, enabled = !saving) { if (!saving) selectedSection = it }
+            SUMHTabs(mainSection, enabled = !saving) { if (!saving) selectedSection = it }
+            if (mainSection == SUMHSection.Diagnostics) {
+                WorkspaceTabs(
+                    labels = diagnosticSections.map { stringResource(it.displayNameRes) },
+                    selected = diagnosticSections.indexOf(diagnosticSection).coerceAtLeast(0),
+                    onSelected = { if (!saving) diagnosticSection = diagnosticSections[it] },
+                    enabled = !saving,
+                )
+            }
             Box(Modifier.weight(1f)) {
-                SUMHWorkspace(selectedSection, onSavingChanged = { saving = it })
+                SUMHWorkspace(
+                    if (mainSection == SUMHSection.Diagnostics) diagnosticSection else mainSection,
+                    onSavingChanged = { workspaceSaving = it },
+                    refreshKey = refreshKey,
+                    externalSaving = backupBusy,
+                )
             }
         }
     }
@@ -225,185 +246,6 @@ internal fun SettingTextField(
                 fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-    }
-}
-
-@Composable
-internal fun MapsSpoofControls(
-    enabled: Boolean,
-    onClearRules: () -> Unit,
-    onAddRule: (Long, Long, Long, Long, String) -> Unit,
-) {
-    var showClearConfirm by rememberSaveable { mutableStateOf(false) }
-    var showAddDialog by rememberSaveable { mutableStateOf(false) }
-    // Keep a failed submission or an accidentally dismissed dialog editable.
-    var tIno by rememberSaveable { mutableStateOf("") }
-    var tDev by rememberSaveable { mutableStateOf("0") }
-    var sIno by rememberSaveable { mutableStateOf("") }
-    var sDev by rememberSaveable { mutableStateOf("0") }
-    var path by rememberSaveable { mutableStateOf("") }
-    var submitted by rememberSaveable { mutableStateOf(false) }
-    var editedFields by rememberSaveable { mutableStateOf(0) }
-
-    if (showClearConfirm) {
-        YukiAlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            title = { Text(stringResource(R.string.sumh_maps_runtime_clear)) },
-            text = { Text(stringResource(R.string.sumh_maps_runtime_clear_confirm)) },
-            confirmButton = {
-                TextButton(
-                    enabled = enabled,
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        if (!enabled) return@TextButton
-                        showClearConfirm = false
-                        onClearRules()
-                    }
-                ) {
-                    Text(stringResource(R.string.sumh_rules_clear))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) {
-                    Text(stringResource(R.string.sumh_rules_cancel))
-                }
-            }
-        )
-    }
-
-    if (showAddDialog) {
-        val focusRequesters = remember { List(5) { FocusRequester() } }
-        val numbers = listOf(tIno, tDev, sIno, sDev)
-        val numberErrors = numbers.mapIndexed { index, value ->
-            (if (index == 1 || index == 3) parseSUMHMapsDevice(value) else parseSUMHMapsNumber(value)) == null
-        }
-        val pathError = validateSUMHMapsPath(path)
-        val input = parseSUMHMapsRuleInput(tIno, tDev, sIno, sDev, path)
-        fun submit() {
-            if (!enabled) return
-            submitted = true
-            if (input == null) {
-                val invalidIndex = numberErrors.indexOfFirst { it }.takeIf { it >= 0 } ?: 4
-                focusRequesters[invalidIndex].requestFocus()
-                return
-            }
-            showAddDialog = false
-            submitted = false
-            onAddRule(input.targetInode, input.targetDevice, input.spoofedInode, input.spoofedDevice, input.path)
-        }
-        YukiAlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text(stringResource(R.string.sumh_maps_runtime_add)) },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.sumh_maps_input_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    val labels = listOf(R.string.sumh_maps_target_ino, R.string.sumh_maps_target_dev,
-                        R.string.sumh_maps_spoof_ino, R.string.sumh_maps_spoof_dev)
-                    numbers.forEachIndexed { index, value ->
-                        OutlinedTextField(
-                            value = value,
-                            onValueChange = {
-                                when (index) { 0 -> tIno = it; 1 -> tDev = it; 2 -> sIno = it; 3 -> sDev = it }
-                                editedFields = editedFields or (1 shl index)
-                            },
-                            label = { Text(stringResource(labels[index])) },
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[index]),
-                            enabled = enabled,
-                            shape = MaterialTheme.shapes.small,
-                            singleLine = true,
-                            isError = (submitted || editedFields and (1 shl index) != 0) && numberErrors[index],
-                            supportingText = if ((submitted || editedFields and (1 shl index) != 0) && numberErrors[index]) {
-                                { Text(stringResource(if (index == 1 || index == 3) R.string.sumh_maps_input_device_error
-                                    else R.string.sumh_maps_input_number_error)) }
-                            } else null,
-                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                            keyboardActions = KeyboardActions(onNext = { focusRequesters[index + 1].requestFocus() }),
-                        )
-                    }
-                    OutlinedTextField(
-                        value = path,
-                        onValueChange = { path = it; editedFields = editedFields or (1 shl 4) },
-                        label = { Text(stringResource(R.string.sumh_maps_spoof_path)) },
-                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[4]),
-                        enabled = enabled,
-                        shape = MaterialTheme.shapes.small,
-                        singleLine = true,
-                        isError = (submitted || editedFields and (1 shl 4) != 0) && pathError != null,
-                        supportingText = if ((submitted || editedFields and (1 shl 4) != 0) && pathError != null) {
-                            { Text(stringResource(when (pathError) {
-                                SUMHMapsPathError.AbsolutePath -> R.string.sumh_maps_input_path_absolute
-                                SUMHMapsPathError.ControlCharacter -> R.string.sumh_maps_input_path_control
-                                SUMHMapsPathError.TooLong -> R.string.sumh_maps_input_path_length
-                            })) }
-                        } else null,
-                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { submit() }),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = enabled && input != null,
-                    onClick = { submit() }
-                ) {
-                    Text(stringResource(R.string.sumh_maps_add_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text(stringResource(R.string.sumh_rules_cancel))
-                }
-            }
-        )
-    }
-
-    SUMHControlGroup(MoreSettingsItemPosition.Last) {
-        Text(
-            text = stringResource(R.string.sumh_maps_desc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.sumh_maps_input_runtime),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = { if (enabled) showClearConfirm = true },
-                enabled = enabled,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                modifier = Modifier.heightIn(min = 48.dp),
-                shape = MaterialTheme.shapes.small,
-            ) {
-                YukiIcon(Icons.Filled.Delete, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.sumh_maps_runtime_clear))
-            }
-            FilledTonalButton(
-                onClick = { if (enabled) showAddDialog = true },
-                enabled = enabled,
-                modifier = Modifier.heightIn(min = 48.dp),
-                shape = MaterialTheme.shapes.small,
-            ) {
-                YukiIcon(Icons.Filled.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.sumh_maps_runtime_add))
-            }
         }
     }
 }

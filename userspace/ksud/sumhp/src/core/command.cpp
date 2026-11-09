@@ -73,11 +73,16 @@ void print_usage() {
         << "  ksud sumhp hide list|apply|add|remove\n"
         << "  ksud sumhp sumh "
            "version|list|clear|fix-mounts|hide-overlay-xattrs|mount-hide "
-           "off|normal|aggressive|maps\n"
+           "off|normal|aggressive|maps|kstat\n"
         << "  ksud sumhp sumh kernel-build show|set <release> <version>|reset\n"
         << "  ksud sumhp sumh maps list-paths|apply\n"
         << "  ksud sumhp sumh maps add-path <target-path> <replacement-path>\n"
-        << "  ksud sumhp sumh maps remove-path <target-path>\n";
+        << "  ksud sumhp sumh maps remove-path <target-path>\n"
+        << "  ksud sumhp sumh kstat list-paths|apply\n"
+        << "  ksud sumhp sumh kstat status\n"
+        << "  ksud sumhp sumh kstat add-path <target-path> <source-path> identity|full\n"
+        << "  ksud sumhp sumh kstat add-custom <target-path> <fields-json-object>\n"
+        << "  ksud sumhp sumh kstat remove-path <target-path>\n";
 }
 
 std::string arg_or_default(const std::vector<std::string>& args, std::size_t index,
@@ -393,6 +398,16 @@ int print_features_json(int bitmask) {
     return 0;
 }
 
+void append_managed_kstat_status_json(bool available, int bitmask) {
+    if (!available || !(bitmask & SUMH_FEATURE_MANAGED_KSTAT))
+        return;
+    sumh::ManagedKstatStatus status;
+    if (!sumh::managed_kstat_status(status))
+        return;
+    std::cout << ",\"managed_kstat_status\":{\"active_count\":" << status.active_count
+              << ",\"generation\":" << json_quote(std::to_string(status.generation)) << "}";
+}
+
 int print_sumh_snapshot_json() {
     const auto version = sumh::version_info();
     const bool available = version.status == sumh::Status::Available;
@@ -405,6 +420,7 @@ int print_sumh_snapshot_json() {
               << ",\"enabled\":" << (available && sumh::enabled_state() > 0 ? "true" : "false")
               << ",\"features\":";
     print_features_json(bitmask);
+    append_managed_kstat_status_json(available, bitmask);
     std::cout << ",\"hooks\":" << json_quote(available ? sumh::hooks() : "") << "}\n";
     return 0;
 }
@@ -435,6 +451,10 @@ int apply_config_file() {
     if (!mount::sumh::apply_feature_config(config, error, true)) {
         // Feature orchestration owns cleanup. Maps resolution failures preserve
         // the previous rule set and must not disable unrelated active features.
+        std::cerr << error << "\n";
+        return 1;
+    }
+    if (!mount::sumh::restore_managed_kstat_rules(config, error)) {
         std::cerr << error << "\n";
         return 1;
     }
@@ -499,6 +519,7 @@ int print_system_json() {
               << "\"hooks\":" << json_quote(hook_text) << ","
               << "\"features\":";
     print_features_json(bitmask);
+    append_managed_kstat_status_json(version.status == sumh::Status::Available, bitmask);
     std::cout << ",\"mountStats\":{\"total_mounts\":" << total_mounts
               << ",\"successful_mounts\":" << total_mounts
               << ",\"failed_mounts\":0,\"tmpfs_created\":0,\"files_mounted\":0,\"dirs_mounted\":0,"
@@ -1124,6 +1145,113 @@ int handle_sumh(const std::vector<std::string>& args) {
         std::cout << "{\"ok\":true,\"enabled\":" << (enable ? "true" : "false") << "}\n";
         return 0;
     }
+    if (sub == "kstat") {
+        const std::string op = arg_or_default(args, 2, "");
+        if (op == "status" && args.size() == 3) {
+            sumh::ManagedKstatStatus status;
+            if (!sumh::managed_kstat_status(status)) {
+                std::cerr << "failed to query active managed kstat status: " << std::strerror(errno)
+                          << "\n";
+                return 1;
+            }
+            std::cout << "{\"active_count\":" << status.active_count
+                      << ",\"generation\":" << json_quote(std::to_string(status.generation))
+                      << "}\n";
+            return 0;
+        }
+        const std::size_t expected = op == "add-path"      ? 6
+                                     : op == "add-custom"  ? 5
+                                     : op == "remove-path" ? 4
+                                                           : 3;
+        if ((op != "list-paths" && op != "status" && op != "add-path" && op != "add-custom" &&
+             op != "remove-path" && op != "apply") ||
+            args.size() != expected) {
+            std::cerr << "usage: ksud sumhp sumh kstat list-paths|status|apply|"
+                         "add-path <target-path> <source-path> identity|full|"
+                         "add-custom <target-path> <fields-json-object>|"
+                         "remove-path <target-path>\n";
+            return 1;
+        }
+        Config config;
+        std::string error;
+        KstatPathRule candidate;
+        const KstatPathRule* replacement = nullptr;
+        if (op == "add-path" || op == "add-custom") {
+            if (op == "add-path") {
+                candidate = {args[3], args[4], args[5]};
+            } else {
+                JsonValue fields;
+                if (!parse_json(args[4], fields, error) || !fields.is_object()) {
+                    std::cerr << "custom kstat fields must be a JSON object"
+                              << (error.empty() ? "" : ": " + error) << "\n";
+                    return 1;
+                }
+                JsonValue entry = JsonValue::object();
+                entry.o["target_path"] = args[3];
+                entry.o["mode"] = "custom";
+                entry.o["fields"] = std::move(fields);
+                JsonValue array = JsonValue::array();
+                array.a.push_back(std::move(entry));
+                JsonValue config_value = JsonValue::object();
+                config_value.o["kstat_rules"] = std::move(array);
+                Config parsed;
+                if (!parse_config_json(stringify_json(config_value), parsed, error)) {
+                    std::cerr << error << "\n";
+                    return 1;
+                }
+                candidate = std::move(parsed.kstat_rules.front());
+            }
+            replacement = &candidate;
+        } else if (op == "remove-path") {
+            const std::string& path = args[3];
+            if (path.empty() || path.front() != '/' || path.find('\0') != std::string::npos ||
+                path.find_first_of("\r\n") != std::string::npos) {
+                std::cerr << "kstat target must be an absolute, NUL/CR/LF-free path\n";
+                return 1;
+            }
+        }
+        const bool saving = op != "list-paths" && op != "apply";
+        bool applied = false;
+        int apply_errno = 0;
+        const auto apply_rules = [](const Config& updated, std::string& apply_error) {
+            return mount::sumh::restore_managed_kstat_rules(updated, apply_error);
+        };
+        if (saving) {
+            const auto result =
+                edit_kstat_path_rule(args[3], replacement, config, error, apply_rules);
+            if (!result.saved) {
+                std::cerr << error << "\n";
+                return 1;
+            }
+            applied = result.applied;
+            apply_errno = result.apply_errno;
+        } else if (op == "apply") {
+            const auto result = apply_saved_kstat_rules(config, error, apply_rules);
+            if (!result.loaded) {
+                std::cerr << error << "\n";
+                return 1;
+            }
+            applied = result.applied;
+            apply_errno = result.apply_errno;
+        } else if (!read_config_file(config, error)) {
+            std::cerr << error << "\n";
+            return 1;
+        }
+        if (op == "list-paths") {
+            std::cout << stringify_json(kstat_path_rules_json(config.kstat_rules)) << "\n";
+            return 0;
+        }
+        std::cout << "{\"saved\":" << (saving ? "true" : "false")
+                  << ",\"applied\":" << (applied ? "true" : "false")
+                  << ",\"count\":" << config.kstat_rules.size() << "}\n";
+        if (!applied) {
+            std::cerr << (saving ? "kstat paths saved; apply failed: " : "kstat apply failed: ")
+                      << error << "; retry with 'ksud sumhp sumh kstat apply'\n";
+            errno = apply_errno;
+            return 1;
+        }
+        return 0;
+    }
     if (sub == "maps") {
         const std::string op = arg_or_default(args, 2, "");
         if (op == "list-paths" || op == "add-path" || op == "remove-path" || op == "apply") {
@@ -1456,7 +1584,8 @@ bool is_query(const std::vector<std::string>& args) {
            (args[0] == "hide" && sub == "list") ||
            (args[0] == "sumh" &&
             (sub == "version" || sub == "list" || sub == "features" || sub == "hooks" ||
-             (sub == "maps" && arg_or_default(args, 2, "") == "list-paths") ||
+             ((sub == "maps" || sub == "kstat") && arg_or_default(args, 2, "") == "list-paths") ||
+             (sub == "kstat" && arg_or_default(args, 2, "") == "status") ||
              (sub == "kernel-build" && arg_or_default(args, 2, "show") == "show"))) ||
            (args[0] == "recovery" && sub == "status");
 }

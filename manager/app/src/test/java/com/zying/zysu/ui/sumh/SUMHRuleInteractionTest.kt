@@ -157,7 +157,7 @@ class SUMHRuleInteractionTest {
 
     @Test
     @Config(qualifiers = "zh-rCN-w360dp-h760dp-xhdpi")
-    fun isolationShowsAllFeaturesWithoutRedundantSearchControls() {
+    fun standardPageKeepsOnlyIndependentFeatureSwitches() {
         compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
             SettingsTab(
                 config = SUMHUiAdapter.SUMHPConfig(enableMountHide = true,
@@ -165,7 +165,7 @@ class SUMHRuleInteractionTest {
                 sumhStatus = SUMHUiAdapter.SUMHStatus.AVAILABLE,
                 features = SUMHUiAdapter.FeaturesResult(0, SUMHManagedFeature.entries.map { it.capability }),
                 controlsEnabled = true, runtimeApplyPending = false, onRetryApply = {}, onConfigChanged = {},
-                onClearMapRules = {}, onAddMapRule = { _, _, _, _, _ -> }, section = SUMHSection.Isolation,
+                section = SUMHSection.Isolation,
             )
         } } }
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
@@ -176,17 +176,22 @@ class SUMHRuleInteractionTest {
             R.string.sumh_mount_hide,
             R.string.sumh_overlay_xattr,
             R.string.sumh_statfs_spoof,
-            R.string.sumh_maps_spoof,
-            R.string.sumh_kernel_build_spoof,
         ).forEach { title -> compose.onNodeWithText(compose.activity.getString(title)).performScrollTo().assertIsDisplayed() }
-        val edit = compose.onNodeWithText(compose.activity.getString(R.string.sumh_rules_edit_settings))
-        edit.performScrollTo().performClick()
-        val release = hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_kernel_build_release))
-        compose.onNode(release).performScrollTo().performTextReplacement("6.1.75-draft")
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_rules_done)).performScrollTo().performClick()
-        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
-        edit.performScrollTo().performClick()
-        compose.onNode(release).performScrollTo().assertEditableText("6.1.75-draft")
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_spoof)).assertDoesNotExist()
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_spoof)).assertDoesNotExist()
+    }
+
+    @Test
+    fun statfsShowsItsMountHideDependency() {
+        val config = SUMHUiAdapter.SUMHPConfig(enableMountHide = false)
+        compose.setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) {
+            SettingsTab(config = config, sumhStatus = SUMHUiAdapter.SUMHStatus.AVAILABLE,
+                features = SUMHUiAdapter.FeaturesResult(0, SUMHManagedFeature.entries.map { it.capability }),
+                controlsEnabled = true, runtimeApplyPending = false, onRetryApply = {}, onConfigChanged = {},
+                section = SUMHSection.Isolation)
+        } } }
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_statfs_requires_mount_hide), substring = true)
+            .performScrollTo().assertIsDisplayed()
     }
 
     @Test

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="sumh_backup_menu">SUMH backup options</string>
+    <string name="sumh_backup_export">Export SUMH backup</string>
+    <string name="sumh_backup_import">Import SUMH backup</string>
+    <string name="sumh_backup_export_done">SUMH backup exported</string>
+    <string name="sumh_backup_export_failed">Backup export failed</string>
+    <string name="sumh_backup_import_failed">Backup import failed</string>
+    <string name="sumh_backup_preview_title">Review SUMH backup</string>
+    <string name="sumh_backup_preview_body">Configuration fields to update: %1$d\nHidden paths to add: %2$d\nHidden paths to remove: %3$d</string>
+    <string name="sumh_backup_changed_fields">Fields to update</string>
+    <string name="sumh_backup_paths_add">Hidden paths to add</string>
+    <string name="sumh_backup_paths_remove">Hidden paths to remove</string>
+    <string name="sumh_backup_scope_note">Only configuration fields in the backup are updated; absent fields keep their current values. Custom hidden paths are replaced. Module settings are excluded. Changes run in stages and may partially succeed.</string>
+    <string name="sumh_backup_restore">Restore</string>
+    <string name="sumh_backup_close">Close</string>
+    <string name="sumh_backup_result_title">Restore result</string>
+    <string name="sumh_backup_result_body">Configuration saved: %1$s\nHidden paths stored: +%2$d / -%3$d</string>
+    <string name="sumh_backup_yes">Yes</string>
+    <string name="sumh_backup_no">No</string>
+    <string name="sumh_backup_reboot">Some settings require a reboot.</string>
+    <string name="sumh_backup_runtime_pending">Runtime changes are saved but not yet applied.</string>
+</resources>

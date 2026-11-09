@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">ವಿವರವಾದ</string>
     <string name="sumh_logs_filter_warn">ಎಚ್ಚರಿಕೆ</string>
     <string name="sumh_logs_kernel">ಕರ್ನಲ್ ಲಾಗ್</string>
-    <string name="sumh_maps_add_failed">maps ನಿಯಮ ಸೇರಿಸಲು ವಿಫಲವಾಗಿದೆ</string>
-    <string name="sumh_maps_add_success">maps ನಿಯಮ ಸೇರಿಸಲಾಗಿದೆ</string>
-    <string name="sumh_maps_clear_failed">maps ನಿಯಮಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ವಿಫಲವಾಗಿದೆ</string>
-    <string name="sumh_maps_cleared">maps ನಿಯಮಗಳನ್ನು ತೆರವುಗೊಳಿಸಲಾಗಿದೆ</string>
-    <string name="sumh_maps_spoof_dev">ಸ್ಪೂಫ್ device</string>
-    <string name="sumh_maps_spoof_ino">ಸ್ಪೂಫ್ inode</string>
-    <string name="sumh_maps_spoof_path">ಸ್ಪೂಫ್ path</string>
-    <string name="sumh_maps_target_dev">ಗುರಿ device (0=ಯಾವುದೇ)</string>
-    <string name="sumh_maps_target_ino">ಗುರಿ inode</string>
-    <string name="sumh_maps_title">Maps ಸ್ಪೂಫ್ (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">ಮೌಂಟ್ ಬೇಸ್ / mirror ಪಥ</string>
     <string name="sumh_mismatch_default">ಪ್ರೋಟೋಕಾಲ್ ಅಸಾಮ್ಯತೆ ಪತ್ತೆಯಾಗಿದೆ. ದಯವಿಟ್ಟು ಕರ್ನಲ್ ಅಥವಾ ಮಾಡ್ಯೂಲ್ ಅಪ್‌ಡೇಟ್ ಮಾಡಿ.</string>
-    <string name="sumh_module_rules_add">ಸೇರಿಸಿ</string>
-    <string name="sumh_module_rules_placeholder">/system/ಅಥವಾ/vendor/ಒಳಗಿನ/ಪಥ</string>
-    <string name="sumh_module_rules_title">ಈ ಮಾಡ್ಯೂಲ್‌ಗಾಗಿ ಕಸ್ಟಮ್ ನಿಯಮಗಳು</string>
     <string name="sumh_mount_config">ಮೌಂಟ್ ಕಾನ್ಫಿಗ್</string>
     <string name="sumh_mount_mode">ಮೌಂಟ್ ಮೋಡ್</string>
     <string name="sumh_mount_mode_auto">ಸ್ವಯಂಚಾಲಿತ</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">ಡೀಮನ್ ಲಾಗ್‌ಗಳನ್ನು ತೆರವುಗೊಳಿಸಬೇಕೆ? ಕರ್ನಲ್ ಲಾಗ್‌ಗಳು ಬದಲಾಗುವುದಿಲ್ಲ.</string>
     <string name="sumh_logs_search">ಲಾಗ್‌ಗಳನ್ನು ಹುಡುಕಿ</string>
     <string name="sumh_logs_actions">ಲಾಗ್ ಕ್ರಿಯೆಗಳು</string>
-    <string name="sumh_maps_add_action">ಸೇರಿಸಿ</string>
-    <string name="sumh_maps_desc">ಪ್ರಕ್ರಿಯೆಯ maps ನಲ್ಲಿ inode, ಸಾಧನ ಮತ್ತು ಪಥದ ನಕಲಿ ಮಾಹಿತಿ ತೋರಿಸಿ.</string>
     <string name="sumh_maps_spoof">Maps ಸ್ಪೂಫಿಂಗ್</string>
     <string name="sumh_maps_spoof_desc">ಮೆಮೊರಿ ಪ್ರದೇಶದ ಪಥ, ಸಾಧನ ಸಂಖ್ಯೆ ಮತ್ತು inode ಮ್ಯಾಪ್ ಮಾಡಿ</string>
     <string name="sumh_mirror_path_desc">ಖಾಲಿ ಬಿಟ್ಟರೆ SUMHP ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಡೈರೆಕ್ಟರಿ ಆಯ್ಕೆಮಾಡುತ್ತದೆ.</string>
     <string name="sumh_mount_filter">ಮೌಂಟ್ ಮೋಡ್‌ಗಳನ್ನು ಫಿಲ್ಟರ್ ಮಾಡಿ</string>
     <string name="sumh_mount_hide">ಮೌಂಟ್ ಮರೆಮಾಡಿ</string>
     <string name="sumh_mount_hide_desc">ಮೌಂಟ್ ನೋಟದಲ್ಲಿ ಮಾಡ್ಯೂಲ್ ನಮೂದುಗಳನ್ನು ಮರೆಮಾಡಿ</string>
-    <string name="sumh_mount_mode_hide">ಮರೆಮಾಡಿ</string>
     <string name="sumh_mount_total">ಮಾಡ್ಯೂಲ್ ಮೌಂಟ್</string>
     <string name="sumh_mountsource_invalid">ಹೆಸರು ಖಾಲಿಯಾಗಿರಬಾರದು; ಖಾಲಿ ಜಾಗ, ಬ್ಯಾಕ್‌ಸ್ಲ್ಯಾಶ್ ಅಥವಾ ನಿಯಂತ್ರಣ ಅಕ್ಷರಗಳನ್ನು ಹೊಂದಿರಬಾರದು.</string>
     <string name="sumh_no_conflicts">ಮೌಂಟ್ ಸಂಘರ್ಷಗಳು ಕಂಡುಬಂದಿಲ್ಲ</string>

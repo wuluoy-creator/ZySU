@@ -81,6 +81,43 @@ struct sumh_spoof_kstat {
   int err;       /* Error code for userspace feedback */
 };
 
+#define SUMH_MANAGED_KSTAT_MAX_RULES 32
+#define SUMH_KSTAT_FIELD_DEV (1U << 0)
+#define SUMH_KSTAT_FIELD_INO (1U << 1)
+#define SUMH_KSTAT_FIELD_NLINK (1U << 2)
+#define SUMH_KSTAT_FIELD_SIZE (1U << 3)
+#define SUMH_KSTAT_FIELD_ATIME (1U << 4)
+#define SUMH_KSTAT_FIELD_MTIME (1U << 5)
+#define SUMH_KSTAT_FIELD_CTIME (1U << 6)
+#define SUMH_KSTAT_FIELD_BLKSIZE (1U << 7)
+#define SUMH_KSTAT_FIELD_BLOCKS (1U << 8)
+#define SUMH_KSTAT_FIELD_ALL ((1U << 9) - 1)
+
+/* Atomically replaces controller-owned path rules. Only masked fields apply,
+ * including zero values; legacy ADD/UPDATE keep zero-as-unchanged.
+ * The target path must currently resolve. count == 0 clears only this set.
+ */
+struct sumh_managed_kstat_rule {
+  struct sumh_spoof_kstat values;
+  __u32 field_mask;
+  __u32 reserved;
+};
+
+struct sumh_managed_kstat_arg {
+  __u32 size;
+  __u32 count;
+  __aligned_u64 rules;
+  __u32 reserved[2];
+};
+
+/* Live kernel snapshot only; generation is scoped to this module lifetime. */
+struct sumh_managed_kstat_status_arg {
+  __u32 size;
+  __u32 count;
+  __aligned_u64 generation;
+  __u32 reserved[2];
+};
+
 /*
  * Feature flags for SUMH_CMD_GET_FEATURES
  */
@@ -103,6 +140,7 @@ struct sumh_spoof_kstat {
 #define SUMH_FEATURE_MANAGED_HIDE (1 << 14)
 #define SUMH_FEATURE_KERNEL_BUILD_SPOOF (1 << 15)
 #define SUMH_FEATURE_MANAGED_MAPS (1 << 16)
+#define SUMH_FEATURE_MANAGED_KSTAT (1 << 17)
 
 #define SUMH_KERNEL_BUILD_MAX 65
 
@@ -145,6 +183,29 @@ struct sumh_user_hide_arg {
   __u32 path_len;
   __aligned_u64 reserved[2];
   char path[SUMH_USER_HIDE_PATH_MAX];
+};
+
+/* Raw metadata of a source path in the caller's mount namespace. Fixed-width
+ * fields make the reply independent of the native kstat/unsigned-long ABI.
+ * dev is the kernel's packed dev_t value, not a userspace dev_t encoding.
+ */
+struct sumh_raw_kstat_arg {
+  __u32 size;
+  __u32 reserved;
+  char source_path[SUMH_USER_HIDE_PATH_MAX];
+  __aligned_u64 ino;
+  __u32 dev;
+  __u32 nlink;
+  __s64 size_bytes;
+  __s64 atime_sec;
+  __s64 atime_nsec;
+  __s64 mtime_sec;
+  __s64 mtime_nsec;
+  __s64 ctime_sec;
+  __s64 ctime_nsec;
+  __u32 blksize;
+  __u32 reserved2;
+  __aligned_u64 blocks;
 };
 
 #define SUMH_MOUNT_HIDE_MODE_NORMAL 0
@@ -272,5 +333,11 @@ struct sumh_statfs_spoof_arg {
   _IOR(SUMH_IOC_MAGIC, 47, struct sumh_kernel_build_arg)
 #define SUMH_IOC_SET_MANAGED_MAPS                                              \
   _IOW(SUMH_IOC_MAGIC, 48, struct sumh_managed_maps_arg)
+#define SUMH_IOC_SET_MANAGED_KSTAT                                             \
+  _IOW(SUMH_IOC_MAGIC, 49, struct sumh_managed_kstat_arg)
+#define SUMH_IOC_GET_RAW_KSTAT                                                 \
+  _IOWR(SUMH_IOC_MAGIC, 50, struct sumh_raw_kstat_arg)
+#define SUMH_IOC_GET_MANAGED_KSTAT_STATUS                                      \
+  _IOWR(SUMH_IOC_MAGIC, 51, struct sumh_managed_kstat_status_arg)
 
 #endif /* _SUMH_UAPI_H */

@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="sumh_maps_input_hint">All fields are required. Enter unsigned decimal numbers. Target device 0 matches any device. Drafts remain available when you reopen this dialog on this screen.</string>
-    <string name="sumh_maps_input_number_error">Enter a whole decimal number from 0 to 18446744073709551615.</string>
-    <string name="sumh_maps_input_device_error">Enter an encoded device number from 0 to 4294967295.</string>
-    <string name="sumh_maps_input_runtime">Numeric rules apply to the running kernel only and are removed by a reboot or clearing runtime rules. For the same inode/device, numeric rules take priority over saved path rules. Saved path rules are restored on apply or boot when Maps spoofing is enabled.</string>
     <string name="sumh_maps_input_path_absolute">Enter an absolute path beginning with /.</string>
-    <string name="sumh_maps_input_path_control">Remove line breaks and control characters from the path.</string>
     <string name="sumh_maps_input_path_length">Shorten the path to at most 255 UTF-8 bytes.</string>
 </resources>

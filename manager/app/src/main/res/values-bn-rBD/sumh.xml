@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">বিস্তারিত</string>
     <string name="sumh_logs_filter_warn">সতর্কতা</string>
     <string name="sumh_logs_kernel">কার্নেল লগ</string>
-    <string name="sumh_maps_add_failed">maps নিয়ম যোগ করতে ব্যর্থ</string>
-    <string name="sumh_maps_add_success">maps নিয়ম যোগ করা হয়েছে</string>
-    <string name="sumh_maps_clear_failed">maps নিয়ম সাফ করতে ব্যর্থ</string>
-    <string name="sumh_maps_cleared">maps নিয়ম সাফ করা হয়েছে</string>
-    <string name="sumh_maps_spoof_dev">স্পুফ device</string>
-    <string name="sumh_maps_spoof_ino">স্পুফ inode</string>
-    <string name="sumh_maps_spoof_path">স্পুফ path</string>
-    <string name="sumh_maps_target_dev">লক্ষ্য device (0=যেকোনো)</string>
-    <string name="sumh_maps_target_ino">লক্ষ্য inode</string>
-    <string name="sumh_maps_title">Maps স্পুফ (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">মাউন্ট বেস / mirror পাথ</string>
     <string name="sumh_mismatch_default">প্রোটোকল অমিল সনাক্ত হয়েছে। অনুগ্রহ করে কার্নেল বা মডিউল আপডেট করুন।</string>
-    <string name="sumh_module_rules_add">যোগ করুন</string>
-    <string name="sumh_module_rules_placeholder">/system/বা/vendor/এর/ভিতরে/পাথ</string>
-    <string name="sumh_module_rules_title">এই মডিউলের জন্য কাস্টম নিয়ম</string>
     <string name="sumh_mount_config">মাউন্ট কনফিগারেশন</string>
     <string name="sumh_mount_mode">মাউন্ট মোড</string>
     <string name="sumh_mount_mode_auto">স্বয়ংক্রিয়</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">ডেমন লগ মুছবেন? কার্নেল লগ বদলাবে না।</string>
     <string name="sumh_logs_search">লগ খুঁজুন</string>
     <string name="sumh_logs_actions">লগের কাজ</string>
-    <string name="sumh_maps_add_action">যোগ করুন</string>
-    <string name="sumh_maps_desc">প্রসেসের maps-এ inode, ডিভাইস ও পাথের ভুয়া তথ্য দেখান।</string>
     <string name="sumh_maps_spoof">Maps-এর ভুয়া তথ্য</string>
     <string name="sumh_maps_spoof_desc">মেমরি অঞ্চলের পাথ, ডিভাইস নম্বর ও inode ম্যাপ করুন</string>
     <string name="sumh_mirror_path_desc">ফাঁকা রাখলে SUMHP স্বয়ংক্রিয়ভাবে ডিরেক্টরি বেছে নেবে।</string>
     <string name="sumh_mount_filter">মাউন্ট মোড অনুযায়ী ছাঁকুন</string>
     <string name="sumh_mount_hide">মাউন্ট লুকান</string>
     <string name="sumh_mount_hide_desc">মাউন্ট ভিউ থেকে মডিউলের এন্ট্রি লুকান</string>
-    <string name="sumh_mount_mode_hide">লুকান</string>
     <string name="sumh_mount_total">মডিউল মাউন্ট</string>
     <string name="sumh_mountsource_invalid">নাম ফাঁকা রাখা যাবে না এবং এতে ফাঁকা স্থান, ব্যাকস্ল্যাশ বা নিয়ন্ত্রণ অক্ষর থাকতে পারবে না।</string>
     <string name="sumh_no_conflicts">মাউন্টের কোনো দ্বন্দ্ব পাওয়া যায়নি</string>

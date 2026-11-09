@@ -42,6 +42,43 @@ struct MapsRule {
     std::string spoofed_path;
 };
 
+struct KstatRule {
+    std::string target_path;
+    std::uint32_t field_mask = 0;
+    unsigned long spoofed_ino = 0;
+    unsigned long spoofed_dev = 0;
+    unsigned int spoofed_nlink = 0;
+    std::int64_t spoofed_size = 0;
+    std::int64_t spoofed_atime_sec = 0;
+    long spoofed_atime_nsec = 0;
+    std::int64_t spoofed_mtime_sec = 0;
+    long spoofed_mtime_nsec = 0;
+    std::int64_t spoofed_ctime_sec = 0;
+    long spoofed_ctime_nsec = 0;
+    unsigned long spoofed_blksize = 0;
+    std::uint64_t spoofed_blocks = 0;
+};
+
+struct RawKstat {
+    std::uint64_t ino = 0;
+    std::uint32_t dev = 0;
+    std::uint32_t nlink = 0;
+    std::int64_t size = 0;
+    std::int64_t atime_sec = 0;
+    std::int64_t atime_nsec = 0;
+    std::int64_t mtime_sec = 0;
+    std::int64_t mtime_nsec = 0;
+    std::int64_t ctime_sec = 0;
+    std::int64_t ctime_nsec = 0;
+    std::uint32_t blksize = 0;
+    std::uint64_t blocks = 0;
+};
+
+struct ManagedKstatStatus {
+    std::uint32_t active_count = 0;
+    std::uint64_t generation = 0;
+};
+
 struct UserHideRule {
     std::uint64_t id = 0;
     std::uint64_t generation = 0;
@@ -96,6 +133,10 @@ bool add_maps_rule(unsigned long target_ino, unsigned long target_dev, unsigned 
 bool clear_maps_rules();
 // Atomically replaces only the managed set. Legacy numeric rules are retained.
 bool replace_managed_maps_rules(const std::vector<MapsRule>& rules);
+// Atomically replaces only managed kstat rules; legacy explicit rules survive.
+bool replace_managed_kstat_rules(const std::vector<KstatRule>& rules);
+bool raw_kstat(const std::string& source_path, RawKstat& result);
+bool managed_kstat_status(ManagedKstatStatus& result);
 int enabled_state();
 int process_uid();
 int process_euid();

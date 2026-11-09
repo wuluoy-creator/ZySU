@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sumh_features_title">SUMH 功能管理</string>
-    <string name="sumh_features_configured_count">配置已开启：%1$d / %2$d</string>
-    <string name="sumh_features_supported_count">当前内核支持：%1$d / %2$d</string>
     <string name="sumh_features_support_yes">内核支持</string>
     <string name="sumh_features_support_no">内核不支持</string>
     <string name="sumh_features_support_unknown">暂未获取到内核功能支持信息</string>

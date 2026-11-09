@@ -193,10 +193,19 @@ sumh_dirhijack_original_iops(const struct inode *inode)
 	return orig;
 }
 
+static bool sumh_dh_control_current(void)
+{
+	long tgid = atomic_long_read(&sumh_ioctl_tgid);
+
+	return tgid > 0 && tgid == (long)task_tgid_vnr(current);
+}
+
 /* True if the current task should see this dir's injected children. */
 static bool sumh_dh_current_sees(void)
 {
 	if (!sumh_dirhijack_enabled())
+		return false;
+	if (sumh_dh_control_current())
 		return false;
 	return sumh_policy_current_is_view_target();
 }
@@ -212,6 +221,8 @@ static bool sumh_dh_current_hides(const struct sumh_dh_child *child,
 static bool sumh_dh_current_targets(const struct sumh_dh_child *child,
 				    const struct inode *parent)
 {
+	if (sumh_dh_control_current())
+		return false;
 	if (child->flags & SUMH_VNODE_F_SU)
 		return ksu_sucompat_vfs_current_ino(child->v_ino);
 	if (sumh_dh_current_hides(child, parent))
@@ -222,6 +233,8 @@ static bool sumh_dh_current_targets(const struct sumh_dh_child *child,
 static bool sumh_dh_child_emitted(const struct sumh_dh_child *child,
 				  const struct inode *parent)
 {
+	if (sumh_dh_control_current())
+		return false;
 	if (child->hide || child->lookup_only ||
 	    sumh_dh_current_hides(child, parent))
 		return false;
@@ -723,10 +736,20 @@ static int SUMH_NOCFI sumh_dh_revalidate_inner(
 			child_hide = c->hide || sumh_dh_current_hides(c, dir);
 			sees = sumh_dh_current_targets(c, dir);
 			if (c->flags & SUMH_VNODE_F_SU) {
-				bool enabled =
-				    ksu_sucompat_vfs_current_ino(c->v_ino);
-				bool visible = ksu_sucompat_vfs_visible();
+				bool enabled;
+				bool visible;
 				unsigned long ino = c->v_ino;
+
+				if (sumh_dh_control_current()) {
+					rcu_read_unlock();
+					if (is_virtual || synthetic_negative)
+						return 0;
+					*chain_orig = true;
+					return 1;
+				}
+				enabled =
+				    ksu_sucompat_vfs_current_ino(c->v_ino);
+				visible = ksu_sucompat_vfs_visible();
 				rcu_read_unlock();
 				if (enabled)
 					return visible

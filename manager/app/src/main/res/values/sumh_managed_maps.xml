@@ -20,7 +20,4 @@
     <string name="sumh_maps_path_remove">Remove saved path rule</string>
     <string name="sumh_maps_path_remove_label">Remove saved rule for %1$s</string>
     <string name="sumh_maps_path_remove_confirm">Remove this definition from the saved configuration and apply the change? If applying fails, retry applying the configuration to remove its runtime rule.</string>
-    <string name="sumh_maps_runtime_add">Add numeric rule</string>
-    <string name="sumh_maps_runtime_clear">Clear runtime rules</string>
-    <string name="sumh_maps_runtime_clear_confirm">Clear all Maps rules in the running kernel, including rules installed from saved paths? Saved definitions remain and return when the configuration is applied or on boot with Maps spoofing enabled.</string>
 </resources>

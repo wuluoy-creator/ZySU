@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_backup_menu">SUMH 备份选项</string>
+    <string name="sumh_backup_export">导出 SUMH 备份</string>
+    <string name="sumh_backup_import">导入 SUMH 备份</string>
+    <string name="sumh_backup_export_done">SUMH 备份已导出</string>
+    <string name="sumh_backup_export_failed">备份导出失败</string>
+    <string name="sumh_backup_import_failed">备份导入失败</string>
+    <string name="sumh_backup_preview_title">确认 SUMH 备份</string>
+    <string name="sumh_backup_changed_fields">将更新的字段</string>
+    <string name="sumh_backup_paths_add">将添加的自定义隐藏路径</string>
+    <string name="sumh_backup_paths_remove">将移除的自定义隐藏路径</string>
+    <string name="sumh_backup_preview_body">将更新的配置字段：%1$d\n将添加的自定义隐藏路径：%2$d\n将移除的自定义隐藏路径：%3$d</string>
+    <string name="sumh_backup_scope_note">仅更新备份中存在的配置字段；缺失字段保留现值。自定义隐藏路径将按备份替换。不包含模块设置。恢复按阶段执行，可能部分成功。</string>
+    <string name="sumh_backup_restore">恢复</string>
+    <string name="sumh_backup_close">关闭</string>
+    <string name="sumh_backup_result_title">恢复结果</string>
+    <string name="sumh_backup_result_body">配置已保存：%1$s\n已存储隐藏路径：+%2$d / -%3$d</string>
+    <string name="sumh_backup_yes">是</string>
+    <string name="sumh_backup_no">否</string>
+    <string name="sumh_backup_reboot">部分配置需要重启才能生效。</string>
+    <string name="sumh_backup_runtime_pending">运行态变更已保存，但尚未生效。</string>
+</resources>

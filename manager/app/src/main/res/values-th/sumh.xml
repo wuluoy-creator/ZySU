@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">ละเอียด</string>
     <string name="sumh_logs_filter_warn">คำเตือน</string>
     <string name="sumh_logs_kernel">บันทึกเคอร์เนล</string>
-    <string name="sumh_maps_add_failed">เพิ่มกฎ maps ไม่สำเร็จ</string>
-    <string name="sumh_maps_add_success">เพิ่มกฎ maps แล้ว</string>
-    <string name="sumh_maps_clear_failed">ล้างกฎ maps ไม่สำเร็จ</string>
-    <string name="sumh_maps_cleared">ล้างกฎ maps แล้ว</string>
-    <string name="sumh_maps_spoof_dev">อุปกรณ์ปลอม</string>
-    <string name="sumh_maps_spoof_ino">inode ปลอม</string>
-    <string name="sumh_maps_spoof_path">พาธปลอม</string>
-    <string name="sumh_maps_target_dev">อุปกรณ์เป้าหมาย (0=ใดก็ได้)</string>
-    <string name="sumh_maps_target_ino">inode เป้าหมาย</string>
-    <string name="sumh_maps_title">ปลอมแปลง Maps (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">ฐานการเมานต์ / พาธมิเรอร์</string>
     <string name="sumh_mismatch_default">ตรวจพบความไม่ตรงกันของโปรโตคอล กรุณาอัปเดตเคอร์เนลหรือโมดูล</string>
-    <string name="sumh_module_rules_add">เพิ่ม</string>
-    <string name="sumh_module_rules_placeholder">/พาธ/ภายใน/system/หรือ/vendor</string>
-    <string name="sumh_module_rules_title">กฎแบบกำหนดเองสำหรับโมดูลนี้</string>
     <string name="sumh_mount_config">การกำหนดค่าการเมานต์</string>
     <string name="sumh_mount_mode">โหมดการเมานต์</string>
     <string name="sumh_mount_mode_auto">อัตโนมัติ</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">ล้างบันทึกดีมอนหรือไม่? บันทึกเคอร์เนลจะไม่เปลี่ยนแปลง</string>
     <string name="sumh_logs_search">ค้นหาบันทึก</string>
     <string name="sumh_logs_actions">การดำเนินการกับบันทึก</string>
-    <string name="sumh_maps_add_action">เพิ่ม</string>
-    <string name="sumh_maps_desc">ปลอม inode อุปกรณ์ และพาธใน maps ของโปรเซส</string>
     <string name="sumh_maps_spoof">ปลอม Maps</string>
     <string name="sumh_maps_spoof_desc">แมปพาธ หมายเลขอุปกรณ์ และ inode ของพื้นที่หน่วยความจำ</string>
     <string name="sumh_mirror_path_desc">เว้นว่างเพื่อให้ SUMHP เลือกไดเรกทอรีโดยอัตโนมัติ</string>
     <string name="sumh_mount_filter">กรองโหมดการเมานต์</string>
     <string name="sumh_mount_hide">ซ่อนการเมานต์</string>
     <string name="sumh_mount_hide_desc">ซ่อนรายการโมดูลจากมุมมองการเมานต์</string>
-    <string name="sumh_mount_mode_hide">ซ่อน</string>
     <string name="sumh_mount_total">การเมานต์โมดูล</string>
     <string name="sumh_mountsource_invalid">ชื่อต้องไม่ว่าง และห้ามมีช่องว่าง แบ็กสแลช หรืออักขระควบคุม</string>
     <string name="sumh_no_conflicts">ไม่พบความขัดแย้งในการเมานต์</string>

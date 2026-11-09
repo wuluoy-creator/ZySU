@@ -98,6 +98,7 @@ static int sumh_filldir_cache, current, sumh_fop_client_srcu, sumh_dh_srcu;
 static int rcu_depth, srcu_depth, allocations, releases, freed_names, path_calls;
 static int native_calls, client_calls, reschedules, bad_position, native_error;
 static int native_count, injection_count, native_batch, have_client, allocation_fails;
+static bool su_enabled, su_visible;
 static const char *native_names[16], *injected_names[16];
 static struct sumh_name_list injected[16];
 static struct { int filldir_injected, filldir_hidden, iterate_fop_entries, iterate_fop_wrapped; } sumh_hook_stats;
@@ -127,8 +128,8 @@ static bool sumh_dirhijack_hidden(struct inode *i, const char *name, int len) {
 static bool sumh_dirhijack_enabled(void) { return true; }
 static bool sumh_policy_current_is_view_target(void) { return true; }
 static bool ksu_sucompat_vfs_enabled(void) { return false; }
-static bool ksu_sucompat_vfs_visible(void) { return false; }
-static bool ksu_sucompat_vfs_current_ino(unsigned long ino) { (void)ino; return false; }
+static bool ksu_sucompat_vfs_visible(void) { return su_visible; }
+static bool ksu_sucompat_vfs_current_ino(unsigned long ino) { (void)ino; return su_enabled; }
 static struct sumh_dh_iop *sumh_dh_iop_of(struct inode *i) { (void)i; return have_client ? &dh_iop : NULL; }
 static struct sumh_dh_child *sumh_dh_find_child(struct sumh_dh_dir *dir, const char *name, u16 len, u32 hash) {
     (void)hash;
@@ -180,6 +181,7 @@ static void kmem_cache_free(int cache, void *p) { (void)cache; (void)p; releases
         "static inline loff_t sumh_dh_pack_pos(",
         "static inline u32 sumh_dh_unpack_pos(",
         "bool sumh_dirhijack_injected_context(",
+        "static bool sumh_dh_control_current(",
         "static bool sumh_dh_current_sees(",
         "static bool sumh_dh_current_hides(",
         "static bool sumh_dh_current_targets(",
@@ -256,6 +258,7 @@ static int read_batch(struct reader *r, int capacity) {
 }
 static void reset(void) {
     sumh_enabled = 1; sumh_rule_count = 1; allocation_fails = 0;
+    sumh_ioctl_tgid = 0; su_enabled = su_visible = false;
     parent_mapping.flags = 2; child_mapping.flags = 0;
     native_calls = client_calls = reschedules = native_error = bad_position = 0;
     native_count = injection_count = have_client = 0; native_batch = 100;
@@ -265,6 +268,18 @@ static void reset(void) {
 static void bind_client(void) { have_client = 1; meta.iterate_client = client_iterate; meta.iterate_client_data = &dh_dir; }
 int main(void) {
     struct reader r = { .ctx.actor = collect };
+    struct sumh_dh_child su_child = exact_child;
+    reset();
+    su_child.flags = SUMH_VNODE_F_SU;
+    su_enabled = su_visible = true;
+    CHECK(sumh_dh_current_sees() && sumh_dh_current_targets(&exact_child, &parent_inode));
+    CHECK(sumh_dh_current_targets(&su_child, &parent_inode));
+    sumh_ioctl_tgid = 17;
+    CHECK(sumh_dh_control_current() && !sumh_dh_current_sees());
+    CHECK(!sumh_dh_current_targets(&exact_child, &parent_inode));
+    CHECK(!sumh_dh_current_targets(&su_child, &parent_inode));
+    CHECK(!sumh_dh_child_emitted(&su_child, &parent_inode));
+    reset();
     /* Empty native directories must still expose injected entries. One-entry
      * buffers must resume after the accepted item instead of replaying it. */
     reset(); injection_count = 3;

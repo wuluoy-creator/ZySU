@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sumh_rules_runtime">内核规则</string>
     <string name="sumh_rules_runtime_count">显示 %1$d 条内核记录</string>
     <string name="sumh_rules_runtime_hint">显示内核路径规则、已绑定的隐藏路径和已开启功能。等待绑定的已保存路径可在「隐藏路径」中管理。路径视图是否生效仍取决于 SUMH 总开关。</string>
     <string name="sumh_rules_runtime_incomplete">部分内核记录未能完整读取，数量仅统计当前显示项。可刷新后重试。</string>

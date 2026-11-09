@@ -2,6 +2,7 @@ package com.zying.zysu.ui.sumh
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -10,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,7 +31,10 @@ import com.zying.zysu.ui.component.YukiAlertDialog
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.sumh.util.SUMHFeatureSupport
 import com.zying.zysu.ui.sumh.util.SUMHMapsPathError
+import com.zying.zysu.ui.sumh.util.SUMHMapsImportError
+import com.zying.zysu.ui.sumh.util.SUMHMapsImportIssue
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter.MapsPathRule
+import com.zying.zysu.ui.sumh.util.previewSUMHMapsImport
 import com.zying.zysu.ui.sumh.util.validateSUMHMapsPathRule
 import com.zying.zysu.ui.sumh.util.mapsRulesWithinBudget
 import com.zying.zysu.ui.sumh.util.updateSUMHMapsPathRule
@@ -50,6 +55,7 @@ internal fun ManagedMapsControls(
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var originalTarget by rememberSaveable { mutableStateOf<String?>(null) }
     var removeTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var showImport by rememberSaveable { mutableStateOf(false) }
     val drafts = rememberSaveableStateHolder()
     val canEdit = enabled && support == SUMHFeatureSupport.Supported
     val limitReached = rules.size >= SUMH_MAX_MAPS_PATH_RULES
@@ -63,6 +69,12 @@ internal fun ManagedMapsControls(
                 onSaved = { showEditor = false; drafts.removeState(key) },
             )
         }
+    }
+    if (showImport) {
+        MapsPathRuleImport(
+            rules = rules, enabled = canEdit, onRulesChanged = onRulesChanged,
+            onDismiss = { showImport = false }, onSaved = { showImport = false },
+        )
     }
 
     removeTarget?.let { selected ->
@@ -141,6 +153,16 @@ internal fun ManagedMapsControls(
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.sumh_maps_path_add))
         }
+        OutlinedButton(
+            onClick = { showImport = true },
+            enabled = canEdit,
+            modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp),
+            shape = MaterialTheme.shapes.small,
+        ) {
+            YukiIcon(Icons.Filled.Upload, null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.sumh_maps_import_title))
+        }
         if (rules.isNotEmpty() && !runtimeApplyPending) OutlinedButton(
             onClick = onRetryApply,
             enabled = canEdit && mapsEnabled,
@@ -152,6 +174,102 @@ internal fun ManagedMapsControls(
             Text(stringResource(R.string.sumh_maps_path_apply))
         }
     }
+}
+
+@Composable
+private fun MapsPathRuleImport(
+    rules: List<MapsPathRule>,
+    enabled: Boolean,
+    onRulesChanged: (List<MapsPathRule>) -> Unit,
+    onDismiss: () -> Unit,
+    onSaved: () -> Unit,
+) {
+    var input by rememberSaveable { mutableStateOf("") }
+    var allowReplace by rememberSaveable { mutableStateOf(false) }
+    var pendingCandidate by remember { mutableStateOf<List<MapsPathRule>?>(null) }
+    val preview = remember(input, rules) { previewSUMHMapsImport(input, rules) }
+    val canSubmit = enabled && preview.canImport && (preview.replacements.isEmpty() || allowReplace)
+
+    LaunchedEffect(rules, pendingCandidate) {
+        if (pendingCandidate != null && rules == pendingCandidate) onSaved()
+    }
+
+    YukiAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        title = { Text(stringResource(R.string.sumh_maps_import_title)) },
+        text = {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.sumh_maps_import_format), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it; pendingCandidate = null; allowReplace = false },
+                    label = { Text(stringResource(R.string.sumh_maps_import_input)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = enabled,
+                    minLines = 5,
+                    maxLines = 9,
+                    shape = MaterialTheme.shapes.small,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                )
+                Text(stringResource(R.string.sumh_maps_import_preview, preview.additions,
+                    preview.replacements.size, preview.issues.size), style = MaterialTheme.typography.bodyMedium)
+                if (preview.limitExceeded) Text(stringResource(R.string.sumh_maps_path_limit),
+                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                if (preview.budgetExceeded) Text(stringResource(R.string.sumh_maps_path_budget),
+                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                if (!preview.hasChanges && preview.issues.isEmpty()) Text(
+                    stringResource(R.string.sumh_maps_import_empty), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                preview.issues.forEach { issue ->
+                    Text(stringResource(R.string.sumh_maps_import_line_error, issue.line,
+                        stringResource(mapsImportErrorResource(issue))),
+                        color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                if (preview.replacements.isNotEmpty()) {
+                    Text(stringResource(R.string.sumh_maps_import_replacements),
+                        style = MaterialTheme.typography.labelMedium)
+                    preview.replacements.forEach { rule ->
+                        Text(rule.targetPath, fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(Modifier.fillMaxWidth().toggleable(value = allowReplace, enabled = enabled,
+                        onValueChange = { allowReplace = it }), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = allowReplace, onCheckedChange = null, enabled = enabled)
+                        Text(stringResource(R.string.sumh_maps_import_allow_replace),
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (canSubmit) {
+                    pendingCandidate = preview.candidate
+                    onRulesChanged(preview.candidate)
+                }
+            }, enabled = canSubmit, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.sumh_maps_import_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.sumh_rules_cancel))
+            }
+        },
+    )
+}
+
+private fun mapsImportErrorResource(issue: SUMHMapsImportIssue): Int = when (issue.error) {
+    SUMHMapsImportError.Format -> R.string.sumh_maps_import_format_error
+    SUMHMapsImportError.TargetAbsolute, SUMHMapsImportError.ReplacementAbsolute -> R.string.sumh_maps_input_path_absolute
+    SUMHMapsImportError.TargetControl, SUMHMapsImportError.ReplacementControl -> R.string.sumh_maps_path_control
+    SUMHMapsImportError.TargetTooLong -> R.string.sumh_maps_path_target_length
+    SUMHMapsImportError.ReplacementTooLong -> R.string.sumh_maps_input_path_length
+    SUMHMapsImportError.DuplicateTarget -> R.string.sumh_maps_import_duplicate
 }
 
 @Composable

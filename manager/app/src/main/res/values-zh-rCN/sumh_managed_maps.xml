@@ -20,7 +20,4 @@
     <string name="sumh_maps_path_remove">删除已保存的路径规则</string>
     <string name="sumh_maps_path_remove_label">删除 %1$s 的已保存规则</string>
     <string name="sumh_maps_path_remove_confirm">从配置中删除此定义并应用更改？如果应用失败，请重试应用配置以移除其运行时规则。</string>
-    <string name="sumh_maps_runtime_add">添加数值规则</string>
-    <string name="sumh_maps_runtime_clear">清空运行时规则</string>
-    <string name="sumh_maps_runtime_clear_confirm">清空当前内核中的所有 Maps 规则，包括通过已保存路径安装的规则？已保存的定义会保留，在启用 Maps 伪装时，随应用配置或启动恢复。</string>
 </resources>

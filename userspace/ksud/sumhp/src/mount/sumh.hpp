@@ -21,6 +21,9 @@ bool restore_managed_maps_rules(const Config& config, std::string& error);
 // Shared lifecycle for explicit apply, boot restoration and feature config.
 // Before module mounts are ready, restore_rules=false applies only the switch.
 bool apply_maps_config(const Config& config, std::string& error, bool restore_rules = true);
+// Snapshot source stat values in init's mount namespace, then replace the
+// entire managed set with one ioctl. An invalid path leaves live rules intact.
+bool restore_managed_kstat_rules(const Config& config, std::string& error);
 
 // Reset runtime features without discarding path rules. The SUMH engine
 // remains enabled while this cleanup is performed.

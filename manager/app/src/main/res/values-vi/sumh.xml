@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">Chi tiết</string>
     <string name="sumh_logs_filter_warn">Cảnh báo</string>
     <string name="sumh_logs_kernel">Nhật ký kernel</string>
-    <string name="sumh_maps_add_failed">Không thể thêm quy tắc maps</string>
-    <string name="sumh_maps_add_success">Đã thêm quy tắc maps</string>
-    <string name="sumh_maps_clear_failed">Không thể xóa quy tắc maps</string>
-    <string name="sumh_maps_cleared">Đã xóa quy tắc maps</string>
-    <string name="sumh_maps_spoof_dev">Thiết bị giả mạo</string>
-    <string name="sumh_maps_spoof_ino">inode giả mạo</string>
-    <string name="sumh_maps_spoof_path">Đường dẫn giả mạo</string>
-    <string name="sumh_maps_target_dev">Thiết bị mục tiêu (0=bất kỳ)</string>
-    <string name="sumh_maps_target_ino">inode mục tiêu</string>
-    <string name="sumh_maps_title">Giả mạo Maps (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">Cơ sở gắn kết / đường dẫn bản sao</string>
     <string name="sumh_mismatch_default">Đã phát hiện không khớp giao thức. Vui lòng cập nhật kernel hoặc module.</string>
-    <string name="sumh_module_rules_add">Thêm</string>
-    <string name="sumh_module_rules_placeholder">/đường/dẫn/trong/system/hoặc/vendor</string>
-    <string name="sumh_module_rules_title">Quy tắc tùy chỉnh cho module này</string>
     <string name="sumh_mount_config">Cấu hình gắn kết</string>
     <string name="sumh_mount_mode">Chế độ gắn kết</string>
     <string name="sumh_mount_mode_auto">Tự động</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">Xóa nhật ký daemon? Nhật ký nhân sẽ không thay đổi.</string>
     <string name="sumh_logs_search">Tìm nhật ký</string>
     <string name="sumh_logs_actions">Thao tác nhật ký</string>
-    <string name="sumh_maps_add_action">Thêm</string>
-    <string name="sumh_maps_desc">Giả mạo inode, thiết bị và đường dẫn trong maps của tiến trình.</string>
     <string name="sumh_maps_spoof">Giả mạo Maps</string>
     <string name="sumh_maps_spoof_desc">Ánh xạ đường dẫn, số thiết bị và inode của vùng nhớ</string>
     <string name="sumh_mirror_path_desc">Để trống để SUMHP tự chọn thư mục.</string>
     <string name="sumh_mount_filter">Lọc chế độ gắn kết</string>
     <string name="sumh_mount_hide">Ẩn gắn kết</string>
     <string name="sumh_mount_hide_desc">Ẩn các mục mô-đun trong khung nhìn gắn kết</string>
-    <string name="sumh_mount_mode_hide">Ẩn</string>
     <string name="sumh_mount_total">Gắn kết mô-đun</string>
     <string name="sumh_mountsource_invalid">Tên không được để trống hoặc chứa khoảng trắng, dấu gạch chéo ngược hay ký tự điều khiển.</string>
     <string name="sumh_no_conflicts">Không phát hiện xung đột gắn kết</string>

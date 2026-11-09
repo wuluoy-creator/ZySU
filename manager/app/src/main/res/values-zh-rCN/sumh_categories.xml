@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_maps_rules_page">Maps 路径规则</string>
+    <string name="sumh_maps_activate_saved">应用已保存的路径规则</string>
+    <string name="sumh_maps_runtime_only">没有已保存的路径规则；临时运行规则仍可能使用 Maps 过滤。</string>
+    <string name="sumh_maps_stop_filtering">停止 Maps 过滤</string>
+    <string name="sumh_maps_stop_confirm">停止所有 Maps 规则的过滤，包括临时运行规则？</string>
+    <string name="sumh_statfs_requires_mount_hide">需要先启用挂载隐藏。</string>
+</resources>

@@ -11,10 +11,12 @@
 #include <algorithm>
 #include <cassert>
 #include <cerrno>
+#include <charconv>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <set>
@@ -45,6 +47,11 @@ std::string mount_owner;
 int build_apply_calls = 0;
 int hide_apply_calls = 0;
 int maps_boot_calls = 0;
+int kstat_boot_calls = 0;
+int kstat_restore_calls = 0;
+bool kstat_restore_ok = true;
+bool kstat_status_ok = true;
+int kstat_status_calls = 0;
 int maps_restore_calls = 0;
 int maps_clear_calls = 0;
 bool maps_restore_ok = true;
@@ -66,6 +73,10 @@ int normal_mount_error = 0;
 std::vector<std::pair<bool, sumhp::sumh::MountHideMode>> mount_hide_calls;
 sumhp::sumh::KernelBuild live_build;
 std::string cli_output;
+std::function<void()> lock_acquire_hook;
+bool config_lock_held = false;
+std::vector<bool> kstat_apply_lock_states;
+std::vector<sumhp::KstatPathRule> last_restored_kstat_rules;
 }  // namespace
 
 namespace ksud {
@@ -104,7 +115,15 @@ void write(Level level, const std::string&, const std::string&) {
 }  // namespace logging
 
 struct ConfigFileLock {
-    bool acquire(std::string&) { return true; }
+    bool acquire(std::string&) {
+        auto hook = std::move(lock_acquire_hook);
+        lock_acquire_hook = {};
+        if (hook)
+            hook();
+        config_lock_held = true;
+        return true;
+    }
+    ~ConfigFileLock() { config_lock_held = false; }
 };
 std::filesystem::path runtime_config_file() {
     return "/mock/config.json";
@@ -220,6 +239,15 @@ bool set_maps_spoof(bool enabled) {
 bool set_statfs_spoof(bool) {
     return true;
 }
+bool managed_kstat_status(ManagedKstatStatus& status) {
+    ++kstat_status_calls;
+    if (!kstat_status_ok) {
+        errno = EIO;
+        return false;
+    }
+    status = {2, 9007199254740993ULL};
+    return true;
+}
 bool set_debug(bool) {
     return true;
 }
@@ -262,6 +290,17 @@ bool restore_managed_maps_rules(const Config& config, std::string& error) {
     restored_maps = config.maps_rules;
     return true;
 }
+bool restore_managed_kstat_rules(const Config& config, std::string& error) {
+    ++kstat_restore_calls;
+    kstat_apply_lock_states.push_back(config_lock_held);
+    last_restored_kstat_rules = config.kstat_rules;
+    if (!kstat_restore_ok) {
+        errno = ENOENT;
+        error = "injected missing kstat path";
+        return false;
+    }
+    return true;
+}
 bool apply_maps_config(const Config&, std::string&, bool restore_rules = true);
 bool apply_feature_config(const Config&, std::string&, bool apply_immediately = false,
                           bool apply_maps = true);
@@ -298,6 +337,7 @@ bool parse_unsigned_long(const std::string&, unsigned long&) {
     return false;
 }
 void print_usage() {}
+#include "sumh_status_json_under_test.inc"
 int print_sumh_snapshot_json() {
     ++snapshot_calls;
     return 0;
@@ -311,6 +351,8 @@ std::string embedded_external_mount_owner() {
 int run_via_daemon(const std::vector<std::string>& args) {
     if (args == std::vector<std::string>{"sumh", "maps", "apply"})
         ++maps_boot_calls;
+    else if (args == std::vector<std::string>{"sumh", "kstat", "apply"})
+        ++kstat_boot_calls;
     else {
         assert((args == std::vector<std::string>{"hide", "apply"}));
         ++hide_apply_calls;
@@ -499,6 +541,87 @@ void test_maps_config() {
     assert(merge_config_json(R"({"debug":true})", error));
     assert(read_config_file(config, error) && config.maps_rules.size() == 1);
     assert(parse_config_json("{}", config, error) && config.maps_rules.empty());
+    saved_config = default_config_json();
+}
+
+void test_kstat_config() {
+    using namespace sumhp;
+    std::string error;
+    Config config;
+    assert(parse_config_json(default_config_json(), config, error) && config.kstat_rules.empty());
+    const std::string valid =
+        R"({"kstat_rules":[{"target_path":"/target","source_path":"/source","mode":"full"}]})";
+    assert(parse_config_json(valid, config, error) && config.kstat_rules.size() == 1);
+    assert(config.kstat_rules[0].mode == "full");
+    const std::string custom =
+        R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"ino":"18446744073709551615","size":"0","mtime":{"sec":"-1","nsec":"0"}}}]})";
+    assert(parse_config_json(custom, config, error));
+    assert(config.kstat_rules.size() == 1 && config.kstat_rules[0].source_path.empty());
+    assert(config.kstat_rules[0].custom_fields.at("ino") == "18446744073709551615");
+    KstatCustomValues custom_values;
+    assert(parse_kstat_custom_fields(config.kstat_rules[0].custom_fields, custom_values, error));
+    assert(custom_values.ino == UINT64_MAX && custom_values.size == 0);
+    assert(custom_values.mtime_sec == -1 && custom_values.mtime_nsec == 0);
+    assert(custom_values.field_mask ==
+           (SUMH_KSTAT_FIELD_INO | SUMH_KSTAT_FIELD_SIZE | SUMH_KSTAT_FIELD_MTIME));
+    const auto original_custom = json::parse(custom);
+    assert(stringify_json(kstat_path_rules_json(config.kstat_rules)) ==
+           stringify_json(*original_custom.find("kstat_rules")));
+    assert(parse_config_json(valid, config, error));
+    for (
+        const auto* invalid_custom :
+        {R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","source_path":"/source"}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"ino":9007199254740993}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"ino":"18446744073709551616"}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"size":"-1"}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"size":"01"}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"mtime":{"sec":"0"}}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"mtime":{"sec":"0","nsec":"1000000000"}}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"unknown":"1"}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"custom","fields":{"mtime.sec":"0","mtime.nsec":"0"}}]})",
+         R"({"kstat_rules":[{"target_path":"/target","mode":"identity","source_path":"/source","fields":{"ino":"1"}}]})"}) {
+        assert(!parse_config_json(invalid_custom, config, error));
+        assert(config.kstat_rules.size() == 1 && config.kstat_rules[0].mode == "full");
+    }
+    for (
+        const auto* invalid :
+        {R"({"kstat_rules":{}})", R"({"kstat_rules":[1]})",
+         R"({"kstat_rules":[{"target_path":"/target","source_path":"/source"}]})",
+         R"({"kstat_rules":[{"target_path":"relative","source_path":"/source","mode":"full"}]})",
+         R"({"kstat_rules":[{"target_path":"/target","source_path":"relative","mode":"full"}]})",
+         R"({"kstat_rules":[{"target_path":"/target","source_path":"/source","mode":"bad"}]})",
+         R"({"kstat_rules":[{"target_path":"/target","source_path":"/source","mode":"full","extra":1}]})",
+         R"({"kstat_rules":[{"target_path":"/target\u0000","source_path":"/source","mode":"full"}]})",
+         R"({"kstat_rules":[{"target_path":"/target","source_path":"/source\n","mode":"full"}]})",
+         R"({"kstat_rules":[{"target_path":"/target","source_path":"/source","mode":"full"},{"target_path":"/target","source_path":"/source","mode":"identity"}]})"}) {
+        assert(!parse_config_json(invalid, config, error));
+        assert(config.kstat_rules.size() == 1 && config.kstat_rules[0].mode == "full");
+    }
+    std::vector<KstatPathRule> rules{
+        {"/" + std::string(254, 't'), "/" + std::string(4094, 's'), "identity"}};
+    assert(validate_kstat_path_rules(rules, error));
+    rules[0].source_path += 's';
+    assert(!validate_kstat_path_rules(rules, error));
+    rules[0].source_path = "/source";
+    assert(validate_kstat_path_rules(rules, error));
+    rules[0].target_path += 't';
+    assert(!validate_kstat_path_rules(rules, error));
+    rules.clear();
+    for (unsigned int index = 0; index < SUMH_MANAGED_KSTAT_MAX_RULES; ++index)
+        rules.push_back({"/target/" + std::to_string(index), "/source", "identity"});
+    assert(validate_kstat_path_rules(rules, error));
+    rules.push_back({"/overflow", "/source", "full"});
+    assert(!validate_kstat_path_rules(rules, error));
+    saved_config = default_config_json();
+    assert(merge_config_json(valid, error));
+    const auto persisted = saved_config;
+    saved = false;
+    assert(!merge_config_json(R"({"kstat_rules":[{}]})", error));
+    assert(!saved && saved_config == persisted);
+    assert(merge_config_json(R"({"debug":true})", error));
+    assert(read_config_file(config, error) && config.kstat_rules.size() == 1);
+    assert(parse_config_json("{}", config, error) && config.kstat_rules.empty());
     saved_config = default_config_json();
 }
 
@@ -737,6 +860,117 @@ void test_maps_cli_and_apply() {
     saved_config = default_config_json();
 }
 
+void test_kstat_cli_and_apply() {
+    using namespace sumhp;
+    saved_config = default_config_json();
+    kstat_restore_calls = 0;
+    kstat_restore_ok = true;
+    assert(run_cli({"sumh", "kstat", "add-path", "/target", "/source", "identity"}) == 0);
+    assert(kstat_restore_calls == 1);
+    assert(run_cli({"sumh", "kstat", "add-path", "/target", "/other", "full"}) == 0);
+    assert(run_cli({"sumh", "kstat", "list-paths"}) == 0);
+    const auto list = json::parse(cli_output);
+    assert(list.a.size() == 1 && list.a[0].find("source_path")->s == "/other");
+    assert(list.a[0].find("mode")->s == "full");
+    assert(run_cli({"sumh", "kstat", "apply"}) == 0 && kstat_restore_calls == 3);
+    assert(run_cli({"sumh", "kstat", "add-custom", "/target",
+                    R"({"size":"0","mtime":{"sec":"-1","nsec":"0"}})"}) == 0);
+    assert(run_cli({"sumh", "kstat", "list-paths"}) == 0);
+    const auto custom_list = json::parse(cli_output);
+    assert(custom_list.a.size() == 1 && custom_list.a[0].find("mode")->s == "custom");
+    assert(custom_list.a[0].find("source_path") == nullptr);
+    assert(custom_list.a[0].find("fields")->find("size")->s == "0");
+    assert(custom_list.a[0].find("fields")->find("mtime")->find("sec")->s == "-1");
+    const auto persisted = saved_config;
+    assert(run_cli({"sumh", "kstat", "add-path", "relative", "/source", "identity"}) != 0);
+    assert(run_cli({"sumh", "kstat", "add-path", "/target", "/source", "bad"}) != 0);
+    assert(run_cli({"sumh", "kstat", "apply", "extra"}) != 0);
+    assert(run_cli({"sumh", "kstat", "add-custom", "/target", R"({"size":0})"}) != 0);
+    assert(saved_config == persisted && kstat_restore_calls == 4);
+    kstat_restore_ok = false;
+    assert(run_cli({"sumh", "kstat", "remove-path", "/target"}) != 0);
+    assert(json::parse(cli_output).find("saved")->b);
+    assert(!json::parse(cli_output).find("applied")->b && errno == ENOENT);
+    Config config;
+    std::string error;
+    assert(read_config_file(config, error) && config.kstat_rules.empty());
+    kstat_restore_ok = true;
+    assert(run_cli({"sumh", "kstat", "apply"}) == 0);
+    assert(is_query({"sumh", "kstat", "list-paths"}));
+    saved_config = "{invalid";
+    assert(run_cli({"sumh", "kstat", "status"}) == 0);
+    const auto status = json::parse(cli_output);
+    assert(status.find("active_count")->n == 2);
+    assert(status.find("generation")->s == "9007199254740993");
+    assert(kstat_status_calls == 1);
+    kstat_status_ok = false;
+    assert(run_cli({"sumh", "kstat", "status"}) != 0);
+    assert(cli_output.empty() && kstat_status_calls == 2);
+    kstat_status_ok = true;
+    assert(is_query({"sumh", "kstat", "status"}));
+    assert(!is_query({"sumh", "kstat", "apply"}));
+    assert(!is_query({"sumh", "kstat", "add-path", "/target", "/source", "identity"}));
+    saved_config = default_config_json();
+}
+
+void test_kstat_cli_edits_latest_locked_config() {
+    using namespace sumhp;
+    saved_config = default_config_json();
+    kstat_apply_lock_states.clear();
+    lock_acquire_hook = [] {
+        saved_config =
+            R"({"kstat_rules":[{"target_path":"/external","source_path":"/source","mode":"identity"}]})";
+    };
+    assert(run_cli({"sumh", "kstat", "add-path", "/local", "/source", "full"}) == 0);
+    Config config;
+    std::string error;
+    assert(read_config_file(config, error) && config.kstat_rules.size() == 2);
+    assert(config.kstat_rules[0].target_path == "/external");
+    assert(config.kstat_rules[1].target_path == "/local");
+
+    lock_acquire_hook = [] {
+        saved_config =
+            R"({"kstat_rules":[{"target_path":"/external","source_path":"/source","mode":"identity"},{"target_path":"/local","source_path":"/source","mode":"full"},{"target_path":"/concurrent","source_path":"/source","mode":"identity"}]})";
+    };
+    assert(run_cli({"sumh", "kstat", "remove-path", "/local"}) == 0);
+    assert(read_config_file(config, error) && config.kstat_rules.size() == 2);
+    assert(config.kstat_rules[0].target_path == "/external");
+    assert(config.kstat_rules[1].target_path == "/concurrent");
+    assert((kstat_apply_lock_states == std::vector<bool>{true, true}));
+
+    lock_acquire_hook = [] {
+        saved_config =
+            R"({"kstat_rules":[{"target_path":"/external","source_path":"/source","mode":"identity"},{"target_path":"/concurrent","source_path":"/source","mode":"identity"},{"target_path":"/latest","source_path":"/source","mode":"full"}]})";
+    };
+    assert(run_cli({"sumh", "kstat", "apply"}) == 0);
+    assert((kstat_apply_lock_states == std::vector<bool>{true, true, true}));
+    assert(last_restored_kstat_rules.size() == 3 &&
+           last_restored_kstat_rules.back().target_path == "/latest");
+    saved_config = default_config_json();
+}
+
+void test_kstat_status_json() {
+    using namespace sumhp;
+    std::ostringstream output;
+    auto* previous = std::cout.rdbuf(output.rdbuf());
+    append_managed_kstat_status_json(true, SUMH_FEATURE_MANAGED_KSTAT);
+    std::cout.rdbuf(previous);
+    const auto status = json::parse("{" + output.str().substr(1) + "}");
+    const auto* entry = status.find("managed_kstat_status");
+    assert(entry && entry->find("active_count")->n == 2);
+    assert(entry->find("generation")->s == "9007199254740993");
+    output.str("");
+    output.clear();
+    kstat_status_ok = false;
+    previous = std::cout.rdbuf(output.rdbuf());
+    append_managed_kstat_status_json(true, SUMH_FEATURE_MANAGED_KSTAT);
+    append_managed_kstat_status_json(true, 0);
+    append_managed_kstat_status_json(false, SUMH_FEATURE_MANAGED_KSTAT);
+    std::cout.rdbuf(previous);
+    assert(output.str().empty());
+    kstat_status_ok = true;
+}
+
 void test_boot_restore() {
     using namespace sumhp;
     mount_owner = "external.metamodule";
@@ -776,6 +1010,7 @@ void test_boot_restore() {
     embedded_boot_completed();
     assert(build_apply_calls == 2);
     assert(maps_boot_calls == 1);  // External mount owners still restore saved maps.
+    assert(kstat_boot_calls == 1);
     boot_completed = true;
     assert(mount::sumh::apply_feature_config(late, error, false));
     assert(build_apply_calls == 3);
@@ -793,9 +1028,11 @@ void test_boot_restore() {
     build_apply_calls = 0;
     safe_mode = true;
     const int maps_before_safe_mode = maps_boot_calls;
+    const int kstat_before_safe_mode = kstat_boot_calls;
     embedded_boot_completed();
     assert(build_apply_calls == 0 && hide_apply_calls == 0);
     assert(maps_boot_calls == maps_before_safe_mode);
+    assert(kstat_boot_calls == kstat_before_safe_mode);
     safe_mode = false;
     kernel_available = false;
     embedded_boot_completed();
@@ -981,10 +1218,14 @@ void test_date_suggestion() {
 int main() {
     test_config();
     test_maps_config();
+    test_kstat_config();
     test_kmi_source();
     test_cli();
     test_module_configure_cli();
     test_maps_cli_and_apply();
+    test_kstat_cli_and_apply();
+    test_kstat_cli_edits_latest_locked_config();
+    test_kstat_status_json();
     test_boot_restore();
     test_maps_lifecycle_and_config_wrapper();
     test_retired_mount_mode_restore();

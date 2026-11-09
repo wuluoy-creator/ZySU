@@ -20,6 +20,9 @@ def kstat_source():
     preamble = r"""
 typedef unsigned int u32;
 typedef unsigned long long u64;
+typedef unsigned int __u32;
+typedef long long __s64;
+typedef unsigned long long __aligned_u64;
 typedef unsigned int dev_t;
 typedef int atomic_t;
 #define __user
@@ -29,12 +32,33 @@ typedef int atomic_t;
 #define EFAULT 14
 #define EEXIST 17
 #define EINVAL 22
+#define EOVERFLOW 75
 #define GFP_KERNEL 0
 #define LOOKUP_FOLLOW 1
 #define SUMH_HASH_BITS 4
 #define SUMH_MAX_LEN_PATHNAME 256
+#define SUMH_USER_HIDE_PATH_MAX 4096
+#define SUMH_MANAGED_KSTAT_MAX_RULES 32
+#define STATX_BASIC_STATS 0x7ff
+#define AT_STATX_SYNC_AS_STAT 0
+#define SUMH_KSTAT_FIELD_DEV (1U << 0)
+#define SUMH_KSTAT_FIELD_INO (1U << 1)
+#define SUMH_KSTAT_FIELD_NLINK (1U << 2)
+#define SUMH_KSTAT_FIELD_SIZE (1U << 3)
+#define SUMH_KSTAT_FIELD_ATIME (1U << 4)
+#define SUMH_KSTAT_FIELD_MTIME (1U << 5)
+#define SUMH_KSTAT_FIELD_CTIME (1U << 6)
+#define SUMH_KSTAT_FIELD_BLKSIZE (1U << 7)
+#define SUMH_KSTAT_FIELD_BLOCKS (1U << 8)
+#define SUMH_KSTAT_FIELD_ALL ((1U << 9) - 1)
 #define AS_FLAGS_SUMH_SPOOF_KSTAT 2
 #define READ_ONCE(value) (value)
+#define rcu_dereference(value) (value)
+#define rcu_dereference_protected(value, condition) (value)
+#define rcu_access_pointer(value) (value)
+#define rcu_assign_pointer(slot, value) ((slot) = (value))
+#define RCU_INIT_POINTER(slot, value) ((slot) = (value))
+#define u64_to_user_ptr(value) ((void *)(size_t)(value))
 #define GLOBAL_ROOT_UID 0
 #define GLOBAL_ROOT_GID 0
 #define S_IFREG 0100000
@@ -44,6 +68,12 @@ typedef int atomic_t;
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr) - __builtin_offsetof(type, member)))
 #define hash_min(value, bits) ((value) & ((1U << (bits)) - 1))
+static void *memchr(const void *input, int value, size_t size) {
+    const unsigned char *cursor = input;
+    for (size_t i = 0; i < size; i++)
+        if (cursor[i] == (unsigned char)value) return (void *)(cursor + i);
+    return NULL;
+}
 struct hlist_node { struct hlist_node *next, **pprev; };
 struct hlist_head { struct hlist_node *first; };
 struct rcu_head { struct rcu_head *next; void (*func)(struct rcu_head *); };
@@ -58,6 +88,8 @@ struct rcu_head { struct rcu_head *next; void (*func)(struct rcu_head *); };
         hlist_for_each_entry_rcu(pos, &(table)[bucket], member)
 static struct hlist_head sumh_spoof_kstat_path[1 << SUMH_HASH_BITS];
 static struct hlist_head sumh_spoof_kstat_ino[1 << SUMH_HASH_BITS];
+static struct sumh_managed_kstat_snapshot *sumh_managed_kstat;
+static u64 sumh_managed_kstat_generation;
 static struct hlist_head sumh_paths[1 << SUMH_HASH_BITS];
 static atomic_t sumh_spoof_kstat_count;
 static int sumh_config_mutex, lock_depth, rcu_depth, bad_context;
@@ -109,7 +141,7 @@ static u32 full_name_hash(const void *salt, const char *name, size_t len) {
     for (size_t i = 0; i < len; i++) hash = hash * 31 + (unsigned char)name[i];
     return hash;
 }
-static unsigned char allocations[128][1024] __attribute__((aligned(16)));
+static unsigned char allocations[128][16384] __attribute__((aligned(16)));
 static bool allocated[128];
 static int live, alloc_calls, alloc_fail_at;
 static void *kmalloc(size_t size, int flags) {
@@ -126,6 +158,11 @@ static void *kzalloc(size_t size, int flags) {
     if (result) memset(result, 0, size);
     return result;
 }
+static void *kvzalloc(size_t size, int flags) { return kzalloc(size, flags); }
+static void *kvmalloc_array(size_t count, size_t size, int flags) {
+    if (count && size > ((size_t)-1) / count) return NULL;
+    return kmalloc(count * size, flags);
+}
 static void kfree(void *ptr) {
     if (!ptr) return;
     for (size_t i = 0; i < ARRAY_SIZE(allocated); i++) if (allocations[i] == ptr && allocated[i]) {
@@ -133,6 +170,7 @@ static void kfree(void *ptr) {
     }
     bad_context++;
 }
+static void kvfree(void *ptr) { kfree(ptr); }
 static char *kstrdup(const char *value, int flags) {
     size_t len = strlen(value) + 1; char *copy = kmalloc(len, flags);
     if (copy) memcpy(copy, value, len);
@@ -165,7 +203,7 @@ struct kstat {
 };
 struct path_fixture { const char *name; struct dentry dentry; };
 static struct path_fixture files[12];
-static int file_count, path_refs, resolve_error, install_error, install_calls;
+static int file_count, path_refs, inode_refs, resolve_error, install_error, install_calls;
 static int kern_path(const char *name, int flags, struct path *path) {
     if (flags != LOOKUP_FOLLOW) bad_context++;
     if (resolve_error) return resolve_error;
@@ -178,9 +216,22 @@ static void path_put(const struct path *path) {
     (void)path; if (path_refs < 1) bad_context++; path_refs--;
 }
 static struct inode *d_inode(struct dentry *dentry) { return dentry ? dentry->inode : NULL; }
+static void ihold(struct inode *inode) { if (!inode) bad_context++; inode_refs++; }
+static void iput(struct inode *inode) { if (!inode || !inode_refs) bad_context++; inode_refs--; }
 static int sumh_iop_install(struct inode *inode) {
-    if (!inode || !path_refs) bad_context++;
+    if (!inode || (!path_refs && !inode_refs)) bad_context++;
     install_calls++; return install_error;
+}
+static struct kstat raw_source;
+static int raw_getattr_calls, raw_getattr_error;
+static int sumh_vfs_getattr_unprojected(const struct path *path, struct kstat *stat,
+                                        u32 request_mask, unsigned int query_flags) {
+    if (!path_refs || !path->dentry || request_mask != STATX_BASIC_STATS ||
+        query_flags != AT_STATX_SYNC_AS_STAT) bad_context++;
+    raw_getattr_calls++;
+    if (raw_getattr_error) return raw_getattr_error;
+    *stat = raw_source;
+    return 0;
 }
 static void set_bit(unsigned int bit, unsigned long *flags) { *flags |= 1UL << bit; }
 static int internal, view_target = 1, vnode_calls;
@@ -194,14 +245,23 @@ static u64 sumh_vnode_source_ino(dev_t dev, u64 ino) {
 """
     structs = "\n".join(function(path, marker) + ";" for path, marker in (
         ("uapi/sumh.h", "struct sumh_spoof_kstat {"),
+        ("uapi/sumh.h", "struct sumh_managed_kstat_rule {"),
+        ("uapi/sumh.h", "struct sumh_managed_kstat_arg {"),
+        ("uapi/sumh.h", "struct sumh_managed_kstat_status_arg {"),
+        ("uapi/sumh.h", "struct sumh_raw_kstat_arg {"),
         ("kernel/sumh/core/sumh_store.h", "struct sumh_spoof_kstat_entry {"),
+        ("kernel/sumh/core/sumh_store.h", "struct sumh_managed_kstat_snapshot {"),
     ))
     methods = "\n".join(function("kernel/sumh/core/sumh_runtime.c", marker) for marker in (
         "void sumh_spoof_kstat_entry_free_rcu(",
+        "void sumh_managed_kstat_snapshot_free_rcu(",
         "struct sumh_spoof_kstat_entry *\nsumh_spoof_kstat_lookup_by_path(",
         "struct sumh_spoof_kstat_entry *sumh_spoof_kstat_lookup_by_ino(",
     ))
     methods += function("kernel/sumh/control/sumh_ioctl.c", "static int sumh_kstat_set(")
+    methods += function("kernel/sumh/control/sumh_ioctl.c", "static int sumh_kstat_replace_managed(")
+    methods += function("kernel/sumh/control/sumh_ioctl.c", "static int sumh_kstat_get_managed_status(")
+    methods += function("kernel/sumh/control/sumh_ioctl.c", "static int sumh_kstat_get_raw(")
     methods += "\n".join(function("kernel/sumh/hooks/sumh_vfs_hooks.c", marker) for marker in (
         "static bool sumh_kstat_has_redirect_source(",
         "void sumh_apply_kstat_spoof(",
@@ -216,7 +276,7 @@ static void reset_faults(void) {
     alloc_calls = alloc_fail_at = from_fault = reply_fault = copy_calls = 0;
     resolve_error = install_error = install_calls = 0;
 }
-static bool clean(void) { return !bad_context && !lock_depth && !path_refs && !rcu_depth; }
+static bool clean(void) { return !bad_context && !lock_depth && !path_refs && !inode_refs && !rcu_depth; }
 static unsigned long selected(unsigned long ino, unsigned long dev) {
     struct sumh_spoof_kstat_entry *entry; unsigned long result;
     rcu_read_lock(); entry = sumh_spoof_kstat_lookup_by_ino(ino, dev);
@@ -229,6 +289,7 @@ static int indexed_count(void) {
     return result;
 }
 static void cleanup(void) {
+    struct sumh_managed_kstat_snapshot *managed;
     mutex_lock(&sumh_config_mutex);
     for (size_t b = 0; b < ARRAY_SIZE(sumh_spoof_kstat_ino); b++) {
         while (sumh_spoof_kstat_ino[b].first) {
@@ -237,6 +298,12 @@ static void cleanup(void) {
             if (entry->target_pathname) hlist_del_rcu(&entry->path_node);
             call_rcu(&entry->rcu, sumh_spoof_kstat_entry_free_rcu);
         }
+    }
+    managed = sumh_managed_kstat;
+    sumh_managed_kstat = NULL;
+    if (managed) {
+        if (managed->count) sumh_managed_kstat_generation++;
+        call_rcu(&managed->rcu, sumh_managed_kstat_snapshot_free_rcu);
     }
     mutex_unlock(&sumh_config_mutex); synchronize_rcu(); sumh_spoof_kstat_count = 0;
 }
@@ -452,10 +519,187 @@ static int projection_tests(void) {
     cleanup(); CHECK(!live && !indexed_count() && clean());
     return 0;
 }
+static int managed_tests(void) {
+    struct sumh_managed_kstat_rule rule = {0};
+    struct sumh_managed_kstat_rule batch[2] = {0};
+    struct sumh_managed_kstat_arg arg = {0};
+    struct sumh_spoof_kstat legacy;
+    struct kstat stat, before;
+    int old_live;
+
+    files[0].dentry.inode = &inode_a;
+    request(&legacy, NULL, 17, 699);
+    CHECK(sumh_kstat_set(&legacy) == 0 && selected(17, 7) == 699);
+    memcpy(rule.values.target_pathname, "/a", 3);
+    rule.values.spoofed_ino = 700;
+    rule.values.spoofed_dev = 29;
+    rule.values.spoofed_nlink = 9;
+    rule.values.spoofed_blksize = 512;
+    rule.values.spoofed_blocks = 11;
+    rule.values.spoofed_mtime_sec = 7;
+    rule.values.spoofed_ctime_sec = 8;
+    rule.field_mask = SUMH_KSTAT_FIELD_INO | SUMH_KSTAT_FIELD_SIZE |
+                      SUMH_KSTAT_FIELD_ATIME;
+    arg.size = sizeof(arg); arg.count = 1;
+    arg.rules = (unsigned long long)(size_t)&rule;
+    CHECK(sumh_kstat_replace_managed(&arg) == 0 && clean());
+    CHECK(selected(17, 7) == 700 && selected(17, 8) == 699);
+    stat = before = real_stat(); sumh_apply_kstat_spoof(&inode_a, &stat);
+    before.ino = 700; before.size = 0;
+    before.atime = (struct timespec64){ 0, 0 };
+    CHECK(same_stat(&stat, &before));
+
+    /* A failed batch keeps the prior snapshot and its exact lookup. */
+    old_live = live;
+    memcpy(rule.values.target_pathname, "/missing", 9);
+    CHECK(sumh_kstat_replace_managed(&arg) == -ENOENT &&
+          selected(17, 7) == 700 && live == old_live && clean());
+    files[4] = (struct path_fixture){ "/new", { &inode_new } };
+    file_count = 5;
+    map_new.flags = 0;
+    memcpy(batch[0].values.target_pathname, "/new", 5);
+    batch[0].field_mask = SUMH_KSTAT_FIELD_INO;
+    memcpy(batch[1].values.target_pathname, "/missing", 9);
+    batch[1].field_mask = SUMH_KSTAT_FIELD_INO;
+    arg.count = 2; arg.rules = (unsigned long long)(size_t)batch;
+    reset_faults();
+    CHECK(sumh_kstat_replace_managed(&arg) == -ENOENT &&
+          selected(17, 7) == 700 && !map_new.flags && !install_calls &&
+          live == old_live && clean());
+    memcpy(batch[1].values.target_pathname, "/new", 5);
+    CHECK(sumh_kstat_replace_managed(&arg) == -EEXIST && selected(17, 7) == 700);
+    arg.count = 1; arg.rules = (unsigned long long)(size_t)&rule;
+    memcpy(rule.values.target_pathname, "/a", 3);
+    rule.field_mask = 0;
+    CHECK(sumh_kstat_replace_managed(&arg) == -EINVAL && selected(17, 7) == 700);
+    rule.field_mask = SUMH_KSTAT_FIELD_INO;
+    rule.values.spoofed_ino = 701;
+    reset_faults(); from_fault = 1;
+    CHECK(sumh_kstat_replace_managed(&arg) == -EFAULT && selected(17, 7) == 700);
+    reset_faults();
+    CHECK(sumh_kstat_replace_managed(&arg) == 0 && selected(17, 7) == 701);
+    CHECK(retired_count == 1); synchronize_rcu();
+
+    /* Legacy exact rules win, and clearing managed leaves them intact. */
+    request(&legacy, "/a", 0, 900);
+    CHECK(sumh_kstat_set(&legacy) == 0 && selected(17, 7) == 900);
+    arg.count = 0; arg.rules = 0;
+    CHECK(sumh_kstat_replace_managed(&arg) == 0 && selected(17, 7) == 900);
+    synchronize_rcu(); cleanup();
+    stat = before = real_stat(); sumh_apply_kstat_spoof(&inode_a, &stat);
+    CHECK(same_stat(&stat, &before) && !live && clean());
+    return 0;
+}
+static int managed_status_tests(void) {
+    struct sumh_managed_kstat_status_arg status = {0};
+    struct sumh_managed_kstat_rule rule = {0};
+    struct sumh_managed_kstat_arg batch = {0};
+    u64 generation = sumh_managed_kstat_generation;
+
+    CHECK(sizeof(status) == 24 &&
+          __builtin_offsetof(struct sumh_managed_kstat_status_arg, generation) == 8);
+    status.size = sizeof(status);
+    status.count = 99; status.generation = 99;
+    reset_faults();
+    CHECK(sumh_kstat_get_managed_status(&status) == 0 &&
+          status.count == 0 && status.generation == generation && copy_calls == 1 && clean());
+    status.size--;
+    reset_faults();
+    CHECK(sumh_kstat_get_managed_status(&status) == -EINVAL && !copy_calls && clean());
+    status.size++; status.reserved[0] = 1;
+    CHECK(sumh_kstat_get_managed_status(&status) == -EINVAL && !copy_calls);
+    status.reserved[0] = 0; status.reserved[1] = 1;
+    CHECK(sumh_kstat_get_managed_status(&status) == -EINVAL && !copy_calls);
+    status.reserved[1] = 0; from_fault = 1;
+    CHECK(sumh_kstat_get_managed_status(&status) == -EFAULT && !copy_calls);
+    reset_faults(); reply_fault = 1;
+    CHECK(sumh_kstat_get_managed_status(&status) == -EFAULT && copy_calls == 1);
+    reset_faults();
+
+    batch.size = sizeof(batch); batch.count = 1;
+    batch.rules = (unsigned long long)(size_t)&rule;
+    memcpy(rule.values.target_pathname, "/missing", 9);
+    rule.field_mask = SUMH_KSTAT_FIELD_INO;
+    CHECK(sumh_kstat_replace_managed(&batch) == -ENOENT);
+    CHECK(sumh_kstat_get_managed_status(&status) == 0 &&
+          status.count == 0 && status.generation == generation);
+    memcpy(rule.values.target_pathname, "/a", 3);
+    CHECK(sumh_kstat_replace_managed(&batch) == 0);
+    CHECK(sumh_kstat_get_managed_status(&status) == 0 &&
+          status.count == 1 && status.generation == generation + 1);
+    cleanup();
+    CHECK(sumh_kstat_get_managed_status(&status) == 0 &&
+          status.count == 0 && status.generation == generation + 2);
+    batch.count = 0; batch.rules = 0;
+    CHECK(sumh_kstat_replace_managed(&batch) == 0);
+    CHECK(sumh_kstat_get_managed_status(&status) == 0 &&
+          status.count == 0 && status.generation == generation + 3 && clean());
+    return 0;
+}
+static int raw_query_tests(void) {
+    static struct sumh_raw_kstat_arg query, unchanged;
+
+    memset(&query, 0, sizeof(query));
+
+    CHECK(sizeof(query) == 4192 && __builtin_offsetof(struct sumh_raw_kstat_arg, ino) == 4104);
+    CHECK(__builtin_offsetof(struct sumh_raw_kstat_arg, blocks) == 4184);
+    files[5] = (struct path_fixture){ "/raw", { &inode_b } };
+    file_count = 6;
+    query.size = sizeof(query);
+    memcpy(query.source_path, "/raw", 5);
+    raw_source = (struct kstat){0};
+    raw_source.ino = 0x100000001ULL; raw_source.dev = 0x123456;
+    raw_source.nlink = 0; raw_source.size = 0;
+    raw_source.atime = (struct timespec64){ -9, 3 };
+    raw_source.mtime = (struct timespec64){ 19, 5 };
+    raw_source.ctime = (struct timespec64){ 29, 7 };
+    raw_source.blksize = 4096; raw_source.blocks = 12;
+    reset_faults(); raw_getattr_calls = raw_getattr_error = 0;
+    CHECK(sumh_kstat_get_raw(&query) == 0 && copy_calls == 1 && raw_getattr_calls == 1);
+    CHECK(query.ino == raw_source.ino && query.dev == raw_source.dev &&
+          query.nlink == 0 && query.size_bytes == 0 && query.atime_sec == -9 &&
+          query.atime_nsec == 3 && query.mtime_sec == 19 && query.mtime_nsec == 5 &&
+          query.ctime_sec == 29 && query.ctime_nsec == 7 && query.blksize == 4096 &&
+          query.blocks == 12 && clean());
+    unchanged = query;
+
+    reset_faults(); query.size--;
+    CHECK(sumh_kstat_get_raw(&query) == -EINVAL && !copy_calls && raw_getattr_calls == 1);
+    query = unchanged; query.reserved = 1;
+    CHECK(sumh_kstat_get_raw(&query) == -EINVAL && !copy_calls);
+    query = unchanged; query.reserved2 = 1;
+    CHECK(sumh_kstat_get_raw(&query) == -EINVAL && !copy_calls);
+    query = unchanged; memcpy(query.source_path, "relative", 9);
+    CHECK(sumh_kstat_get_raw(&query) == -EINVAL && !copy_calls);
+    query = unchanged; memcpy(query.source_path, "/bad\n", 6);
+    CHECK(sumh_kstat_get_raw(&query) == -EINVAL && !copy_calls);
+    query = unchanged; memset(query.source_path, 'x', sizeof(query.source_path));
+    query.source_path[0] = '/';
+    CHECK(sumh_kstat_get_raw(&query) == -EINVAL && !copy_calls);
+    query = unchanged; memcpy(query.source_path, "/missing", 9);
+    CHECK(sumh_kstat_get_raw(&query) == -ENOENT && !copy_calls);
+    query = unchanged; raw_getattr_error = -EIO;
+    CHECK(sumh_kstat_get_raw(&query) == -EIO && !copy_calls && clean());
+    raw_getattr_error = 0; from_fault = 1;
+    CHECK(sumh_kstat_get_raw(&query) == -EFAULT && !copy_calls);
+    reset_faults(); alloc_fail_at = 1;
+    CHECK(sumh_kstat_get_raw(&query) == -ENOMEM && !copy_calls);
+    reset_faults(); reply_fault = 1;
+    CHECK(sumh_kstat_get_raw(&query) == -EFAULT && copy_calls == 1 && clean());
+    reset_faults();
+    CHECK(!live && clean());
+    return 0;
+}
 int main(void) {
     int result = mutation_tests();
     if (result) return result;
-    return projection_tests();
+    result = projection_tests();
+    if (result) return result;
+    result = managed_tests();
+    if (result) return result;
+    result = managed_status_tests();
+    if (result) return result;
+    return raw_query_tests();
 }
 """
     return COMMON + preamble + structs + methods + body

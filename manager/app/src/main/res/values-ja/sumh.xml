@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">詳細</string>
     <string name="sumh_logs_filter_warn">警告</string>
     <string name="sumh_logs_kernel">カーネルログ</string>
-    <string name="sumh_maps_add_failed">maps ルールの追加に失敗しました</string>
-    <string name="sumh_maps_add_success">maps ルールを追加しました</string>
-    <string name="sumh_maps_clear_failed">maps ルールの消去に失敗しました</string>
-    <string name="sumh_maps_cleared">maps ルールを消去しました</string>
-    <string name="sumh_maps_spoof_dev">偽装デバイス</string>
-    <string name="sumh_maps_spoof_ino">偽装 inode</string>
-    <string name="sumh_maps_spoof_path">偽装パス</string>
-    <string name="sumh_maps_target_dev">対象デバイス (0=任意)</string>
-    <string name="sumh_maps_target_ino">対象 inode</string>
-    <string name="sumh_maps_title">Maps 偽装 (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">マウントベース / ミラーパス</string>
     <string name="sumh_mismatch_default">プロトコルの不一致が検出されました。カーネルまたはモジュールを更新してください。</string>
-    <string name="sumh_module_rules_add">追加</string>
-    <string name="sumh_module_rules_placeholder">/system または /vendor 内のパス</string>
-    <string name="sumh_module_rules_title">このモジュールのカスタムルール</string>
     <string name="sumh_mount_config">マウント設定</string>
     <string name="sumh_mount_mode">マウントモード</string>
     <string name="sumh_mount_mode_auto">自動</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">デーモンログを消去しますか？カーネルログは変更されません。</string>
     <string name="sumh_logs_search">ログを検索</string>
     <string name="sumh_logs_actions">ログの操作</string>
-    <string name="sumh_maps_add_action">追加</string>
-    <string name="sumh_maps_desc">プロセスの maps 内の inode、デバイス、パスを偽装します。</string>
     <string name="sumh_maps_spoof">Maps の偽装</string>
     <string name="sumh_maps_spoof_desc">メモリ領域のパス、デバイス番号、inode を対応付け</string>
     <string name="sumh_mirror_path_desc">空欄にすると SUMHP がディレクトリを自動選択します。</string>
     <string name="sumh_mount_filter">マウント方式を絞り込む</string>
     <string name="sumh_mount_hide">マウントを隠す</string>
     <string name="sumh_mount_hide_desc">マウントビューでモジュールの項目を隠す</string>
-    <string name="sumh_mount_mode_hide">非表示</string>
     <string name="sumh_mount_total">モジュールのマウント</string>
     <string name="sumh_mountsource_invalid">名前を空にしたり、空白、バックスラッシュ、制御文字を含めたりすることはできません。</string>
     <string name="sumh_no_conflicts">マウントの競合はありません</string>

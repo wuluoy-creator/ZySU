@@ -35,7 +35,7 @@ def main():
             (build / "sys").mkdir()
             (build / "linux/types.h").write_text(
                 "#pragma once\n#include <stdint.h>\n"
-                "typedef uint32_t __u32;\ntypedef int32_t __s32;\n"
+                "typedef uint32_t __u32;\ntypedef int32_t __s32;\ntypedef int64_t __s64;\n"
                 "#define __aligned_u64 uint64_t __attribute__((aligned(8)))\n")
             (build / "sys/ioctl.h").write_text(
                 "#pragma once\n"
@@ -48,8 +48,11 @@ def main():
 
         source = (sumhp / "src/mount/sumh.cpp").read_text(encoding="utf-8")
         begin = source.index("bool restore_managed_maps_rules(")
-        end = source.index("\nbool apply_maps_config(", begin)
+        end = source.index("\nbool restore_managed_kstat_rules(", begin)
         (build / "sumh_maps_restore_under_test.inc").write_text(source[begin:end])
+        begin = source.index("bool restore_managed_kstat_rules(")
+        end = source.index("\nbool apply_maps_config(", begin)
+        (build / "sumh_kstat_restore_under_test.inc").write_text(source[begin:end])
         namespace_source = (sumhp / "src/mount/mount_fs.cpp").read_text(encoding="utf-8")
         begin = namespace_source.index("const std::vector<std::string>& managed_partitions() {")
         end = namespace_source.index("\nvoid mlog(", begin)
@@ -87,7 +90,7 @@ def main():
         (build / "sumh_backend_lifecycle_under_test.inc").write_text(lifecycle + source[begin:end])
         source = (sumhp / "src/core/config.cpp").read_text(encoding="utf-8")
         begin = source.index("json::Value maps_path_rules_json(")
-        end = source.index("\nnamespace {\nbool parse_maps_path_rules(", begin)
+        end = source.index("\nnamespace {\nbool parse_kstat_path_rules(", begin)
         (build / "sumh_maps_validate_under_test.inc").write_text(source[begin:end])
         begin = source.index("bool load_user_hide_rules(std::vector<std::string>& rules,")
         end = source.index("\nstd::vector<std::string> load_user_hide_rules()", begin)
@@ -110,6 +113,9 @@ def main():
         end = source.index("\n}  // namespace", begin)
         (build / "sumh_kmi_under_test.inc").write_text(source[begin:end])
         source = (sumhp / "src/core/command.cpp").read_text(encoding="utf-8")
+        begin = source.index("void append_managed_kstat_status_json(")
+        end = source.index("\nint print_sumh_snapshot_json()", begin)
+        (build / "sumh_status_json_under_test.inc").write_text(source[begin:end])
         begin = source.index("bool read_mount_config(")
         end = source.index("\nint print_storage_json(", begin)
         (build / "sumh_hot_mount_under_test.inc").write_text(source[begin:end])
@@ -147,6 +153,7 @@ def main():
             ("sumh_hot_mount_test", [tests / "sumh_hot_mount_test.cpp"]),
             ("sumh_module_config_test", [tests / "sumh_module_config_test.cpp"]),
             ("sumh_maps_restore_test", [tests / "sumh_maps_restore_test.cpp"]),
+            ("sumh_kstat_restore_test", [tests / "sumh_kstat_restore_test.cpp"]),
             ("sumh_namespace_result_test", [tests / "sumh_namespace_result_test.cpp"]),
             ("sumh_persistence_test", [tests / "sumh_persistence_test.cpp"]),
             ("sumh_migration_test", [tests / "sumh_migration_test.cpp"]),

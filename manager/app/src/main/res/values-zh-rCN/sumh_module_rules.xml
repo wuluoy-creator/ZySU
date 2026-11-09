@@ -1,15 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="sumh_module_rules_hint">规则仅在此模块使用 SUMH 时生效。路径映射优先匹配更具体的规则；「不挂载」保留系统原路径可见。「隐藏」会隐藏目标路径及其子项，无需对应模块文件，更深的规则也无法重新显示已隐藏的父路径。路径空格会保留。</string>
-    <string name="sumh_module_rules_unavailable">SUMH 不可用。已有规则会保留；新增或修改 SUMH、隐藏规则需要受支持的内核。</string>
     <string name="sumh_module_rules_reboot">修改将保存为下次启动配置，重启后才会改变当前挂载。</string>
-    <string name="sumh_module_rules_legacy_mode">此旧版路径模式在模块使用 SUMH 时仍按 SUMH 映射，不会单独创建 Overlay 或 Magic 挂载。</string>
-    <string name="sumh_module_rule_edit_label">编辑 %1$s 的规则</string>
-    <string name="sumh_module_rule_remove_label">移除 %1$s 的规则</string>
-    <string name="sumh_module_rule_cancel_edit">放弃草稿</string>
-    <string name="sumh_module_rule_canonical">请移除重复的斜杠、. 或 .. 路径段以及末尾斜杠；不会自动修改路径。</string>
-    <string name="sumh_module_rule_duplicate">该完整路径已有规则，请编辑现有规则。</string>
-    <string name="sumh_module_rule_invalid_mode">已有规则包含不支持的模式，请编辑或移除后再保存。</string>
-    <string name="sumh_module_rule_limit">每个模块最多可保存 256 条路径规则，请移除一条后再添加。</string>
-    <string name="sumh_module_rule_budget">规则总大小超出限制，请缩短路径或移除部分规则后再保存。</string>
 </resources>

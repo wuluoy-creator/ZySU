@@ -52,4 +52,16 @@ class SUMHFeatureStateTest {
             assertTrue(state.matches(SUMHFeatureFilter.ConfiguredOn, "", emptyList()))
         }
     }
+
+    @Test
+    fun runtimeStateUsesOnlyCompleteRuleSnapshotAndDoesNotGuessOverlayXattrs() {
+        val configured = setOf(SUMHManagedFeature.MountHide, SUMHManagedFeature.OverlayXattr)
+        val known = sumhFeatureStates(configured, true,
+            setOf("mount_hide", "overlay_xattr_hide"), setOf("mount_hide"))
+        assertTrue(known.single { it.feature == SUMHManagedFeature.MountHide }.runtimeEnabled == true)
+        assertFalse(known.single { it.feature == SUMHManagedFeature.Maps }.runtimeEnabled ?: true)
+        assertEquals(null, known.single { it.feature == SUMHManagedFeature.OverlayXattr }.runtimeEnabled)
+        val unknown = sumhFeatureStates(configured, true, emptySet())
+        assertTrue(unknown.all { it.runtimeEnabled == null })
+    }
 }

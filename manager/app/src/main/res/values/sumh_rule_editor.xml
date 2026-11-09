@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="sumh_rules_personal">Hidden paths</string>
     <string name="sumh_rules_edit">Edit path</string>
     <string name="sumh_rules_edit_settings">Edit settings</string>
     <string name="sumh_rules_save">Save</string>

@@ -32,6 +32,7 @@ SUMHP 已内置于 ksud。自动挂载按适用条件选择 OverlayFS 或 Magic 
 | --- | --- |
 | [SUMH 行为验证](guide/sumh-validation.md) | 内核能力、运行状态、规则与真机检查 |
 | [Maps 路径规则](guide/sumh-maps-rules.md) | 路径配置、持久化、原子应用和启动恢复 |
+| [Kstat 路径规则](guide/sumh-kstat-rules.md) | 按路径指定元数据来源、应用和恢复 |
 | [模块路径规则](guide/sumh-module-rules.md) | 模块隐藏、模式范围、原子保存与规则状态 |
 | [内核构建信息替换](guide/sumh-kernel-build.md) | Release / Version 字符串、配置、生效时机与验证 |
 | [Unicode 路径防护](guide/unicode-path-guard.md) | CVE-2025-48567 原理、SUMH 防护开关、边界与验证 |

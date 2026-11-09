@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_maps_import_title">批量导入路径规则</string>
+    <string name="sumh_maps_import_format">每行一条：目标路径、Tab 制表符、替代路径。忽略空行和以 # 开头的注释行；保留路径中的空格。</string>
+    <string name="sumh_maps_import_input">路径规则</string>
+    <string name="sumh_maps_import_preview">预览：新增 %1$d 条，替换 %2$d 条，错误 %3$d 处</string>
+    <string name="sumh_maps_import_empty">请输入至少一条有变化的规则。</string>
+    <string name="sumh_maps_import_line_error">第 %1$d 行：%2$s</string>
+    <string name="sumh_maps_import_format_error">两个路径之间必须有且只有一个 Tab 制表符。</string>
+    <string name="sumh_maps_import_duplicate">导入内容中重复出现此目标路径。</string>
+    <string name="sumh_maps_import_replacements">将替换的现有目标路径</string>
+    <string name="sumh_maps_import_allow_replace">确认替换这些已保存的规则</string>
+    <string name="sumh_maps_import_confirm">导入</string>
+</resources>

@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">వివరణాత్మక</string>
     <string name="sumh_logs_filter_warn">హెచ్చరిక</string>
     <string name="sumh_logs_kernel">కెర్నల్ లాగ్</string>
-    <string name="sumh_maps_add_failed">maps నియమం జోడించడం విఫలమైంది</string>
-    <string name="sumh_maps_add_success">maps నియమం జోడించబడింది</string>
-    <string name="sumh_maps_clear_failed">maps నియమాలను క్లియర్ చేయడం విఫలమైంది</string>
-    <string name="sumh_maps_cleared">maps నియమాలు క్లియర్ చేయబడ్డాయి</string>
-    <string name="sumh_maps_spoof_dev">స్పూఫ్ device</string>
-    <string name="sumh_maps_spoof_ino">స్పూఫ్ inode</string>
-    <string name="sumh_maps_spoof_path">స్పూఫ్ path</string>
-    <string name="sumh_maps_target_dev">లక్ష్యం device (0=ఏదైనా)</string>
-    <string name="sumh_maps_target_ino">లక్ష్యం inode</string>
-    <string name="sumh_maps_title">Maps స్పూఫ్ (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">మౌంట్ బేస్ / mirror పాత్</string>
     <string name="sumh_mismatch_default">ప్రోటోకాల్ అసమతుల్యత గుర్తించబడింది. దయచేసి కెర్నల్ లేదా మాడ్యూల్‌ను అప్‌డేట్ చేయండి.</string>
-    <string name="sumh_module_rules_add">జోడించండి</string>
-    <string name="sumh_module_rules_placeholder">/system/లేదా/vendor/లోపల/పాత్</string>
-    <string name="sumh_module_rules_title">ఈ మాడ్యూల్ కోసం కస్టమ్ నియమాలు</string>
     <string name="sumh_mount_config">మౌంట్ కాన్ఫిగ్</string>
     <string name="sumh_mount_mode">మౌంట్ మోడ్</string>
     <string name="sumh_mount_mode_auto">స్వయంచాలకం</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">డీమన్ లాగ్‌లను క్లియర్ చేయాలా? కెర్నల్ లాగ్‌లు మారవు.</string>
     <string name="sumh_logs_search">లాగ్‌లను వెతకండి</string>
     <string name="sumh_logs_actions">లాగ్ చర్యలు</string>
-    <string name="sumh_maps_add_action">జోడించండి</string>
-    <string name="sumh_maps_desc">ప్రాసెస్ mapsలో inode, పరికరం, పాత్ సమాచారాన్ని నకిలీగా చూపండి.</string>
     <string name="sumh_maps_spoof">Maps సమాచారం స్పూఫింగ్</string>
     <string name="sumh_maps_spoof_desc">మెమరీ ప్రాంతాల పాత్, పరికర సంఖ్య, inodeలను మ్యాప్ చేయండి</string>
     <string name="sumh_mirror_path_desc">ఖాళీగా వదిలితే SUMHP స్వయంగా డైరెక్టరీని ఎంచుకుంటుంది.</string>
     <string name="sumh_mount_filter">మౌంట్ మోడ్‌లను ఫిల్టర్ చేయండి</string>
     <string name="sumh_mount_hide">మౌంట్‌ను దాచండి</string>
     <string name="sumh_mount_hide_desc">మౌంట్ వీక్షణలో మాడ్యూల్ అంశాలను దాచండి</string>
-    <string name="sumh_mount_mode_hide">దాచండి</string>
     <string name="sumh_mount_total">మాడ్యూల్ మౌంట్</string>
     <string name="sumh_mountsource_invalid">పేరు ఖాళీగా ఉండకూడదు; ఖాళీ అక్షరాలు, బ్యాక్‌స్లాష్ లేదా నియంత్రణ అక్షరాలు ఉండకూడదు.</string>
     <string name="sumh_no_conflicts">మౌంట్ వైరుధ్యాలు కనబడలేదు</string>

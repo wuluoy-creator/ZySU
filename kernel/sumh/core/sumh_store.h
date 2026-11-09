@@ -26,9 +26,17 @@ struct sumh_spoof_kstat_entry {
 	unsigned long spoofed_blksize;
 	unsigned long long spoofed_blocks;
 	int is_static;
+	u32 field_mask; /* Zero retains the legacy zero-as-unchanged contract.
+			 */
 	struct hlist_node path_node;
 	struct hlist_node ino_node;
 	struct rcu_head rcu;
+};
+
+struct sumh_managed_kstat_snapshot {
+	struct rcu_head rcu;
+	u32 count;
+	struct sumh_spoof_kstat_entry *entries[SUMH_MANAGED_KSTAT_MAX_RULES];
 };
 
 struct sumh_maps_rule_entry {
@@ -48,6 +56,8 @@ extern struct hlist_head sumh_xattr_sbs[1 << SUMH_HASH_BITS];
 extern struct hlist_head sumh_merge_dirs[1 << SUMH_HASH_BITS];
 extern struct hlist_head sumh_spoof_kstat_path[1 << SUMH_HASH_BITS];
 extern struct hlist_head sumh_spoof_kstat_ino[1 << SUMH_HASH_BITS];
+extern struct sumh_managed_kstat_snapshot __rcu *sumh_managed_kstat;
+extern u64 sumh_managed_kstat_generation;
 extern struct list_head sumh_maps_rules;
 
 extern struct mutex sumh_config_mutex;
@@ -78,5 +88,6 @@ void sumh_inject_entry_free_rcu(struct rcu_head *head);
 void sumh_xattr_sb_entry_free_rcu(struct rcu_head *head);
 void sumh_merge_entry_free_rcu(struct rcu_head *head);
 void sumh_spoof_kstat_entry_free_rcu(struct rcu_head *head);
+void sumh_managed_kstat_snapshot_free_rcu(struct rcu_head *head);
 
 #endif /* _SUMH_STORE_H */

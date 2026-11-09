@@ -97,6 +97,9 @@ void embedded_boot_completed() {
     if (sumh::is_available() && run_via_daemon({"sumh", "maps", "apply"}) != 0) {
         logging::write(logging::Level::Error, "boot", "failed to restore maps path rules");
     }
+    if (sumh::is_available() && run_via_daemon({"sumh", "kstat", "apply"}) != 0) {
+        logging::write(logging::Level::Error, "boot", "failed to restore kstat path rules");
+    }
     if (!embedded_external_mount_owner().empty()) {
         return;
     }

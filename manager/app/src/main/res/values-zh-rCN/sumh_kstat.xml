@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sumh_kstat_description">为目标路径指定元数据来源，或逐项设置 stat 字段。规则仅在受支持的 SUMH 视图中生效。</string>
+    <string name="sumh_kstat_unsupported">当前内核不支持受管 Kstat 规则。</string>
+    <string name="sumh_kstat_saved_count">已保存规则：%1$d</string>
+    <string name="sumh_kstat_active_count">已安装快照规则：%1$d</string>
+    <string name="sumh_kstat_active_unknown">已安装快照规则：未知</string>
+    <string name="sumh_kstat_generation">运行时代次：%1$s</string>
+    <string name="sumh_kstat_source">来源：%1$s</string>
+    <string name="sumh_kstat_add">添加规则</string>
+    <string name="sumh_kstat_edit">编辑规则</string>
+    <string name="sumh_kstat_details">规则详情</string>
+    <string name="sumh_kstat_remove">删除规则</string>
+    <string name="sumh_kstat_target">目标路径</string>
+    <string name="sumh_kstat_source_label">元数据来源路径</string>
+    <string name="sumh_kstat_mode">元数据范围</string>
+    <string name="sumh_kstat_mode_identity">设备号与 inode</string>
+    <string name="sumh_kstat_mode_full">所有受支持的 stat 字段</string>
+    <string name="sumh_kstat_mode_custom">自定义字段</string>
+    <string name="sumh_kstat_field_dev">设备号（内核编码）</string>
+    <string name="sumh_kstat_field_ino">inode</string>
+    <string name="sumh_kstat_field_nlink">链接数</string>
+    <string name="sumh_kstat_field_size">大小（字节）</string>
+    <string name="sumh_kstat_field_atime">访问时间</string>
+    <string name="sumh_kstat_field_mtime">修改时间</string>
+    <string name="sumh_kstat_field_ctime">状态变更时间</string>
+    <string name="sumh_kstat_field_blksize">块大小</string>
+    <string name="sumh_kstat_field_blocks">块数</string>
+    <string name="sumh_kstat_seconds">秒</string>
+    <string name="sumh_kstat_nanoseconds">纳秒</string>
+    <string name="sumh_kstat_invalid">请检查路径、所选字段、数值及最多 32 条规则的限制。</string>
+</resources>

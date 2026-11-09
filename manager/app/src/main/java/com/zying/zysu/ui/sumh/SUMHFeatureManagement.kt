@@ -8,7 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOff
-import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -30,7 +29,6 @@ import com.zying.zysu.ui.sumh.util.SUMHFeatureState
 import com.zying.zysu.ui.sumh.util.SUMHFeatureSupport
 import com.zying.zysu.ui.sumh.util.SUMHManagedFeature
 import com.zying.zysu.ui.sumh.util.sumhFeatureStates
-import com.zying.zysu.ui.sumh.util.sumhManagedMapsSupport
 import com.zying.zysu.ui.sumh.util.unsupportedConfiguredFeatures
 import ui.screen.moreSettings.component.MoreSettingsItemPosition
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as Controller
@@ -61,7 +59,7 @@ private val SUMHManagedFeature.icon: ImageVector
         SUMHManagedFeature.MountHide -> Icons.Filled.FolderOff
         SUMHManagedFeature.OverlayXattr -> Icons.Filled.Security
         SUMHManagedFeature.Statfs -> Icons.Filled.Storage
-        SUMHManagedFeature.Maps, SUMHManagedFeature.KernelBuild -> Icons.Filled.Memory
+        SUMHManagedFeature.Maps, SUMHManagedFeature.KernelBuild -> Icons.Filled.Storage
     }
 
 internal fun Controller.SUMHPConfig.configuredSUMHFeatures(): Set<SUMHManagedFeature> = buildSet {
@@ -84,15 +82,21 @@ internal fun Controller.SUMHPConfig.disableSUMHFeatures(features: Set<SUMHManage
 
 @Composable
 internal fun sumhFeatureSummary(description: String, state: SUMHFeatureState): String {
-    if (state.support == SUMHFeatureSupport.Supported) return description
-    val support = stringResource(when (state.support) {
+    val support = if (state.support == SUMHFeatureSupport.Supported) null else stringResource(when (state.support) {
         SUMHFeatureSupport.Supported -> R.string.sumh_features_support_yes
         SUMHFeatureSupport.Unsupported -> if (state.configuredEnabled) R.string.sumh_disable_unsupported
             else R.string.sumh_features_support_no
         SUMHFeatureSupport.Unknown -> R.string.sumh_features_support_unknown
         SUMHFeatureSupport.KernelUnavailable -> R.string.sumh_features_kernel_unavailable
     })
-    return "$description\n$support"
+    val runtime = when {
+        state.runtimeEnabled != null && (state.configuredEnabled || state.runtimeEnabled) ->
+            stringResource(if (state.runtimeEnabled) R.string.sumh_feature_running else R.string.sumh_feature_not_running)
+        state.runtimeEnabled == null && state.configuredEnabled && state.support != SUMHFeatureSupport.KernelUnavailable ->
+            stringResource(R.string.sumh_feature_runtime_unknown)
+        else -> null
+    }
+    return listOfNotNull(description, support, runtime).joinToString("\n")
 }
 
 @Composable
@@ -102,45 +106,32 @@ internal fun IsolationFeatureSettings(
     features: Controller.FeaturesResult?,
     controlsEnabled: Boolean,
     onConfigChanged: (Controller.SUMHPConfig) -> Unit,
-    onClearMapRules: () -> Unit,
-    onAddMapRule: (Long, Long, Long, Long, String) -> Unit,
     headingActions: (@Composable RowScope.() -> Unit)?,
-    onRetryApply: () -> Unit,
-    runtimeApplyPending: Boolean,
+    runtimeRules: List<Controller.ActiveRule>? = null,
 ) {
-    val states = sumhFeatureStates(config.configuredSUMHFeatures(), kernelAvailable, features?.names?.toSet())
-    val cleanup = unsupportedConfiguredFeatures(states)
+    val states = sumhFeatureStates(config.configuredSUMHFeatures(), kernelAvailable, features?.names?.toSet(),
+        runtimeRules?.mapTo(hashSetOf()) { it.type })
+    val standard = setOf(SUMHManagedFeature.Stealth, SUMHManagedFeature.MountHide,
+        SUMHManagedFeature.OverlayXattr, SUMHManagedFeature.Statfs)
+    val cleanup = unsupportedConfiguredFeatures(states).intersect(standard)
     var cleanupTargets by remember { mutableStateOf<Set<SUMHManagedFeature>?>(null) }
-
-    FeatureManagementOverview(
-        states = states,
-        controlsEnabled = controlsEnabled,
-        cleanupAvailable = cleanup.isNotEmpty(),
-        onCleanup = { cleanupTargets = cleanup },
-        headingActions = headingActions,
-    )
 
     val groups = listOf(
         R.string.sumh_group_mount_visibility to setOf(SUMHManagedFeature.Stealth, SUMHManagedFeature.MountHide),
         R.string.sumh_group_filesystem to setOf(SUMHManagedFeature.OverlayXattr, SUMHManagedFeature.Statfs),
-        R.string.sumh_maps_title to setOf(SUMHManagedFeature.Maps),
     )
-    groups.forEach { (title, members) ->
+    groups.forEachIndexed { groupIndex, (title, members) ->
         val group = states.filter { it.feature in members }
         if (group.isNotEmpty()) {
-            ConfigSection(stringResource(title), segmented = true) {
+            ConfigSection(stringResource(title), segmented = true,
+                actions = if (groupIndex == 0) headingActions else null) {
                 group.forEachIndexed { index, state ->
-                    val mapControls = state.feature == SUMHManagedFeature.Maps && state.configuredEnabled &&
-                        state.support == SUMHFeatureSupport.Supported
-                    val position = when {
-                        group.size == 1 && state.feature != SUMHManagedFeature.Maps -> MoreSettingsItemPosition.Only
-                        index == 0 -> MoreSettingsItemPosition.First
-                        index == group.lastIndex -> MoreSettingsItemPosition.Last
-                        else -> MoreSettingsItemPosition.Middle
-                    }
+                    val position = if (index == 0) MoreSettingsItemPosition.First else MoreSettingsItemPosition.Last
+                    val requiresMountHide = state.feature == SUMHManagedFeature.Statfs && !config.enableMountHide
                     SettingSwitch(
                         title = stringResource(state.feature.titleRes),
-                        subtitle = sumhFeatureSummary(stringResource(state.feature.descriptionRes), state),
+                        subtitle = sumhFeatureSummary(stringResource(state.feature.descriptionRes), state) +
+                            if (requiresMountHide) "\n" + stringResource(R.string.sumh_statfs_requires_mount_hide) else "",
                         checked = state.configuredEnabled,
                         onCheckedChange = { checked ->
                             val next = when (state.feature) {
@@ -148,34 +139,23 @@ internal fun IsolationFeatureSettings(
                                 SUMHManagedFeature.MountHide -> config.copy(enableMountHide = checked)
                                 SUMHManagedFeature.OverlayXattr -> config.copy(enableOverlayXattrHide = checked)
                                 SUMHManagedFeature.Statfs -> config.copy(enableStatfsSpoof = checked)
-                                SUMHManagedFeature.Maps -> config.copy(enableMapsSpoof = checked)
-                                SUMHManagedFeature.KernelBuild -> config.copy(enableKernelBuildSpoof = checked)
+                                else -> config
                             }
                             onConfigChanged(next)
                         },
-                        enabled = controlsEnabled && state.canChange,
+                        enabled = controlsEnabled && state.canChange && (!requiresMountHide || state.configuredEnabled),
                         icon = state.feature.icon,
                         position = position,
                     )
-                    if (state.feature == SUMHManagedFeature.Maps) {
-                        ManagedMapsControls(
-                            rules = config.mapsRules,
-                            enabled = controlsEnabled,
-                            support = sumhManagedMapsSupport(kernelAvailable, features?.names?.toSet()),
-                            mapsEnabled = config.enableMapsSpoof,
-                            onRulesChanged = { onConfigChanged(config.copy(mapsRules = it)) },
-                            position = if (mapControls) MoreSettingsItemPosition.Middle else MoreSettingsItemPosition.Last,
-                            onRetryApply = onRetryApply,
-                            runtimeApplyPending = runtimeApplyPending,
-                        )
-                    }
-                    if (mapControls) MapsSpoofControls(controlsEnabled && kernelAvailable, onClearMapRules, onAddMapRule)
+                }
+                if (groupIndex == 1 && cleanup.isNotEmpty()) TextButton(
+                    onClick = { cleanupTargets = cleanup }, enabled = controlsEnabled,
+                    modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(stringResource(R.string.sumh_features_cleanup))
                 }
             }
         }
     }
-    val buildState = states.first { it.feature == SUMHManagedFeature.KernelBuild }
-    KernelBuildSpoofCard(config, controlsEnabled, controlsEnabled && kernelAvailable, buildState.support, onConfigChanged)
 
     cleanupTargets?.let { targets ->
         YukiAlertDialog(
@@ -205,38 +185,5 @@ internal fun IsolationFeatureSettings(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun FeatureManagementOverview(
-    states: List<SUMHFeatureState>,
-    controlsEnabled: Boolean,
-    cleanupAvailable: Boolean,
-    onCleanup: () -> Unit,
-    headingActions: (@Composable RowScope.() -> Unit)?,
-) {
-    ConfigSection(stringResource(R.string.sumh_features_title), actions = headingActions) {
-        Text(
-            stringResource(R.string.sumh_features_configured_count, states.count { it.configuredEnabled }, states.size),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            when {
-                states.any { it.support == SUMHFeatureSupport.KernelUnavailable } ->
-                    stringResource(R.string.sumh_features_kernel_unavailable)
-                states.any { it.support == SUMHFeatureSupport.Unknown } ->
-                    stringResource(R.string.sumh_features_support_unknown)
-                else -> stringResource(R.string.sumh_features_supported_count,
-                    states.count { it.support == SUMHFeatureSupport.Supported }, states.size)
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (cleanupAvailable) {
-            TextButton(onClick = onCleanup, enabled = controlsEnabled, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(stringResource(R.string.sumh_features_cleanup))
-            }
-        }
     }
 }

@@ -24,6 +24,21 @@ static_assert(sizeof(sumh_kernel_build_arg) == 148);
 static_assert(offsetof(sumh_kernel_build_arg, release) == 16);
 static_assert(sizeof(sumh_managed_maps_arg) == 24);
 static_assert(offsetof(sumh_managed_maps_arg, rules) == 8);
+static_assert(sizeof(sumh_managed_kstat_arg) == 24);
+static_assert(offsetof(sumh_managed_kstat_arg, rules) == 8);
+static_assert(sizeof(sumh_raw_kstat_arg) == 4192);
+static_assert(offsetof(sumh_raw_kstat_arg, ino) == 4104);
+static_assert(offsetof(sumh_raw_kstat_arg, blocks) == 4184);
+static_assert(sizeof(sumh_managed_kstat_status_arg) == 24);
+static_assert(offsetof(sumh_managed_kstat_status_arg, generation) == 8);
+// This native unsigned-long payload is an LP64 ABI; the Android controller is arm64-only.
+#if defined(__ANDROID__)
+static_assert(sizeof(unsigned long) == 8);
+#endif
+#if defined(__LP64__)
+static_assert(sizeof(sumh_managed_kstat_rule) == 376);
+static_assert(offsetof(sumh_managed_kstat_rule, field_mask) == 368);
+#endif
 
 static_assert(static_cast<std::uint32_t>(MountHideMode::Normal) == SUMH_MOUNT_HIDE_MODE_NORMAL);
 static_assert(static_cast<std::uint32_t>(MountHideMode::Aggressive) ==
@@ -148,6 +163,8 @@ std::vector<std::string> feature_names(int bitmask) {
         names.emplace_back("statfs_spoof");
     if (bitmask & SUMH_FEATURE_KSTAT_SPOOF)
         names.emplace_back("kstat_spoof");
+    if (bitmask & SUMH_FEATURE_MANAGED_KSTAT)
+        names.emplace_back("managed_kstat");
     if (bitmask & SUMH_FEATURE_MERGE_DIR)
         names.emplace_back("merge_dir");
     if (bitmask & SUMH_FEATURE_OVERLAY_XATTR_HIDE)
@@ -549,6 +566,107 @@ bool replace_managed_maps_rules(const std::vector<MapsRule>& rules) {
     arg.count = static_cast<std::uint32_t>(encoded.size());
     arg.rules = encoded.empty() ? 0 : reinterpret_cast<std::uintptr_t>(encoded.data());
     return execute(SUMH_IOC_SET_MANAGED_MAPS, &arg) == 0;
+}
+
+bool replace_managed_kstat_rules(const std::vector<KstatRule>& rules) {
+    if (rules.size() > SUMH_MANAGED_KSTAT_MAX_RULES) {
+        errno = E2BIG;
+        return false;
+    }
+    std::vector<sumh_managed_kstat_rule> encoded;
+    encoded.reserve(rules.size());
+    std::set<std::string> targets;
+    for (const auto& rule : rules) {
+        if (rule.target_path.empty() || rule.target_path.front() != '/' ||
+            rule.target_path.find_first_of("\0\r\n", 0, 3) != std::string::npos ||
+            !targets.insert(rule.target_path).second || !rule.field_mask ||
+            (rule.field_mask & ~SUMH_KSTAT_FIELD_ALL) || rule.spoofed_dev > 0xffffffffULL ||
+            rule.spoofed_blksize > 0xffffffffULL || rule.spoofed_size < 0 ||
+            rule.spoofed_atime_nsec < 0 || rule.spoofed_atime_nsec >= 1000000000L ||
+            rule.spoofed_mtime_nsec < 0 || rule.spoofed_mtime_nsec >= 1000000000L ||
+            rule.spoofed_ctime_nsec < 0 || rule.spoofed_ctime_nsec >= 1000000000L) {
+            errno = EINVAL;
+            return false;
+        }
+        if (rule.target_path.size() >= SUMH_MAX_LEN_PATHNAME) {
+            errno = ENAMETOOLONG;
+            return false;
+        }
+        sumh_managed_kstat_rule item = {};
+        auto& values = item.values;
+        std::memcpy(values.target_pathname, rule.target_path.c_str(), rule.target_path.size() + 1);
+        values.spoofed_ino = rule.spoofed_ino;
+        values.spoofed_dev = rule.spoofed_dev;
+        values.spoofed_nlink = rule.spoofed_nlink;
+        values.spoofed_size = rule.spoofed_size;
+        values.spoofed_atime_sec = rule.spoofed_atime_sec;
+        values.spoofed_atime_nsec = rule.spoofed_atime_nsec;
+        values.spoofed_mtime_sec = rule.spoofed_mtime_sec;
+        values.spoofed_mtime_nsec = rule.spoofed_mtime_nsec;
+        values.spoofed_ctime_sec = rule.spoofed_ctime_sec;
+        values.spoofed_ctime_nsec = rule.spoofed_ctime_nsec;
+        values.spoofed_blksize = rule.spoofed_blksize;
+        values.spoofed_blocks = rule.spoofed_blocks;
+        item.field_mask = rule.field_mask;
+        encoded.push_back(item);
+    }
+    const auto caps = feature_capabilities();
+    if (!caps.ok) {
+        errno = caps.last_errno;
+        return false;
+    }
+    if (!(caps.bitmask & SUMH_FEATURE_MANAGED_KSTAT)) {
+        if (rules.empty())
+            return true;
+        errno = EOPNOTSUPP;
+        return false;
+    }
+    sumh_managed_kstat_arg arg = {};
+    arg.size = sizeof(arg);
+    arg.count = static_cast<std::uint32_t>(encoded.size());
+    arg.rules = encoded.empty() ? 0 : reinterpret_cast<std::uintptr_t>(encoded.data());
+    return execute(SUMH_IOC_SET_MANAGED_KSTAT, &arg) == 0;
+}
+
+bool raw_kstat(const std::string& source_path, RawKstat& result) {
+    if (source_path.empty() || source_path.front() != '/' ||
+        source_path.find_first_of("\0\r\n", 0, 3) != std::string::npos) {
+        errno = EINVAL;
+        return false;
+    }
+    if (source_path.size() >= SUMH_USER_HIDE_PATH_MAX) {
+        errno = ENAMETOOLONG;
+        return false;
+    }
+    sumh_raw_kstat_arg arg = {};
+    arg.size = sizeof(arg);
+    std::memcpy(arg.source_path, source_path.c_str(), source_path.size() + 1);
+    if (execute(SUMH_IOC_GET_RAW_KSTAT, &arg) != 0)
+        return false;
+    if (arg.size != sizeof(arg) || arg.reserved || arg.reserved2 || arg.atime_nsec < 0 ||
+        arg.atime_nsec >= 1000000000 || arg.mtime_nsec < 0 || arg.mtime_nsec >= 1000000000 ||
+        arg.ctime_nsec < 0 || arg.ctime_nsec >= 1000000000) {
+        errno = EPROTO;
+        return false;
+    }
+    result = {arg.ino,       arg.dev,        arg.nlink,     arg.size_bytes,
+              arg.atime_sec, arg.atime_nsec, arg.mtime_sec, arg.mtime_nsec,
+              arg.ctime_sec, arg.ctime_nsec, arg.blksize,   arg.blocks};
+    return true;
+}
+
+bool managed_kstat_status(ManagedKstatStatus& result) {
+    sumh_managed_kstat_status_arg arg = {};
+    arg.size = sizeof(arg);
+    if (execute(SUMH_IOC_GET_MANAGED_KSTAT_STATUS, &arg) != 0)
+        return false;
+    if (arg.size != sizeof(arg) || arg.count > SUMH_MANAGED_KSTAT_MAX_RULES || arg.reserved[0] ||
+        arg.reserved[1]) {
+        errno = EPROTO;
+        return false;
+    }
+    result = {arg.count, arg.generation};
+    return true;
 }
 
 int enabled_state() {

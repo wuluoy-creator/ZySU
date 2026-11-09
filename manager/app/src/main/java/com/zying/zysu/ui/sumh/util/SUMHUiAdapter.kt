@@ -8,6 +8,10 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.util.Locale
 
+internal fun validSUMHPartitionName(name: String): Boolean =
+    name.isNotEmpty() && name != "." && name != ".." &&
+        name.none { it == '/' || it == '\u0000' }
+
 object SUMHUiAdapter {
     enum class SUMHStatus { AVAILABLE, NOT_PRESENT, KERNEL_TOO_OLD, MODULE_TOO_OLD }
     data class FeaturesResult(val bitmask: Int, val names: List<String>)
@@ -20,15 +24,21 @@ object SUMHUiAdapter {
     data class MountStats(
         val totalMounts: Int, val overlayfsMounts: Int,
     )
+    data class ManagedKstatStatus(val activeCount: Int, val generation: String)
     data class SystemInfo(
         val kernel: String, val mountBase: String,
         val activeMounts: List<String>, val sumhModuleIds: List<String>,
         val sumhMismatch: Boolean, val mismatchMessage: String?,
         val mountStats: MountStats? = null, val detectedPartitions: List<PartitionInfo> = emptyList(),
         val hooks: String = "", val viewsEnabled: Boolean? = null,
+        val managedKstat: ManagedKstatStatus? = null,
     )
     data class StorageInfo(val size: String, val used: String, val avail: String, val percent: String, val type: String)
     data class MapsPathRule(val targetPath: String, val replacementPath: String)
+    data class KstatPathRule(
+        val targetPath: String, val sourcePath: String, val mode: String,
+        val customFields: Map<String, String> = emptyMap(),
+    )
     data class SUMHPConfig(
         val tempdir: String = "",
         val mountsource: String = "KSU", val debug: Boolean = false, val verbose: Boolean = false,
@@ -37,10 +47,12 @@ object SUMHUiAdapter {
         val enableMountHide: Boolean = false,
         val enableMapsSpoof: Boolean = false, val enableStatfsSpoof: Boolean = false,
         val mapsRules: List<MapsPathRule> = emptyList(),
+        val kstatRules: List<KstatPathRule> = emptyList(),
         val enableKernelBuildSpoof: Boolean = false,
         val kernelBuildRelease: String = "", val kernelBuildVersion: String = "",
         val kernelBuildApplyStage: String = KERNEL_BUILD_EARLY_STAGE,
         val mirrorPath: String = "", val partitions: List<String> = emptyList(),
+        val mirrorImageSizeMb: Int = 2048, val overlayWritable: Boolean = false,
         val mountBackend: String = "auto", val overlayfsEnabled: Boolean = true, val magicMountEnabled: Boolean = true,
         val kernelAvailable: Boolean = false, val externalOwner: String = "",
         val original: JSONObject = JSONObject(), val supported: Set<String> = emptySet(),
@@ -54,6 +66,7 @@ object SUMHUiAdapter {
     internal fun config(raw: JSONObject, names: Set<String>, available: Boolean, externalOwner: String): SUMHPConfig {
         val partitions = raw.optJSONArray("partitions")
         val mapsRules = raw.optJSONArray("maps_rules")
+        val kstatRules = raw.optJSONArray("kstat_rules")
         return SUMHPConfig(
             tempdir = raw.optString("work_dir", "/dev/sumhp").takeUnless { it == "/dev/sumhp" }.orEmpty(),
             mountsource = raw.optString("mountsource", "KSU"),
@@ -67,12 +80,18 @@ object SUMHUiAdapter {
                 val rule = mapsRules.getJSONObject(it)
                 MapsPathRule(rule.getString("target_path"), rule.getString("replacement_path"))
             },
+            kstatRules = if (kstatRules == null) emptyList() else (0 until kstatRules.length()).map {
+                val rule = kstatRules.getJSONObject(it)
+                parseKstatRule(rule)
+            },
             enableStatfsSpoof = raw.optBoolean("enable_statfs_spoof"),
             enableKernelBuildSpoof = raw.optBoolean("enable_kernel_build_spoof"),
             kernelBuildRelease = raw.optString("kernel_build_release"),
             kernelBuildVersion = raw.optString("kernel_build_version"),
             kernelBuildApplyStage = raw.optString("kernel_build_apply_stage", KERNEL_BUILD_EARLY_STAGE),
             mirrorPath = raw.optString("mirror_dir"),
+            mirrorImageSizeMb = raw.optInt("mirror_img_size_mb", 2048),
+            overlayWritable = raw.optBoolean("overlay_writable"),
             partitions = if (partitions == null) emptyList() else (0 until partitions.length()).map(partitions::getString),
             mountBackend = raw.optString("mount_backend", "auto"),
             overlayfsEnabled = raw.optBoolean("overlayfs_enabled", true), magicMountEnabled = raw.optBoolean("magic_mount_enabled", true),
@@ -190,6 +209,16 @@ object SUMHUiAdapter {
         return FeaturesResult(raw.optInt("bitmask"), (0 until names.length()).map(names::getString))
     }
 
+    internal fun parseManagedKstatStatus(raw: JSONObject?): ManagedKstatStatus? {
+        if (raw == null || raw.keys().asSequence().toSet() != setOf("active_count", "generation")) return null
+        val count = raw.opt("active_count") as? Number ?: return null
+        val countInt = count.toInt()
+        if (countInt !in 0..SUMH_MAX_KSTAT_RULES || count.toDouble() != countInt.toDouble()) return null
+        val generation = raw.opt("generation") as? String ?: return null
+        if (!Regex("0|[1-9][0-9]*").matches(generation) || generation.toULongOrNull() == null) return null
+        return ManagedKstatStatus(countInt, generation)
+    }
+
     suspend fun load(): UiState = withContext(Dispatchers.IO) {
         val snapshot = SUMHManager.snapshot()
         val sys = snapshot.system
@@ -234,7 +263,8 @@ object SUMHUiAdapter {
             SystemInfo(sys.optString("kernel"), base, mounts, ids,
                 protocol != 0 && protocol != 1, null,
                 stats?.let { MountStats(it.optInt("total_mounts"), it.optInt("overlayfs_mounts")) }, partitions,
-                sys.optString("hooks"), sys.optBoolean("enabled")),
+                sys.optString("hooks"), sys.optBoolean("enabled"),
+                parseManagedKstatStatus(sys.optJSONObject("managed_kstat_status"))),
             storage, runtimeRules.rules,
             features, runtimeRules.incomplete,
         )
@@ -271,16 +301,33 @@ object SUMHUiAdapter {
             require(mapsRulesWithinBudget(value.mapsRules))
             updates.put("maps_rules", mapsRulesJson(value.mapsRules))
         }
+        if (old.kstatRules != value.kstatRules) {
+            require(validSUMHKstatRules(value.kstatRules))
+            updates.put("kstat_rules", kstatRulesJson(value.kstatRules))
+        }
         change("enable_statfs_spoof", old.enableStatfsSpoof, value.enableStatfsSpoof)
         change("enable_kernel_build_spoof", old.enableKernelBuildSpoof, value.enableKernelBuildSpoof)
         change("kernel_build_release", old.kernelBuildRelease, value.kernelBuildRelease)
         change("kernel_build_version", old.kernelBuildVersion, value.kernelBuildVersion)
         change("kernel_build_apply_stage", old.kernelBuildApplyStage, value.kernelBuildApplyStage)
         change("mirror_dir", old.mirrorPath, value.mirrorPath)
-        change("mount_backend", old.mountBackend, value.mountBackend)
+        if (old.mirrorImageSizeMb != value.mirrorImageSizeMb) {
+            require(value.mirrorImageSizeMb > 0)
+            updates.put("mirror_img_size_mb", value.mirrorImageSizeMb)
+        }
+        change("overlay_writable", old.overlayWritable, value.overlayWritable)
+        if (old.mountBackend != value.mountBackend) {
+            require(value.mountBackend in SUMHManager.mountModes)
+            require(value.mountBackend != "sumh" || value.kernelAvailable)
+            updates.put("mount_backend", value.mountBackend)
+        }
         change("overlayfs_enabled", old.overlayfsEnabled, value.overlayfsEnabled)
         change("magic_mount_enabled", old.magicMountEnabled, value.magicMountEnabled)
-        if (old.partitions != value.partitions) updates.put("partitions", org.json.JSONArray(value.partitions))
+        if (old.partitions != value.partitions) {
+            require(value.partitions.all(::validSUMHPartitionName))
+            require(value.partitions.distinct().size == value.partitions.size)
+            updates.put("partitions", org.json.JSONArray(value.partitions))
+        }
         val plan = planSUMHConfigSave(
             updates.keys().asSequence().toSet(),
             value.kernelAvailable,

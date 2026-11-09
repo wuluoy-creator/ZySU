@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="sumh_kstat_description">Choose a metadata source or set individual stat fields for a target path. Changes apply to supported SUMH views.</string>
+    <string name="sumh_kstat_unsupported">This kernel does not support managed Kstat rules.</string>
+    <string name="sumh_kstat_saved_count">Saved rules: %1$d</string>
+    <string name="sumh_kstat_active_count">Installed snapshot rules: %1$d</string>
+    <string name="sumh_kstat_active_unknown">Installed snapshot rules: unknown</string>
+    <string name="sumh_kstat_generation">Runtime generation: %1$s</string>
+    <string name="sumh_kstat_source">Source: %1$s</string>
+    <string name="sumh_kstat_add">Add rule</string>
+    <string name="sumh_kstat_edit">Edit rule</string>
+    <string name="sumh_kstat_details">Rule details</string>
+    <string name="sumh_kstat_remove">Remove rule</string>
+    <string name="sumh_kstat_target">Target path</string>
+    <string name="sumh_kstat_source_label">Metadata source path</string>
+    <string name="sumh_kstat_mode">Metadata</string>
+    <string name="sumh_kstat_mode_identity">Device and inode</string>
+    <string name="sumh_kstat_mode_full">All supported stat fields</string>
+    <string name="sumh_kstat_mode_custom">Custom fields</string>
+    <string name="sumh_kstat_field_dev">Device (kernel encoded)</string>
+    <string name="sumh_kstat_field_ino">Inode</string>
+    <string name="sumh_kstat_field_nlink">Link count</string>
+    <string name="sumh_kstat_field_size">Size (bytes)</string>
+    <string name="sumh_kstat_field_atime">Access time</string>
+    <string name="sumh_kstat_field_mtime">Modification time</string>
+    <string name="sumh_kstat_field_ctime">Status change time</string>
+    <string name="sumh_kstat_field_blksize">Block size</string>
+    <string name="sumh_kstat_field_blocks">Block count</string>
+    <string name="sumh_kstat_seconds">Seconds</string>
+    <string name="sumh_kstat_nanoseconds">Nanoseconds</string>
+    <string name="sumh_kstat_invalid">Check paths, selected fields, numeric values and the 32-rule limit.</string>
+</resources>

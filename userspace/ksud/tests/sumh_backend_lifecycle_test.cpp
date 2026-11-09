@@ -23,6 +23,7 @@ bool prepare_ok = true;
 bool mount_ok = true;
 bool features_ok = true;
 bool maps_ok = true;
+bool kstat_ok = true;
 bool xattr_ok = true;
 bool record_ok = true;
 bool mappings_active = false;
@@ -33,6 +34,7 @@ int current_namespace_call = 0;
 int mount_calls = 0;
 int feature_calls = 0;
 int maps_calls = 0;
+int kstat_calls = 0;
 int hide_restore_calls = 0;
 int xattr_calls = 0;
 int attempts = 0;
@@ -44,11 +46,12 @@ sumhp::mount::ModuleModeMap configured_modes;
 sumhp::mount::ModuleRuleMap configured_rules;
 
 void reset() {
-    available = prepare_ok = mount_ok = features_ok = maps_ok = xattr_ok = record_ok = true;
+    available = prepare_ok = mount_ok = features_ok = maps_ok = kstat_ok = xattr_ok = record_ok =
+        true;
     configuration_ok = compile_ok = true;
     mappings_active = false;
-    reset_calls = mount_calls = feature_calls = maps_calls = hide_restore_calls = xattr_calls =
-        attempts = 0;
+    reset_calls = mount_calls = feature_calls = maps_calls = kstat_calls = hide_restore_calls =
+        xattr_calls = attempts = 0;
     compile_calls = namespace_call = current_namespace_call = 0;
     replayable = {"owned"};
     installed_modules.clear();
@@ -194,6 +197,12 @@ bool apply_maps_config(const Config&, std::string& error, bool restore) {
     error = "injected missing managed maps path";
     return false;
 }
+bool restore_managed_kstat_rules(const Config&, std::string& error) {
+    ++kstat_calls;
+    if (!kstat_ok)
+        error = "injected missing managed kstat source";
+    return kstat_ok;
+}
 bool restore_persisted_hide_rules(std::string&) {
     ++hide_restore_calls;
     return true;
@@ -288,8 +297,20 @@ int main() {
     assert(mappings_applied);
     assert(mappings_active && hide_restore_calls == 2 && feature_calls == 2 && maps_calls == 2);
 
-    // Base feature failure still performs the original full cleanup; only a
-    // Maps-specific apply failure is isolated from the module transaction.
+    reset();
+    kstat_ok = false;
+    assert(!mount_all_enabled(config).ok);
+    assert(reset_calls == 1 && mount_calls == 1 && kstat_calls == 1);
+    assert(mappings_active && installed_modules == std::vector<std::string>{"owned"});
+    reset();
+    kstat_ok = false;
+    assert(!refresh_sumh_modules(config, &mappings_applied));
+    assert(mappings_applied && reset_calls == 1 && kstat_calls == 1);
+    assert(mappings_active && installed_modules == std::vector<std::string>{"owned"});
+    assert(hide_restore_calls == 1);
+
+    // Base feature failure still performs the original full cleanup; managed
+    // path-rule restore failures are isolated from the module transaction.
     reset();
     features_ok = false;
     assert(!refresh_sumh_modules(config, &mappings_applied));

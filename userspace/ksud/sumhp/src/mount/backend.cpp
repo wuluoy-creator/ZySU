@@ -65,8 +65,8 @@ int count_committed_mounts() {
     return static_cast<int>(magic::active_mounts(Config{}).size());
 }
 
-bool apply_sumh_features(const Config& config, bool& maps_ok) {
-    maps_ok = true;
+bool apply_sumh_features(const Config& config, bool& rule_restore_ok) {
+    rule_restore_ok = true;
     if (!::sumhp::sumh::is_available()) {
         return true;
     }
@@ -77,8 +77,13 @@ bool apply_sumh_features(const Config& config, bool& maps_ok) {
     }
     const bool restore_maps = ksud::getprop("sys.boot_completed") == "1";
     if (!sumh::apply_maps_config(config, error, restore_maps)) {
-        maps_ok = false;
+        rule_restore_ok = false;
         fsutil::mlog("sumh: maps apply failed: " + error, logging::Level::Error);
+        return false;
+    }
+    if (restore_maps && !sumh::restore_managed_kstat_rules(config, error)) {
+        rule_restore_ok = false;
+        fsutil::mlog("sumh: kstat apply failed: " + error, logging::Level::Error);
         return false;
     }
     return true;
@@ -766,16 +771,16 @@ MountReport mount_all_enabled(const Config& config) {
     }
 
     bool features_ok = true;
-    bool maps_ok = true;
+    bool rule_restore_ok = true;
     if (manage_sumh && sumh_rules_ok) {
-        features_ok = apply_sumh_features(config, maps_ok);
+        features_ok = apply_sumh_features(config, rule_restore_ok);
     } else if (manage_sumh) {
         features_ok = false;
     }
     const bool sumh_ok = features_ok && sumh_rules_ok;
-    // A failed Maps restore must not erase module rules that were successfully
+    // A failed path-rule restore must not erase module rules that were successfully
     // rebuilt. Base feature failures retain the existing transaction cleanup.
-    if (manage_sumh && sumh_rules_ok && !features_ok && maps_ok) {
+    if (manage_sumh && sumh_rules_ok && !features_ok && rule_restore_ok) {
         std::string error;
         (void)sumh::reset_runtime_state(error);
     }
@@ -856,9 +861,9 @@ bool refresh_sumh_modules(const Config& config, bool* mappings_applied) {
     }
     const bool mappings_ok =
         fsutil::run_in_init_mount_ns([&]() { return overlay::restore_xattr_hiding(config); });
-    bool maps_ok = true;
-    const bool features_ok = mappings_ok && apply_sumh_features(config, maps_ok);
-    if (!mappings_ok || (!features_ok && maps_ok)) {
+    bool rule_restore_ok = true;
+    const bool features_ok = mappings_ok && apply_sumh_features(config, rule_restore_ok);
+    if (!mappings_ok || (!features_ok && rule_restore_ok)) {
         std::string cleanup_error;
         (void)sumh::reset_runtime_state(cleanup_error);
     } else {

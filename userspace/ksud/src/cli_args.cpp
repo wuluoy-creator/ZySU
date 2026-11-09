@@ -299,6 +299,16 @@ const std::vector<Command>& commands() {
         {"sumhp sumh maps remove-path", "Remove a saved maps path definition", "<TARGET-PATH>", 1,
          1},
         {"sumhp sumh maps apply", "Resolve saved paths and replace managed maps rules", ""},
+        {"sumhp sumh kstat", "Manage kstat path rules", "<COMMAND>"},
+        {"sumhp sumh kstat list-paths", "Read saved kstat path definitions", ""},
+        {"sumhp sumh kstat status", "Read active managed kstat rule status", ""},
+        {"sumhp sumh kstat add-path", "Save and apply a kstat path definition",
+         "<TARGET-PATH> <SOURCE-PATH> <MODE>", 3, 3},
+        {"sumhp sumh kstat add-custom", "Save and apply custom kstat fields",
+         "<TARGET-PATH> <FIELDS-JSON>", 2, 2},
+        {"sumhp sumh kstat remove-path", "Remove a saved kstat path definition", "<TARGET-PATH>", 1,
+         1},
+        {"sumhp sumh kstat apply", "Resolve saved paths and replace managed kstat rules", ""},
         {"sumhp debug", "Control kernel diagnostics", "<COMMAND>"},
         {"sumhp debug enable", "Enable kernel diagnostics", ""},
         {"sumhp debug disable", "Disable kernel diagnostics", ""},
@@ -733,6 +743,8 @@ int validate(const Command& command, const std::vector<std::string>& operands,
             if (!sumhp::validate_config_patch(patch, error))
                 return bad(error);
         }
+        if (path == "sumhp sumh kstat add-path" && !one_of(operands[2], "identity|full"))
+            return bad("invalid kstat mode '" + operands[2] + "'; expected identity or full");
         if (path == "sumhp debug stealth" && !one_of(operands[0], "enable|disable"))
             return bad("invalid stealth state; expected enable or disable");
         if (path == "sumhp sumh maps add") {

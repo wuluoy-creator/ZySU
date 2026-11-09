@@ -6,9 +6,7 @@
     <string name="nav_records" tools:ignore="MissingTranslation">Authorization records</string>
     <string name="nav_records_summary" tools:ignore="MissingTranslation">Review application Root requests and command records</string>
     <string name="nav_records_disabled" tools:ignore="MissingTranslation">Authorization logging is off. You can enable it in Diagnostics.</string>
-    <string name="nav_mount" tools:ignore="MissingTranslation">Mount</string>
     <string name="nav_kernel_policy" tools:ignore="MissingTranslation">Other settings</string>
-    <string name="nav_isolation" tools:ignore="MissingTranslation">Isolation</string>
     <string name="nav_umount_paths" tools:ignore="MissingTranslation">Unmount paths</string>
     <string name="nav_umount_paths_summary" tools:ignore="MissingTranslation">Manage paths detached from application mount namespaces</string>
     <string name="nav_diagnostics" tools:ignore="MissingTranslation">Diagnostics</string>

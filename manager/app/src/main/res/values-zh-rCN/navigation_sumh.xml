@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sumh_workspace_status">系统状态</string>
-    <string name="sumh_workspace_mount">挂载设置</string>
-    <string name="sumh_workspace_isolation">应用隔离</string>
+    <string name="sumh_workspace_status">状态</string>
+    <string name="sumh_workspace_mount">挂载</string>
+    <string name="sumh_workspace_isolation">标准功能</string>
     <string name="sumh_group_mount_backends">挂载后端</string>
     <string name="sumh_group_mount_storage">挂载存储与路径</string>
     <string name="sumh_group_process_isolation">进程隔离</string>
     <string name="sumh_group_mount_visibility">挂载可见性</string>
     <string name="sumh_group_filesystem">文件系统信息</string>
-    <string name="sumh_workspace_rules">规则</string>
-    <string name="sumh_workspace_logs">挂载与隔离日志</string>
-    <string name="sumh_workspace_debug">挂载与隔离诊断</string>
+    <string name="sumh_workspace_rules">隐藏路径</string>
+    <string name="sumh_workspace_maps">Maps 规则</string>
+    <string name="sumh_workspace_kstat">Kstat 规则</string>
+    <string name="sumh_workspace_kernel">内核信息</string>
+    <string name="sumh_workspace_runtime">运行规则</string>
+    <string name="sumh_workspace_diagnostics">诊断</string>
+    <string name="sumh_workspace_logs">日志</string>
+    <string name="sumh_workspace_debug">调试</string>
     <string name="sumh_workspace_rules_cleared">已清除全部规则</string>
     <string name="sumh_workspace_rules_clear_failed">清除规则失败</string>
 </resources>

@@ -17,6 +17,7 @@ internal data class SUMHFeatureState(
     val feature: SUMHManagedFeature,
     val configuredEnabled: Boolean,
     val support: SUMHFeatureSupport,
+    val runtimeEnabled: Boolean? = null,
 ) {
     // Saved settings can always be cleared, including after changing kernels.
     val canChange: Boolean
@@ -27,6 +28,7 @@ internal fun sumhFeatureStates(
     configuredEnabled: Set<SUMHManagedFeature>,
     kernelAvailable: Boolean,
     capabilities: Set<String>?,
+    activeRuleTypes: Set<String>? = null,
 ): List<SUMHFeatureState> = SUMHManagedFeature.entries.map { feature ->
     SUMHFeatureState(
         feature = feature,
@@ -38,6 +40,8 @@ internal fun sumhFeatureStates(
             feature.capability in capabilities -> SUMHFeatureSupport.Supported
             else -> SUMHFeatureSupport.Unsupported
         },
+        runtimeEnabled = if (kernelAvailable && feature != SUMHManagedFeature.OverlayXattr)
+            activeRuleTypes?.contains(feature.capability) else null,
     )
 }
 

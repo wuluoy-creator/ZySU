@@ -232,7 +232,7 @@ static bool sumh_kstat_has_redirect_source(struct inode *inode)
 void sumh_apply_kstat_spoof(struct inode *inode, struct kstat *stat)
 {
 	struct sumh_spoof_kstat_entry *e = NULL;
-	bool explicit_rule = false, redirect_source;
+	bool explicit_rule = false, managed_rule = false, redirect_source;
 
 	if (!stat)
 		return;
@@ -243,33 +243,57 @@ void sumh_apply_kstat_spoof(struct inode *inode, struct kstat *stat)
 
 	/* Explicit per-inode spoof rule (api15) takes precedence. */
 	rcu_read_lock();
-	if (inode && inode->i_sb && atomic_read(&sumh_spoof_kstat_count) > 0) {
+	if (inode && inode->i_sb &&
+	    (atomic_read(&sumh_spoof_kstat_count) > 0 ||
+	     rcu_access_pointer(sumh_managed_kstat))) {
 		e = sumh_spoof_kstat_lookup_by_ino(
 		    (unsigned long)inode->i_ino,
 		    (unsigned long)inode->i_sb->s_dev);
 		if (e) {
 			explicit_rule = true;
-			if (e->spoofed_dev)
+			managed_rule = e->field_mask != 0;
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_DEV)
+				: e->spoofed_dev)
 				stat->dev = e->spoofed_dev;
-			if (e->spoofed_ino)
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_INO)
+				: e->spoofed_ino)
 				stat->ino = e->spoofed_ino;
-			if (e->spoofed_nlink)
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_NLINK)
+				: e->spoofed_nlink)
 				stat->nlink = e->spoofed_nlink;
-			if (e->spoofed_size)
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_SIZE)
+				: e->spoofed_size)
 				stat->size = e->spoofed_size;
-			if (e->spoofed_blksize)
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_BLKSIZE)
+				: e->spoofed_blksize)
 				stat->blksize = e->spoofed_blksize;
-			if (e->spoofed_blocks)
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_BLOCKS)
+				: e->spoofed_blocks)
 				stat->blocks = e->spoofed_blocks;
-			if (e->spoofed_atime_sec || e->spoofed_atime_nsec) {
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_ATIME)
+				: (e->spoofed_atime_sec ||
+				   e->spoofed_atime_nsec)) {
 				stat->atime.tv_sec = e->spoofed_atime_sec;
 				stat->atime.tv_nsec = e->spoofed_atime_nsec;
 			}
-			if (e->spoofed_mtime_sec || e->spoofed_mtime_nsec) {
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_MTIME)
+				: (e->spoofed_mtime_sec ||
+				   e->spoofed_mtime_nsec)) {
 				stat->mtime.tv_sec = e->spoofed_mtime_sec;
 				stat->mtime.tv_nsec = e->spoofed_mtime_nsec;
 			}
-			if (e->spoofed_ctime_sec || e->spoofed_ctime_nsec) {
+			if (managed_rule
+				? (e->field_mask & SUMH_KSTAT_FIELD_CTIME)
+				: (e->spoofed_ctime_sec ||
+				   e->spoofed_ctime_nsec)) {
 				stat->ctime.tv_sec = e->spoofed_ctime_sec;
 				stat->ctime.tv_nsec = e->spoofed_ctime_nsec;
 			}
@@ -304,8 +328,10 @@ void sumh_apply_kstat_spoof(struct inode *inode, struct kstat *stat)
 			stat->nlink = 1;
 	}
 
-	stat->uid = GLOBAL_ROOT_UID;
-	stat->gid = GLOBAL_ROOT_GID;
+	if (!managed_rule) {
+		stat->uid = GLOBAL_ROOT_UID;
+		stat->gid = GLOBAL_ROOT_GID;
+	}
 
 	sumh_log("kstat: spoofed ino %lu (explicit=%d)\n",
 		 (unsigned long)stat->ino, explicit_rule);

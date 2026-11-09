@@ -218,6 +218,211 @@ out:
 	return ret;
 }
 
+static int sumh_kstat_replace_managed(void __user *user)
+{
+	struct sumh_managed_kstat_arg arg;
+	struct sumh_managed_kstat_rule *rules = NULL;
+	struct sumh_managed_kstat_snapshot *snapshot = NULL, *old;
+	struct sumh_spoof_kstat_entry *entry;
+	struct path path;
+	struct inode *inode;
+	struct inode *targets[SUMH_MANAGED_KSTAT_MAX_RULES] = {0};
+	u32 i, j, pinned = 0;
+	size_t len;
+	int ret = 0;
+
+	if (copy_from_user(&arg, user, sizeof(arg)))
+		return -EFAULT;
+	if (arg.size != sizeof(arg) || arg.reserved[0] || arg.reserved[1] ||
+	    arg.count > SUMH_MANAGED_KSTAT_MAX_RULES ||
+	    (arg.count && !arg.rules))
+		return -EINVAL;
+	if (arg.count) {
+		rules = kvmalloc_array(arg.count, sizeof(*rules), GFP_KERNEL);
+		if (!rules)
+			return -ENOMEM;
+		if (copy_from_user(rules, u64_to_user_ptr(arg.rules),
+				   arg.count * sizeof(*rules))) {
+			ret = -EFAULT;
+			goto out;
+		}
+	}
+	if (arg.count) {
+		snapshot = kzalloc(sizeof(*snapshot), GFP_KERNEL);
+		if (!snapshot) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+	for (i = 0; i < arg.count; i++) {
+		const struct sumh_managed_kstat_rule *rule = &rules[i];
+		const struct sumh_spoof_kstat *v = &rule->values;
+
+		len = strnlen(v->target_pathname, sizeof(v->target_pathname));
+		if (!len || len == sizeof(v->target_pathname) ||
+		    v->target_pathname[0] != '/' || rule->reserved || v->err ||
+		    v->is_static || !rule->field_mask ||
+		    (rule->field_mask & ~SUMH_KSTAT_FIELD_ALL) ||
+		    v->spoofed_dev > 0xffffffffULL ||
+		    v->spoofed_blksize > 0xffffffffULL || v->spoofed_size < 0 ||
+		    v->spoofed_atime_nsec < 0 ||
+		    v->spoofed_atime_nsec >= 1000000000L ||
+		    v->spoofed_mtime_nsec < 0 ||
+		    v->spoofed_mtime_nsec >= 1000000000L ||
+		    v->spoofed_ctime_nsec < 0 ||
+		    v->spoofed_ctime_nsec >= 1000000000L) {
+			ret = -EINVAL;
+			goto out;
+		}
+		ret = kern_path(v->target_pathname, LOOKUP_FOLLOW, &path);
+		if (ret)
+			goto out;
+		inode = d_inode(path.dentry);
+		if (!inode || !inode->i_sb || !inode->i_mapping ||
+		    !inode->i_ino) {
+			ret = -EINVAL;
+			goto put_path;
+		}
+		for (j = 0; j < snapshot->count; j++) {
+			entry = snapshot->entries[j];
+			if (!strcmp(entry->target_pathname,
+				    v->target_pathname) ||
+			    (entry->target_ino == inode->i_ino &&
+			     entry->target_dev == inode->i_sb->s_dev)) {
+				ret = -EEXIST;
+				goto put_path;
+			}
+		}
+		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry) {
+			ret = -ENOMEM;
+			goto put_path;
+		}
+		entry->target_pathname =
+		    kstrdup(v->target_pathname, GFP_KERNEL);
+		if (!entry->target_pathname) {
+			kfree(entry);
+			ret = -ENOMEM;
+			goto put_path;
+		}
+		entry->target_ino = inode->i_ino;
+		entry->target_dev = inode->i_sb->s_dev;
+		entry->spoofed_ino = v->spoofed_ino;
+		entry->spoofed_dev = v->spoofed_dev;
+		entry->spoofed_nlink = v->spoofed_nlink;
+		entry->spoofed_size = v->spoofed_size;
+		entry->spoofed_atime_sec = v->spoofed_atime_sec;
+		entry->spoofed_atime_nsec = v->spoofed_atime_nsec;
+		entry->spoofed_mtime_sec = v->spoofed_mtime_sec;
+		entry->spoofed_mtime_nsec = v->spoofed_mtime_nsec;
+		entry->spoofed_ctime_sec = v->spoofed_ctime_sec;
+		entry->spoofed_ctime_nsec = v->spoofed_ctime_nsec;
+		entry->spoofed_blksize = v->spoofed_blksize;
+		entry->spoofed_blocks = v->spoofed_blocks;
+		entry->field_mask = rule->field_mask;
+		ihold(inode);
+		targets[pinned++] = inode;
+		snapshot->entries[snapshot->count++] = entry;
+	put_path:
+		path_put(&path);
+		if (ret)
+			goto out;
+	}
+	for (i = 0; i < pinned; i++) {
+		ret = sumh_iop_install(targets[i]);
+		if (ret)
+			goto out;
+	}
+	mutex_lock(&sumh_config_mutex);
+	/* Mark only after every rule has passed preparation. Stale flags after
+	 * a later replacement cause a lookup miss but never carry stale values.
+	 */
+	for (i = 0; i < pinned; i++)
+		set_bit(AS_FLAGS_SUMH_SPOOF_KSTAT,
+			&targets[i]->i_mapping->flags);
+	old = rcu_dereference_protected(sumh_managed_kstat, 1);
+	rcu_assign_pointer(sumh_managed_kstat, snapshot);
+	sumh_managed_kstat_generation++;
+	if (old)
+		call_rcu(&old->rcu, sumh_managed_kstat_snapshot_free_rcu);
+	mutex_unlock(&sumh_config_mutex);
+	snapshot = NULL;
+out:
+	for (i = 0; i < pinned; i++)
+		iput(targets[i]);
+	if (snapshot)
+		sumh_managed_kstat_snapshot_free_rcu(&snapshot->rcu);
+	kvfree(rules);
+	return ret;
+}
+
+static int sumh_kstat_get_managed_status(void __user *user)
+{
+	struct sumh_managed_kstat_status_arg status;
+	struct sumh_managed_kstat_snapshot *snapshot;
+
+	if (copy_from_user(&status, user, sizeof(status)))
+		return -EFAULT;
+	if (status.size != sizeof(status) || status.reserved[0] ||
+	    status.reserved[1])
+		return -EINVAL;
+	mutex_lock(&sumh_config_mutex);
+	snapshot = rcu_dereference_protected(sumh_managed_kstat, 1);
+	status.count = snapshot ? snapshot->count : 0;
+	status.generation = sumh_managed_kstat_generation;
+	mutex_unlock(&sumh_config_mutex);
+	return copy_to_user(user, &status, sizeof(status)) ? -EFAULT : 0;
+}
+
+static int sumh_kstat_get_raw(void __user *user)
+{
+	struct sumh_raw_kstat_arg *arg;
+	struct kstat stat = {};
+	struct path path;
+	size_t len;
+	int ret;
+
+	arg = kvzalloc(sizeof(*arg), GFP_KERNEL);
+	if (!arg)
+		return -ENOMEM;
+	if (copy_from_user(arg, user, sizeof(*arg))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	len = strnlen(arg->source_path, sizeof(arg->source_path));
+	if (arg->size != sizeof(*arg) || arg->reserved || arg->reserved2 ||
+	    !len || len == sizeof(arg->source_path) ||
+	    arg->source_path[0] != '/' || memchr(arg->source_path, '\r', len) ||
+	    memchr(arg->source_path, '\n', len)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	ret = kern_path(arg->source_path, LOOKUP_FOLLOW, &path);
+	if (ret)
+		goto out;
+	ret = sumh_vfs_getattr_unprojected(&path, &stat, STATX_BASIC_STATS,
+					   AT_STATX_SYNC_AS_STAT);
+	path_put(&path);
+	if (ret)
+		goto out;
+	arg->ino = stat.ino;
+	arg->dev = stat.dev;
+	arg->nlink = stat.nlink;
+	arg->size_bytes = stat.size;
+	arg->atime_sec = stat.atime.tv_sec;
+	arg->atime_nsec = stat.atime.tv_nsec;
+	arg->mtime_sec = stat.mtime.tv_sec;
+	arg->mtime_nsec = stat.mtime.tv_nsec;
+	arg->ctime_sec = stat.ctime.tv_sec;
+	arg->ctime_nsec = stat.ctime.tv_nsec;
+	arg->blksize = stat.blksize;
+	arg->blocks = stat.blocks;
+	ret = copy_to_user(user, arg, sizeof(*arg)) ? -EFAULT : 0;
+out:
+	kvfree(arg);
+	return ret;
+}
+
 static int sumh_maps_rule_validate(const struct sumh_maps_rule *rule)
 {
 	size_t len =
@@ -685,6 +890,12 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 	if (cmd == SUMH_IOC_ADD_SPOOF_KSTAT ||
 	    cmd == SUMH_IOC_UPDATE_SPOOF_KSTAT)
 		return sumh_kstat_set(arg);
+	if (cmd == SUMH_IOC_SET_MANAGED_KSTAT)
+		return sumh_kstat_replace_managed(arg);
+	if (cmd == SUMH_IOC_GET_MANAGED_KSTAT_STATUS)
+		return sumh_kstat_get_managed_status(arg);
+	if (cmd == SUMH_IOC_GET_RAW_KSTAT)
+		return sumh_kstat_get_raw(arg);
 
 	if (cmd == SUMH_IOC_ADD_MAPS_RULE) {
 		return sumh_maps_add_rule(arg);
@@ -771,6 +982,7 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 		if (sumh_kernel_build_available())
 			features |= SUMH_FEATURE_KERNEL_BUILD_SPOOF;
 		features |= SUMH_FEATURE_KSTAT_SPOOF;
+		features |= SUMH_FEATURE_MANAGED_KSTAT;
 		features |= SUMH_FEATURE_MERGE_DIR;
 		if (sumh_overlay_xattr_available())
 			features |= SUMH_FEATURE_OVERLAY_XATTR_HIDE;
@@ -1465,6 +1677,9 @@ long sumh_handle_ioctl(unsigned int cmd, void __user *arg)
 	case SUMH_IOC_SET_STATFS_SPOOF:
 	case SUMH_IOC_ADD_SPOOF_KSTAT:
 	case SUMH_IOC_UPDATE_SPOOF_KSTAT:
+	case SUMH_IOC_SET_MANAGED_KSTAT:
+	case SUMH_IOC_GET_MANAGED_KSTAT_STATUS:
+	case SUMH_IOC_GET_RAW_KSTAT:
 		ret = sumh_dispatch_cmd(cmd, arg);
 		break;
 	default:

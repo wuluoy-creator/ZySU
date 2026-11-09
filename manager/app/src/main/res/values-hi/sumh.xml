@@ -22,21 +22,8 @@
     <string name="sumh_logs_filter_verbose">विस्तृत</string>
     <string name="sumh_logs_filter_warn">चेतावनी</string>
     <string name="sumh_logs_kernel">कर्नेल लॉग</string>
-    <string name="sumh_maps_add_failed">maps नियम जोड़ने में विफल</string>
-    <string name="sumh_maps_add_success">maps नियम जोड़ा गया</string>
-    <string name="sumh_maps_clear_failed">maps नियम साफ़ करने में विफल</string>
-    <string name="sumh_maps_cleared">maps नियम साफ़ किए गए</string>
-    <string name="sumh_maps_spoof_dev">स्पूफ device</string>
-    <string name="sumh_maps_spoof_ino">स्पूफ inode</string>
-    <string name="sumh_maps_spoof_path">स्पूफ path</string>
-    <string name="sumh_maps_target_dev">लक्ष्य device (0=कोई भी)</string>
-    <string name="sumh_maps_target_ino">लक्ष्य inode</string>
-    <string name="sumh_maps_title">Maps स्पूफ (/proc/pid/maps)</string>
     <string name="sumh_mirror_path">माउंट आधार / mirror पथ</string>
     <string name="sumh_mismatch_default">प्रोटोकॉल बेमेल का पता चला। कृपया कर्नेल या मॉड्यूल अपडेट करें।</string>
-    <string name="sumh_module_rules_add">जोड़ें</string>
-    <string name="sumh_module_rules_placeholder">/system/या/vendor/के/अंदर/पथ</string>
-    <string name="sumh_module_rules_title">इस मॉड्यूल के लिए कस्टम नियम</string>
     <string name="sumh_mount_config">माउंट कॉन्फ़िगरेशन</string>
     <string name="sumh_mount_mode">माउंट मोड</string>
     <string name="sumh_mount_mode_auto">स्वचालित</string>
@@ -85,15 +72,12 @@
     <string name="sumh_logs_clear_confirm">डेमन लॉग साफ़ करें? कर्नेल लॉग नहीं बदलेंगे।</string>
     <string name="sumh_logs_search">लॉग खोजें</string>
     <string name="sumh_logs_actions">लॉग क्रियाएँ</string>
-    <string name="sumh_maps_add_action">जोड़ें</string>
-    <string name="sumh_maps_desc">प्रक्रिया के maps में inode, डिवाइस और पथ छद्म रूप में दिखाएँ।</string>
     <string name="sumh_maps_spoof">Maps का छद्म रूप</string>
     <string name="sumh_maps_spoof_desc">मैप किए गए मेमोरी क्षेत्रों के पथ, डिवाइस नंबर और inode को रीमैप करें</string>
     <string name="sumh_mirror_path_desc">SUMHP को डायरेक्टरी अपने आप चुनने देने के लिए खाली छोड़ें।</string>
     <string name="sumh_mount_filter">माउंट मोड फ़िल्टर करें</string>
     <string name="sumh_mount_hide">माउंट छिपाना</string>
     <string name="sumh_mount_hide_desc">माउंट दृश्य में मॉड्यूल की प्रविष्टियाँ छिपाएँ</string>
-    <string name="sumh_mount_mode_hide">छिपाएँ</string>
     <string name="sumh_mount_total">मॉड्यूल माउंट</string>
     <string name="sumh_mountsource_invalid">नाम खाली नहीं हो सकता और उसमें रिक्त स्थान, बैकस्लैश या नियंत्रण वर्ण नहीं होने चाहिए।</string>
     <string name="sumh_no_conflicts">कोई माउंट टकराव नहीं मिला</string>

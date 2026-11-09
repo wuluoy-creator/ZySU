@@ -441,6 +441,99 @@ bool restore_managed_maps_rules(const Config& config, std::string& error) {
     return ok;
 }
 
+bool restore_managed_kstat_rules(const Config& config, std::string& error) {
+    if (!validate_kstat_path_rules(config.kstat_rules, error))
+        return false;
+    const auto caps = ::sumhp::sumh::feature_capabilities();
+    if (!caps.ok) {
+        errno = caps.last_errno;
+        error = "failed to query managed kstat support: " + std::string(std::strerror(errno));
+        return false;
+    }
+    if (!(caps.bitmask & SUMH_FEATURE_MANAGED_KSTAT)) {
+        if (config.kstat_rules.empty())
+            return true;
+        errno = EOPNOTSUPP;
+        error = "this kernel does not support managed kstat rules";
+        return false;
+    }
+    const bool ok = fsutil::run_in_init_mount_ns(
+        [&]() {
+            std::vector<::sumhp::sumh::KstatRule> resolved;
+            for (const auto& rule : config.kstat_rules) {
+                ::sumhp::sumh::KstatRule item;
+                item.target_path = rule.target_path;
+                if (rule.mode == "custom") {
+                    KstatCustomValues fields;
+                    if (!parse_kstat_custom_fields(rule.custom_fields, fields, error))
+                        return false;
+                    if (fields.ino > ULONG_MAX) {
+                        errno = EOVERFLOW;
+                        error = "custom kstat inode is not representable";
+                        return false;
+                    }
+                    item.field_mask = fields.field_mask;
+                    item.spoofed_dev = fields.dev;
+                    item.spoofed_ino = static_cast<unsigned long>(fields.ino);
+                    item.spoofed_nlink = fields.nlink;
+                    item.spoofed_size = fields.size;
+                    item.spoofed_atime_sec = fields.atime_sec;
+                    item.spoofed_atime_nsec = fields.atime_nsec;
+                    item.spoofed_mtime_sec = fields.mtime_sec;
+                    item.spoofed_mtime_nsec = fields.mtime_nsec;
+                    item.spoofed_ctime_sec = fields.ctime_sec;
+                    item.spoofed_ctime_nsec = fields.ctime_nsec;
+                    item.spoofed_blksize = fields.blksize;
+                    item.spoofed_blocks = fields.blocks;
+                } else {
+                    ::sumhp::sumh::RawKstat source;
+                    if (!::sumhp::sumh::raw_kstat(rule.source_path, source)) {
+                        error = "cannot query unprojected kstat source " + rule.source_path + ": " +
+                                std::strerror(errno);
+                        return false;
+                    }
+                    if (source.ino > ULONG_MAX) {
+                        errno = EOVERFLOW;
+                        error = "kstat source inode is not representable: " + rule.source_path;
+                        return false;
+                    }
+                    item.spoofed_ino = static_cast<unsigned long>(source.ino);
+                    item.spoofed_dev = source.dev;
+                    item.field_mask = SUMH_KSTAT_FIELD_DEV | SUMH_KSTAT_FIELD_INO;
+                    if (rule.mode == "full") {
+                        if (source.size < 0) {
+                            errno = EOVERFLOW;
+                            error = "kstat source size is not representable: " + rule.source_path;
+                            return false;
+                        }
+                        item.field_mask = SUMH_KSTAT_FIELD_ALL;
+                        item.spoofed_nlink = source.nlink;
+                        item.spoofed_size = source.size;
+                        item.spoofed_atime_sec = source.atime_sec;
+                        item.spoofed_atime_nsec = source.atime_nsec;
+                        item.spoofed_mtime_sec = source.mtime_sec;
+                        item.spoofed_mtime_nsec = source.mtime_nsec;
+                        item.spoofed_ctime_sec = source.ctime_sec;
+                        item.spoofed_ctime_nsec = source.ctime_nsec;
+                        item.spoofed_blksize = source.blksize;
+                        item.spoofed_blocks = source.blocks;
+                    }
+                }
+                resolved.push_back(std::move(item));
+            }
+            if (!::sumhp::sumh::replace_managed_kstat_rules(resolved)) {
+                error =
+                    "failed to replace managed kstat rules: " + std::string(std::strerror(errno));
+                return false;
+            }
+            return true;
+        },
+        error);
+    if (!ok && error.empty())
+        error = "failed to enter init mount namespace for managed kstat rules";
+    return ok;
+}
+
 bool apply_maps_config(const Config& config, std::string& error, bool restore_rules) {
     error.clear();
     if (restore_rules && config.enable_maps_spoof && !restore_managed_maps_rules(config, error))

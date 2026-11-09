@@ -331,6 +331,8 @@ DEFINE_HASHTABLE(sumh_merge_dirs, SUMH_HASH_BITS);
 
 DEFINE_HASHTABLE(sumh_spoof_kstat_path, SUMH_HASH_BITS);
 DEFINE_HASHTABLE(sumh_spoof_kstat_ino, SUMH_HASH_BITS);
+struct sumh_managed_kstat_snapshot __rcu *sumh_managed_kstat;
+u64 sumh_managed_kstat_generation;
 atomic_t sumh_spoof_kstat_count = ATOMIC_INIT(0);
 
 DEFINE_MUTEX(sumh_config_mutex);
@@ -777,6 +779,19 @@ void sumh_spoof_kstat_entry_free_rcu(struct rcu_head *head)
 	kfree(e);
 }
 
+void sumh_managed_kstat_snapshot_free_rcu(struct rcu_head *head)
+{
+	struct sumh_managed_kstat_snapshot *snapshot =
+	    container_of(head, struct sumh_managed_kstat_snapshot, rcu);
+	u32 i;
+
+	for (i = 0; i < snapshot->count; i++) {
+		kfree(snapshot->entries[i]->target_pathname);
+		kfree(snapshot->entries[i]);
+	}
+	kfree(snapshot);
+}
+
 struct sumh_spoof_kstat_entry *
 sumh_spoof_kstat_lookup_by_path(const char *path_str)
 {
@@ -801,6 +816,8 @@ struct sumh_spoof_kstat_entry *sumh_spoof_kstat_lookup_by_ino(unsigned long ino,
 							      unsigned long dev)
 {
 	struct sumh_spoof_kstat_entry *e, *wildcard = NULL;
+	struct sumh_managed_kstat_snapshot *managed;
+	u32 i;
 
 	if (!ino)
 		return NULL;
@@ -815,6 +832,14 @@ struct sumh_spoof_kstat_entry *sumh_spoof_kstat_lookup_by_ino(unsigned long ino,
 			wildcard = e;
 		else if (e->target_dev == dev)
 			return e;
+	}
+	managed = rcu_dereference(sumh_managed_kstat);
+	if (managed) {
+		for (i = 0; i < managed->count; i++) {
+			e = managed->entries[i];
+			if (e->target_ino == ino && e->target_dev == dev)
+				return e;
+		}
 	}
 	return wildcard;
 }
@@ -947,6 +972,7 @@ void sumh_cleanup_locked(void)
 	}
 	{
 		struct sumh_spoof_kstat_entry *sk_entry;
+		struct sumh_managed_kstat_snapshot *managed;
 
 		hash_for_each_safe(sumh_spoof_kstat_path, bkt, tmp, sk_entry,
 				   path_node)
@@ -968,6 +994,14 @@ void sumh_cleanup_locked(void)
 				 sumh_spoof_kstat_entry_free_rcu);
 		}
 		atomic_set(&sumh_spoof_kstat_count, 0);
+		managed = rcu_dereference_protected(sumh_managed_kstat, 1);
+		RCU_INIT_POINTER(sumh_managed_kstat, NULL);
+		if (managed) {
+			if (managed->count)
+				sumh_managed_kstat_generation++;
+			call_rcu(&managed->rcu,
+				 sumh_managed_kstat_snapshot_free_rcu);
+		}
 	}
 	{
 		struct sumh_ino_map_entry *im_entry;

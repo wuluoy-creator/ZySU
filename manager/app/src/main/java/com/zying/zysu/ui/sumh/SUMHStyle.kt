@@ -20,7 +20,6 @@ import com.zying.zysu.R
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
-import com.zying.zysu.ui.screen.WorkspaceTabs
 import ui.screen.moreSettings.component.MoreSettingsItemPosition
 import ui.screen.moreSettings.component.SettingsControlGroup
 
@@ -68,12 +67,33 @@ internal fun SUMHLogActions(content: @Composable RowScope.() -> Unit) {
     )
 }
 
+internal val SUMH_MAIN_SECTIONS = listOf(
+    SUMHSection.Status, SUMHSection.Isolation, SUMHSection.Rules,
+    SUMHSection.Kstat, SUMHSection.Maps, SUMHSection.Kernel, SUMHSection.Mount, SUMHSection.Diagnostics,
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun SUMHTabs(selected: SUMHSection, enabled: Boolean = true, onSelect: (SUMHSection) -> Unit) {
-    WorkspaceTabs(
-        labels = SUMHSection.entries.map { stringResource(it.displayNameRes) },
-        selected = selected.ordinal,
-        onSelected = { if (enabled) onSelect(SUMHSection.entries[it]) },
-        enabled = enabled,
-    )
+internal fun SUMHTabs(
+    selected: SUMHSection,
+    enabled: Boolean = true,
+    sections: List<SUMHSection> = SUMH_MAIN_SECTIONS,
+    onSelect: (SUMHSection) -> Unit,
+) {
+    PrimaryScrollableTabRow(
+        selectedTabIndex = sections.indexOf(selected).coerceAtLeast(0),
+        modifier = Modifier.fillMaxWidth(),
+        edgePadding = 0.dp,
+        minTabWidth = 80.dp,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        sections.forEach { section ->
+            Tab(
+                selected = selected == section,
+                onClick = { if (enabled) onSelect(section) },
+                enabled = enabled,
+                text = { Text(stringResource(section.displayNameRes)) },
+            )
+        }
+    }
 }
