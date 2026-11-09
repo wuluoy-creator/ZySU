@@ -3,9 +3,6 @@
     <string name="authorization_search_hint">应用名称、包名或 UID</string>
     <string name="authorization_options">应用管理选项</string>
     <string name="authorization_system_hint">在应用列表中包含系统应用</string>
-    <string name="authorization_result_count">%1$d 个应用组</string>
-    <string name="authorization_manage_hint">点击应用管理授权与应用信息</string>
-    <string name="authorization_selection_hint">操作将应用于所选 UID 下的全部应用</string>
     <string name="authorization_selected_count">已选择 %1$d 组</string>
     <string name="authorization_select">多选</string>
     <string name="authorization_select_visible">全选结果</string>

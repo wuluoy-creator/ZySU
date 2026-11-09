@@ -3,9 +3,6 @@
     <string name="authorization_search_hint">App name, package or UID</string>
     <string name="authorization_options">App management options</string>
     <string name="authorization_system_hint">Include system applications in the app list</string>
-    <string name="authorization_result_count">%1$d app groups</string>
-    <string name="authorization_manage_hint">Tap an app to manage access and details</string>
-    <string name="authorization_selection_hint">Actions apply to every app sharing the selected UIDs</string>
     <string name="authorization_selected_count">%1$d selected</string>
     <string name="authorization_select">Select</string>
     <string name="authorization_select_visible">Select results</string>
