@@ -877,11 +877,11 @@ int boot_patch_impl(const std::vector<std::string>& args) {
     (void)setvbuf(stdout, nullptr, _IONBF, 0);
     (void)setvbuf(stderr, nullptr, _IONBF, 0);
     printf("\n");
-    printf("__   __ _   _  _  __ ___  ____   _   _ \n");
-    printf("\\ \\ / /| | | || |/ /|_ _|/ ___| | | | |\n");
-    printf(" \\ V / | | | || ' /  | | \\___ \\ | | | |\n");
-    printf("  | |  | |_| || . \\  | |  ___) || |_| |\n");
-    printf("  |_|   \\___/ |_|\\_\\|___||____/  \\___/ \n");
+    printf(" _____  __   __  ____   _   _\n");
+    printf("|__  /  \\ \\ / / / ___| | | | |\n");
+    printf("  / /    \\ V /  \\___ \\ | | | |\n");
+    printf(" / /_     | |    ___) || |_| |\n");
+    printf("/____|    |_|   |____/  \\___/\n");
     printf("\n");
 
     const auto temporary = create_boot_workdir();

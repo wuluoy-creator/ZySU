@@ -757,11 +757,11 @@ int module_install(const std::string& zip_path) {
     }
 
     printf("\n");
-    printf("__   __ _   _  _  __ ___  ____   _   _ \n");
-    printf("\\ \\ / /| | | || |/ /|_ _|/ ___| | | | |\n");
-    printf(" \\ V / | | | || ' /  | | \\___ \\ | | | |\n");
-    printf("  | |  | |_| || . \\  | |  ___) || |_| |\n");
-    printf("  |_|   \\___/ |_|\\_\\|___||____/  \\___/ \n");
+    printf(" _____  __   __  ____   _   _\n");
+    printf("|__  /  \\ \\ / / / ___| | | | |\n");
+    printf("  / /    \\ V /  \\___ \\ | | | |\n");
+    printf(" / /_     | |    ___) || |_| |\n");
+    printf("/____|    |_|   |____/  \\___/\n");
     printf("\n");
     if (fflush(stdout) != 0) {
         (void)0;  // best-effort
