@@ -737,7 +737,8 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 	}
 
 	if (cmd == SUMH_IOC_SET_STEALTH) {
-		/* Reserved legacy command: stealth is an unconditional policy. */
+		/* Reserved legacy command: stealth is an unconditional policy.
+		 */
 		return -EOPNOTSUPP;
 	}
 
@@ -909,7 +910,8 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 	}
 
 	if (cmd == SUMH_IOC_SET_MOUNT_HIDE_MODE) {
-		/* Preserve native namespace identity; there is no mutable mode. */
+		/* Preserve native namespace identity; there is no mutable mode.
+		 */
 		return -EOPNOTSUPP;
 	}
 

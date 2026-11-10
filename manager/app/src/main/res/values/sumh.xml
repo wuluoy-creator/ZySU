@@ -45,7 +45,6 @@
     <string name="sumh_kernel_build_invalid">Use up to 64 UTF-8 bytes without ASCII control characters.</string>
     <string name="sumh_kernel_build_release_invalid">Use up to 64 UTF-8 bytes without ASCII spaces or control characters.</string>
     <string name="sumh_kernel_build_use_original">Leave blank to use the original value</string>
-    <string name="sumh_kernel_build_apply_stage">Apply on future boots</string>
     <string name="sumh_logs_clear">Clear daemon log</string>
     <string name="sumh_logs_clear_confirm">Clear the daemon log? Kernel logs are not changed.</string>
     <string name="sumh_logs_copy">Copy</string>
@@ -61,13 +60,11 @@
     <string name="sumh_logs_kernel">Kernel Log</string>
     <string name="sumh_logs_search">Search logs</string>
     <string name="sumh_logs_actions">Log actions</string>
-    <string name="sumh_maps_spoof">Maps spoof</string>
     <string name="sumh_mirror_path">Mount base / mirror path</string>
     <string name="sumh_mirror_path_desc">Leave empty for SUMHP to choose the directory.</string>
     <string name="sumh_mismatch_default">Protocol mismatch detected. Please update kernel or module.</string>
     <string name="sumh_mount_config">Mount config</string>
     <string name="sumh_mount_filter">Filter mount modes</string>
-    <string name="sumh_mount_hide">Mount hide</string>
     <string name="sumh_mount_mode">Mount mode</string>
     <string name="sumh_mount_mode_auto">Auto</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -78,7 +75,6 @@
     <string name="sumh_mountsource">Mount source name</string>
     <string name="sumh_mountsource_invalid">Enter a non-empty name without whitespace, backslashes or control characters.</string>
     <string name="sumh_no_conflicts">No mount conflicts found</string>
-    <string name="sumh_overlay_xattr">Hide OverlayFS xattrs</string>
     <string name="sumh_retry_apply">Retry applying</string>
     <string name="sumh_rule_maps_spoof">Spoof /proc/pid/maps ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">Hide overlay mounts from /proc/mounts</string>
@@ -95,11 +91,9 @@
     <string name="sumh_saved_applied">Saved and applied to the kernel</string>
     <string name="sumh_saved_apply_failed">Saved, but runtime apply failed: %1$s</string>
     <string name="sumh_saved_reboot">Saved; mount backend changes apply after reboot</string>
-    <string name="sumh_statfs_spoof">Statfs spoof</string>
     <string name="sumh_status_kernel_too_old">Kernel too old</string>
     <string name="sumh_status_module_too_old">Manager protocol is too old; update the Manager</string>
     <string name="sumh_status_not_present">Not present</string>
-    <string name="sumh_stealth">Stealth Mode</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Not mounted</string>
     <string name="sumh_tempdir">Temporary Mount Point</string>

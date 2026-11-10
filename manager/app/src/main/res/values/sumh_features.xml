@@ -4,5 +4,4 @@
     <string name="sumh_features_support_no">Kernel unsupported</string>
     <string name="sumh_features_support_unknown">Kernel capabilities unavailable</string>
     <string name="sumh_features_kernel_unavailable">SUMH kernel unavailable</string>
-    <string name="sumh_features_cleanup">Clear unsupported settings</string>
 </resources>

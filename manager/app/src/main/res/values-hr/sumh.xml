@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">Zapisnik jezgre</string>
     <string name="sumh_logs_search">Pretraži zapisnik</string>
     <string name="sumh_logs_actions">Radnje zapisnika</string>
-    <string name="sumh_maps_spoof">Prikrivanje Maps</string>
     <string name="sumh_mirror_path">Osnova montiranja / putanja zrcala</string>
     <string name="sumh_mirror_path_desc">Ostavite prazno da SUMHP automatski odabere direktorij.</string>
     <string name="sumh_mismatch_default">Otkrivena neusklađenost protokola. Ažurirajte jezgru ili modul.</string>
     <string name="sumh_mount_config">Konfiguracija montiranja</string>
     <string name="sumh_mount_filter">Filtriraj načine montiranja</string>
-    <string name="sumh_mount_hide">Skrivanje montiranja</string>
     <string name="sumh_mount_mode">Način montiranja</string>
     <string name="sumh_mount_mode_auto">Automatski</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">Izvor montiranja OverlayFS</string>
     <string name="sumh_mountsource_invalid">Naziv ne smije biti prazan niti sadržavati bjeline, obrnutu kosu crtu ili kontrolne znakove.</string>
     <string name="sumh_no_conflicts">Nisu pronađeni sukobi montiranja</string>
-    <string name="sumh_overlay_xattr">Sakrij proširene atribute OverlayFS-a</string>
     <string name="sumh_retry_apply">Ponovi primjenu</string>
     <string name="sumh_rule_maps_spoof">Lažiraj ino/dev/pathname u /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Sakrij overlay montiranja od /proc/mounts</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">Spremljeno i primijenjeno na jezgru</string>
     <string name="sumh_saved_apply_failed">Spremljeno, ali primjena na jezgru nije uspjela: %1$s</string>
     <string name="sumh_saved_reboot">Spremljeno. Pozadinski sustav montiranja primjenjuje se nakon ponovnog pokretanja</string>
-    <string name="sumh_statfs_spoof">Prikrivanje Statfs</string>
     <string name="sumh_status_kernel_too_old">Jezgra prestara</string>
     <string name="sumh_status_module_too_old">Verzija protokola upravitelja je prestara. Ažurirajte upravitelj</string>
     <string name="sumh_status_not_present">Nije prisutan</string>
-    <string name="sumh_stealth">Skriveni način rada</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Nije montirano</string>
     <string name="sumh_tempdir">Privremena točka montiranja</string>

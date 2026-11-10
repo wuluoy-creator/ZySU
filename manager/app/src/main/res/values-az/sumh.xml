@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">Nüvə Jurnalı</string>
     <string name="sumh_logs_search">Jurnallarda axtar</string>
     <string name="sumh_logs_actions">Jurnal əməliyyatları</string>
-    <string name="sumh_maps_spoof">Maps saxtalaşdırılması</string>
     <string name="sumh_mirror_path">Bağlama bazası / mirror yolu</string>
     <string name="sumh_mirror_path_desc">SUMHP-nin qovluğu avtomatik seçməsi üçün boş saxlayın.</string>
     <string name="sumh_mismatch_default">Protokol uyğunsuzluğu aşkar edildi. Zəhmət olmasa nüvəni və ya modulu yeniləyin.</string>
     <string name="sumh_mount_config">Bağlama konfiqurasiyası</string>
     <string name="sumh_mount_filter">Qoşma rejimlərini süzgəcdən keçir</string>
-    <string name="sumh_mount_hide">Qoşmaların gizlədilməsi</string>
     <string name="sumh_mount_mode">Bağlama rejimi</string>
     <string name="sumh_mount_mode_auto">Avtomatik</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">OverlayFS Bağlama Mənbəyi</string>
     <string name="sumh_mountsource_invalid">Ad boş ola bilməz; boşluq, tərs çəp xətt və ya idarəetmə simvolları ehtiva edə bilməz.</string>
     <string name="sumh_no_conflicts">Qoşma ziddiyyəti tapılmadı</string>
-    <string name="sumh_overlay_xattr">OverlayFS genişləndirilmiş atributlarını gizlət</string>
     <string name="sumh_retry_apply">Tətbiqi yenidən sına</string>
     <string name="sumh_rule_maps_spoof">/proc/pid/maps içində ino/dev/pathname saxtalaşdır</string>
     <string name="sumh_rule_mount_hide">Overlay bağlamalarını /proc/mounts-dan gizlət</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">Saxlandı və nüvəyə tətbiq edildi</string>
     <string name="sumh_saved_apply_failed">Saxlandı, lakin nüvəyə tətbiq edilmədi: %1$s</string>
     <string name="sumh_saved_reboot">Saxlandı. Qoşma mexanizmi yenidən başladıqdan sonra qüvvəyə minir</string>
-    <string name="sumh_statfs_spoof">Statfs saxtalaşdırılması</string>
     <string name="sumh_status_kernel_too_old">Nüvə çox köhnədir</string>
     <string name="sumh_status_module_too_old">Menecerin protokol versiyası çox köhnədir. Meneceri yeniləyin</string>
     <string name="sumh_status_not_present">Mövcud deyil</string>
-    <string name="sumh_stealth">Gizli Rejim</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Bağlanmayıb</string>
     <string name="sumh_tempdir">Müvəqqəti Bağlama Nöqtəsi</string>

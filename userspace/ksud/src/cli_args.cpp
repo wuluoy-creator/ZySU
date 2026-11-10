@@ -724,8 +724,7 @@ int validate(const Command& command, const std::vector<std::string>& operands,
             !one_of(operands[2], "auto|sumh|overlay|magic|none|hide"))
             return bad("invalid rule mode '" + operands[2] +
                        "'; expected auto, sumh, overlay, magic, none or hide");
-        if (path == "sumhp sumh maps-spoof" &&
-            !one_of(operands[0], "off|on"))
+        if (path == "sumhp sumh maps-spoof" && !one_of(operands[0], "off|on"))
             return bad("invalid state '" + operands[0] + "'; expected off or on");
         if (path == "sumhp sumh kernel-build set") {
             if (operands[0].empty() || operands[1].empty())

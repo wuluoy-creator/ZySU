@@ -4,5 +4,4 @@
     <string name="sumh_features_support_no">内核不支持</string>
     <string name="sumh_features_support_unknown">暂未获取到内核功能支持信息</string>
     <string name="sumh_features_kernel_unavailable">SUMH 内核不可用</string>
-    <string name="sumh_features_cleanup">清理不支持的设置</string>
 </resources>

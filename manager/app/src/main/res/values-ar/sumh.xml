@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">سجل النواة</string>
     <string name="sumh_logs_search">البحث في السجلات</string>
     <string name="sumh_logs_actions">إجراءات السجلات</string>
-    <string name="sumh_maps_spoof">تمويه Maps</string>
     <string name="sumh_mirror_path">قاعدة التركيب / مسار المرآة</string>
     <string name="sumh_mirror_path_desc">اتركه فارغًا ليختار SUMHP المجلد تلقائيًا.</string>
     <string name="sumh_mismatch_default">تم اكتشاف عدم تطابق في البروتوكول. يرجى تحديث النواة أو الوحدة.</string>
     <string name="sumh_mount_config">إعداد التركيب</string>
     <string name="sumh_mount_filter">تصفية أوضاع التركيب</string>
-    <string name="sumh_mount_hide">إخفاء نقاط التركيب</string>
     <string name="sumh_mount_mode">وضع التركيب</string>
     <string name="sumh_mount_mode_auto">تلقائي</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">مصدر تركيب OverlayFS</string>
     <string name="sumh_mountsource_invalid">يجب ألا يكون الاسم فارغًا أو يحتوي على مسافات بيضاء أو شرطة مائلة عكسية أو محارف تحكم.</string>
     <string name="sumh_no_conflicts">لم يُعثر على تعارضات في التركيب</string>
-    <string name="sumh_overlay_xattr">إخفاء سمات OverlayFS الموسعة</string>
     <string name="sumh_retry_apply">إعادة محاولة التطبيق</string>
     <string name="sumh_rule_maps_spoof">تزييف ino/dev/pathname في /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">إخفاء عمليات تركيب overlay من /proc/mounts</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">حُفظ وطُبّق على النواة</string>
     <string name="sumh_saved_apply_failed">حُفظ، لكن تعذر تطبيقه على النواة: %1$s</string>
     <string name="sumh_saved_reboot">حُفظ. تسري الواجهة الخلفية للتركيب بعد إعادة التشغيل</string>
-    <string name="sumh_statfs_spoof">تمويه Statfs</string>
     <string name="sumh_status_kernel_too_old">النواة قديمة جداً</string>
     <string name="sumh_status_module_too_old">إصدار بروتوكول المدير قديم جدًا. يرجى تحديث المدير</string>
     <string name="sumh_status_not_present">غير موجود</string>
-    <string name="sumh_stealth">الوضع الخفي</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">غير مركّب</string>
     <string name="sumh_tempdir">نقطة تركيب مؤقتة</string>

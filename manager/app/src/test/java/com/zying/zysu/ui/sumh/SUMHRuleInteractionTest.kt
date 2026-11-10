@@ -173,13 +173,7 @@ class SUMHRuleInteractionTest {
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         capture("isolation-page", dialog = false)
         compose.onAllNodes(isSelectable()).assertCountEquals(0)
-        listOf(
-            R.string.sumh_stealth,
-            R.string.sumh_mount_hide,
-            R.string.sumh_overlay_xattr,
-            R.string.sumh_statfs_spoof,
-        ).forEach { title -> compose.onNodeWithText(compose.activity.getString(title)).assertDoesNotExist() }
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_spoof)).assertDoesNotExist()
+        compose.onAllNodes(hasClickAction()).assertCountEquals(1)
         compose.onAllNodes(isToggleable()).assertCountEquals(0)
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_spoof))
             .performScrollTo().assertIsDisplayed()
@@ -194,9 +188,8 @@ class SUMHRuleInteractionTest {
                 controlsEnabled = true, runtimeApplyPending = false, onRetryApply = {}, onConfigChanged = {},
                 section = SUMHSection.Isolation)
         } } }
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_statfs_requires_mount_hide), substring = true)
-            .assertDoesNotExist()
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_features_cleanup)).assertDoesNotExist()
+        compose.onAllNodes(hasClickAction()).assertCountEquals(1)
+        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_spoof)).assertIsNotEnabled()
         compose.onAllNodes(isToggleable()).assertCountEquals(0)
     }
 
@@ -220,7 +213,7 @@ class SUMHRuleInteractionTest {
         compose.onNode(release).performTextReplacement(" 6.1.75-custom ")
         compose.onNode(version).performTextReplacement(" #1 SMP PREEMPT ")
         compose.onAllNodes(isToggleable()).assertCountEquals(0)
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_kernel_build_apply_stage)).assertDoesNotExist()
+        compose.onAllNodes(isSelectable()).assertCountEquals(0)
         capture("kernel-spoof-edit")
         compose.onNodeWithText(save).assertIsEnabled().performClick()
         compose.onNode(isDialog()).assertDoesNotExist()

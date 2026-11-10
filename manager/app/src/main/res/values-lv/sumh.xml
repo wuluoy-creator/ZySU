@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">Kodola žurnāls</string>
     <string name="sumh_logs_search">Meklēt žurnālos</string>
     <string name="sumh_logs_actions">Žurnāla darbības</string>
-    <string name="sumh_maps_spoof">Maps maskēšana</string>
     <string name="sumh_mirror_path">Montēšanas bāze / spoguļa ceļš</string>
     <string name="sumh_mirror_path_desc">Atstājiet tukšu, lai SUMHP automātiski izvēlētos mapi.</string>
     <string name="sumh_mismatch_default">Atklāta protokola neatbilstība. Lūdzu, atjauniniet kodolu vai moduli.</string>
     <string name="sumh_mount_config">Montēšanas konfigurācija</string>
     <string name="sumh_mount_filter">Filtrēt montēšanas režīmus</string>
-    <string name="sumh_mount_hide">Montējumu slēpšana</string>
     <string name="sumh_mount_mode">Montēšanas režīms</string>
     <string name="sumh_mount_mode_auto">Automātiski</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">OverlayFS montēšanas avots</string>
     <string name="sumh_mountsource_invalid">Nosaukums nedrīkst būt tukšs vai saturēt atstarpes, slīpsvītras pa kreisi vai vadības rakstzīmes.</string>
     <string name="sumh_no_conflicts">Montēšanas konflikti nav atrasti</string>
-    <string name="sumh_overlay_xattr">Slēpt OverlayFS paplašinātos atribūtus</string>
     <string name="sumh_retry_apply">Mēģināt piemērot vēlreiz</string>
     <string name="sumh_rule_maps_spoof">Viltot ino/dev/pathname failā /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Slēpt overlay montējumus no /proc/mounts</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">Saglabāts un piemērots kodolam</string>
     <string name="sumh_saved_apply_failed">Saglabāts, bet piemērošana kodolam neizdevās: %1$s</string>
     <string name="sumh_saved_reboot">Saglabāts; montēšanas aizmugursistēma stāsies spēkā pēc restartēšanas</string>
-    <string name="sumh_statfs_spoof">Statfs maskēšana</string>
     <string name="sumh_status_kernel_too_old">Kodols pārāk vecs</string>
     <string name="sumh_status_module_too_old">Pārvaldnieka protokola versija ir pārāk veca. Atjauniniet pārvaldnieku.</string>
     <string name="sumh_status_not_present">Nav klāt</string>
-    <string name="sumh_stealth">Slēptais režīms</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Nav montēts</string>
     <string name="sumh_tempdir">Pagaidu montēšanas punkts</string>

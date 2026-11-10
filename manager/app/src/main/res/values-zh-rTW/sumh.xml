@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">內核日誌</string>
     <string name="sumh_logs_search">搜尋日誌</string>
     <string name="sumh_logs_actions">日誌操作</string>
-    <string name="sumh_maps_spoof">Maps 偽裝</string>
     <string name="sumh_mirror_path">掛載基點 / 鏡像路徑</string>
     <string name="sumh_mirror_path_desc">留空由 SUMHP 自動選擇目錄。</string>
     <string name="sumh_mismatch_default">偵測到通訊協定不符。請更新內核或模組。</string>
     <string name="sumh_mount_config">掛載配置</string>
     <string name="sumh_mount_filter">篩選掛載模式</string>
-    <string name="sumh_mount_hide">掛載隱藏</string>
     <string name="sumh_mount_mode">掛載方式</string>
     <string name="sumh_mount_mode_auto">自動</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">OverlayFS 掛載來源名稱</string>
     <string name="sumh_mountsource_invalid">名稱不能為空，且不能包含空白、反斜線或控制字元。</string>
     <string name="sumh_no_conflicts">未發現掛載衝突</string>
-    <string name="sumh_overlay_xattr">隱藏 OverlayFS 延伸屬性</string>
     <string name="sumh_retry_apply">重試套用</string>
     <string name="sumh_rule_maps_spoof">偽裝 /proc/pid/maps 的 ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">從 /proc/mounts 隱藏 overlay 掛載</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">已儲存並套用至核心</string>
     <string name="sumh_saved_apply_failed">已儲存，但核心套用失敗：%1$s</string>
     <string name="sumh_saved_reboot">已儲存，掛載後端在重新啟動後生效</string>
-    <string name="sumh_statfs_spoof">Statfs 偽裝</string>
     <string name="sumh_status_kernel_too_old">內核版本過低，不支援 SUMH</string>
     <string name="sumh_status_module_too_old">管理器通訊協定版本過舊，請更新管理器</string>
     <string name="sumh_status_not_present">未偵測到</string>
-    <string name="sumh_stealth">隱身模式</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">未掛載</string>
     <string name="sumh_tempdir">暫存掛載基點</string>

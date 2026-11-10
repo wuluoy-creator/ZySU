@@ -119,7 +119,7 @@ class SUMHManagedMapsControlsTest {
                 SUMHUiAdapter.FeaturesResult(0, listOf("maps_spoof", "managed_maps")),
                 true, false, {}, { requested = it }, SUMHSection.Maps)
         } } }
-        compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_spoof)).assertDoesNotExist()
+        compose.onAllNodes(isToggleable()).assertCountEquals(0)
         compose.onNodeWithText(compose.activity.getString(R.string.sumh_maps_path_add)).performClick()
         compose.onNode(hasSetTextAction() and hasText(compose.activity.getString(R.string.sumh_maps_path_target)))
             .performTextReplacement("/data/target")

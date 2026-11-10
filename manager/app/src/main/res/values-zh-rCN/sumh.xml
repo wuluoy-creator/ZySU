@@ -45,7 +45,6 @@
     <string name="sumh_kernel_build_invalid">文本不能超过 64 个 UTF-8 字节或包含 ASCII 控制字符。</string>
     <string name="sumh_kernel_build_release_invalid">文本不能超过 64 个 UTF-8 字节或包含 ASCII 空格及控制字符。</string>
     <string name="sumh_kernel_build_use_original">留空使用原始值</string>
-    <string name="sumh_kernel_build_apply_stage">后续开机时应用</string>
     <string name="sumh_logs_clear">清理守护进程日志</string>
     <string name="sumh_logs_clear_confirm">清理守护进程日志？内核日志不会改变。</string>
     <string name="sumh_logs_copy">复制</string>
@@ -61,13 +60,11 @@
     <string name="sumh_logs_kernel">内核日志</string>
     <string name="sumh_logs_search">搜索日志</string>
     <string name="sumh_logs_actions">日志操作</string>
-    <string name="sumh_maps_spoof">Maps 伪装</string>
     <string name="sumh_mirror_path">挂载基点 / 镜像路径</string>
     <string name="sumh_mirror_path_desc">留空由 SUMHP 自动选择目录。</string>
     <string name="sumh_mismatch_default">检测到协议不匹配。请更新内核或模块。</string>
     <string name="sumh_mount_config">挂载配置</string>
     <string name="sumh_mount_filter">筛选挂载模式</string>
-    <string name="sumh_mount_hide">挂载隐藏</string>
     <string name="sumh_mount_mode">挂载方式</string>
     <string name="sumh_mount_mode_auto">自动</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -78,7 +75,6 @@
     <string name="sumh_mountsource">挂载源名称</string>
     <string name="sumh_mountsource_invalid">名称不能为空，且不能包含空白、反斜杠或控制字符。</string>
     <string name="sumh_no_conflicts">未发现挂载冲突</string>
-    <string name="sumh_overlay_xattr">隐藏 OverlayFS 扩展属性</string>
     <string name="sumh_retry_apply">重试应用</string>
     <string name="sumh_rule_maps_spoof">伪装 /proc/pid/maps 的 ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">从 /proc/mounts 隐藏 overlay 挂载</string>
@@ -95,11 +91,9 @@
     <string name="sumh_saved_applied">已保存并应用到内核</string>
     <string name="sumh_saved_apply_failed">已保存，但内核应用失败：%1$s</string>
     <string name="sumh_saved_reboot">已保存，挂载后端在重启后生效</string>
-    <string name="sumh_statfs_spoof">Statfs 伪装</string>
     <string name="sumh_status_kernel_too_old">内核版本过低，不支持 SUMH</string>
     <string name="sumh_status_module_too_old">管理器协议版本过旧，请更新管理器</string>
     <string name="sumh_status_not_present">未检测到</string>
-    <string name="sumh_stealth">隐身模式</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">未挂载</string>
     <string name="sumh_tempdir">临时挂载基点</string>

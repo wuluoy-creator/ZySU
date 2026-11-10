@@ -31,8 +31,8 @@ bool saved = false;
 bool save_ok = true;
 bool build_supported = true;
 int capabilities_error = 0;
-int optional_capabilities = SUMH_FEATURE_MOUNT_HIDE | SUMH_FEATURE_STATFS_SPOOF |
-                            SUMH_FEATURE_OVERLAY_XATTR_HIDE;
+int optional_capabilities =
+    SUMH_FEATURE_MOUNT_HIDE | SUMH_FEATURE_STATFS_SPOOF | SUMH_FEATURE_OVERLAY_XATTR_HIDE;
 bool original_query_ok = true;
 int original_query_error = EIO;
 const std::string original_version = "#2 SMP PREEMPT_RT Fri Aug 23 03:08:10 UTC 2024";
@@ -144,8 +144,8 @@ namespace sumhp::sumh {
 FeatureCapabilities feature_capabilities() {
     if (capabilities_error)
         return {false, capabilities_error, 0};
-    return {true, 0, optional_capabilities |
-                        (build_supported ? SUMH_FEATURE_KERNEL_BUILD_SPOOF : 0)};
+    return {true, 0,
+            optional_capabilities | (build_supported ? SUMH_FEATURE_KERNEL_BUILD_SPOOF : 0)};
 }
 bool original_kernel_build(KernelBuild& state) {
     if (!original_query_ok) {
@@ -371,7 +371,8 @@ void test_builtin_protections_have_no_configuration() {
     std::string error;
     const auto defaults = json::parse(default_config_json());
     const std::vector<std::string> retired_keys = {"enable_stealth", "enable_mount_hide",
-        "enable_overlay_xattr_hide", "enable_statfs_spoof", "mount_hide_mode"};
+                                                   "enable_overlay_xattr_hide",
+                                                   "enable_statfs_spoof", "mount_hide_mode"};
     JsonValue legacy = JsonValue::object();
     for (const auto& key : retired_keys) {
         assert(!defaults.find(key));
@@ -701,11 +702,14 @@ int run_cli(const std::vector<std::string>& args) {
 
 void test_cli() {
     using namespace sumhp;
-    for (const auto& args : std::vector<std::vector<std::string>>{
-             {"sumh", "mount-hide", "off"}, {"sumh", "mount-hide", "on"},
-             {"sumh", "statfs-spoof", "off"}, {"sumh", "statfs-spoof", "on"},
-             {"sumh", "hide-overlay-xattrs", "/system"},
-             {"debug", "stealth", "enable"}, {"debug", "stealth", "disable"}})
+    for (const auto& args :
+         std::vector<std::vector<std::string>>{{"sumh", "mount-hide", "off"},
+                                               {"sumh", "mount-hide", "on"},
+                                               {"sumh", "statfs-spoof", "off"},
+                                               {"sumh", "statfs-spoof", "on"},
+                                               {"sumh", "hide-overlay-xattrs", "/system"},
+                                               {"debug", "stealth", "enable"},
+                                               {"debug", "stealth", "disable"}})
         assert(run_cli(args) != 0);
     saved_config = default_config_json();
     saved = false;

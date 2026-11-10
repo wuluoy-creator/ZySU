@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">Kernelnapló</string>
     <string name="sumh_logs_search">Keresés a naplóban</string>
     <string name="sumh_logs_actions">Naplóműveletek</string>
-    <string name="sumh_maps_spoof">Maps álcázása</string>
     <string name="sumh_mirror_path">Csatolási alap / tükörútvonal</string>
     <string name="sumh_mirror_path_desc">Hagyja üresen, hogy a SUMHP automatikusan válasszon könyvtárat.</string>
     <string name="sumh_mismatch_default">Protokoll-eltérés észlelve. Kérjük, frissítse a kernelt vagy a modult.</string>
     <string name="sumh_mount_config">Csatolási konfiguráció</string>
     <string name="sumh_mount_filter">Csatolási módok szűrése</string>
-    <string name="sumh_mount_hide">Csatolások elrejtése</string>
     <string name="sumh_mount_mode">Csatolási mód</string>
     <string name="sumh_mount_mode_auto">Automatikus</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">OverlayFS csatolási forrás</string>
     <string name="sumh_mountsource_invalid">A név nem lehet üres, és nem tartalmazhat szóközjellegű karaktert, fordított perjelet vagy vezérlőkaraktert.</string>
     <string name="sumh_no_conflicts">Nincs csatolási ütközés</string>
-    <string name="sumh_overlay_xattr">OverlayFS kiterjesztett attribútumok elrejtése</string>
     <string name="sumh_retry_apply">Alkalmazás újrapróbálása</string>
     <string name="sumh_rule_maps_spoof">Az ino/dev/pathname hamisítása a /proc/pid/maps fájlban</string>
     <string name="sumh_rule_mount_hide">Az overlay csatolások elrejtése a /proc/mounts elől</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">Mentve és alkalmazva a kernelre</string>
     <string name="sumh_saved_apply_failed">Mentve, de a kernelre alkalmazás sikertelen: %1$s</string>
     <string name="sumh_saved_reboot">Mentve. A csatoló háttérmotor újraindítás után lép életbe</string>
-    <string name="sumh_statfs_spoof">Statfs álcázása</string>
     <string name="sumh_status_kernel_too_old">A kernel túl régi</string>
     <string name="sumh_status_module_too_old">A kezelő protokollverziója túl régi. Frissítse a kezelőt</string>
     <string name="sumh_status_not_present">Nincs jelen</string>
-    <string name="sumh_stealth">Rejtett mód</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Nincs csatolva</string>
     <string name="sumh_tempdir">Ideiglenes csatolási pont</string>

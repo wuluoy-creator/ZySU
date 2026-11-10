@@ -57,7 +57,7 @@ void test_protocol_compatibility() {
         const auto info = sumh::version_info();
         assert(info.expected_protocol == SUMH_PROTOCOL_VERSION);
         assert(info.kernel_protocol == protocol);
-        const auto status = protocol == SUMH_PROTOCOL_VERSION ? sumh::Status::Available
+        const auto status = protocol == SUMH_PROTOCOL_VERSION  ? sumh::Status::Available
                             : protocol < SUMH_PROTOCOL_VERSION ? sumh::Status::KernelTooOld
                                                                : sumh::Status::ClientTooOld;
         assert(info.status == status);

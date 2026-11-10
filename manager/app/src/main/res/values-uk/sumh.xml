@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">Журнал ядра</string>
     <string name="sumh_logs_search">Пошук у журналі</string>
     <string name="sumh_logs_actions">Дії з журналом</string>
-    <string name="sumh_maps_spoof">Підміна Maps</string>
     <string name="sumh_mirror_path">База монтування / шлях дзеркала</string>
     <string name="sumh_mirror_path_desc">Залиште порожнім, щоб SUMHP вибрав каталог автоматично.</string>
     <string name="sumh_mismatch_default">Виявлено невідповідність протоколу. Оновіть ядро або модуль.</string>
     <string name="sumh_mount_config">Конфігурація монтування</string>
     <string name="sumh_mount_filter">Фільтр режимів монтування</string>
-    <string name="sumh_mount_hide">Приховування монтувань</string>
     <string name="sumh_mount_mode">Режим монтування</string>
     <string name="sumh_mount_mode_auto">Автоматично</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">Джерело монтування OverlayFS</string>
     <string name="sumh_mountsource_invalid">Назва не може бути порожньою або містити пробільні символи, зворотну скісну риску чи керівні символи.</string>
     <string name="sumh_no_conflicts">Конфліктів монтування не виявлено</string>
-    <string name="sumh_overlay_xattr">Приховати розширені атрибути OverlayFS</string>
     <string name="sumh_retry_apply">Повторити застосування</string>
     <string name="sumh_rule_maps_spoof">Підміняти ino/dev/pathname у /proc/pid/maps</string>
     <string name="sumh_rule_mount_hide">Приховувати монтування overlay від /proc/mounts</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">Збережено та застосовано до ядра</string>
     <string name="sumh_saved_apply_failed">Збережено, але не вдалося застосувати до ядра: %1$s</string>
     <string name="sumh_saved_reboot">Збережено. Механізм монтування набуде чинності після перезавантаження</string>
-    <string name="sumh_statfs_spoof">Підміна Statfs</string>
     <string name="sumh_status_kernel_too_old">Ядро застаре</string>
     <string name="sumh_status_module_too_old">Версія протоколу менеджера застаріла. Оновіть менеджер</string>
     <string name="sumh_status_not_present">Відсутній</string>
-    <string name="sumh_stealth">Прихований режим</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Не змонтовано</string>
     <string name="sumh_tempdir">Тимчасова точка монтування</string>

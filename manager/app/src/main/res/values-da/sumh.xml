@@ -38,13 +38,11 @@
     <string name="sumh_logs_kernel">Kernelog</string>
     <string name="sumh_logs_search">Søg i logge</string>
     <string name="sumh_logs_actions">Loghandlinger</string>
-    <string name="sumh_maps_spoof">Maps-forfalskning</string>
     <string name="sumh_mirror_path">Monteringsbasis / mirror-sti</string>
     <string name="sumh_mirror_path_desc">Lad feltet være tomt, så SUMHP automatisk vælger mappen.</string>
     <string name="sumh_mismatch_default">Protokol-uoverensstemmelse registreret. Opdater venligst kerne eller modul.</string>
     <string name="sumh_mount_config">Monteringskonfiguration</string>
     <string name="sumh_mount_filter">Filtrer monteringstilstande</string>
-    <string name="sumh_mount_hide">Skjul monteringer</string>
     <string name="sumh_mount_mode">Monteringstilstand</string>
     <string name="sumh_mount_mode_auto">Auto</string>
     <string name="sumh_mount_mode_sumh">SUMH</string>
@@ -55,7 +53,6 @@
     <string name="sumh_mountsource">OverlayFS-monteringskilde</string>
     <string name="sumh_mountsource_invalid">Navnet må ikke være tomt eller indeholde blanktegn, omvendte skråstreger eller kontroltegn.</string>
     <string name="sumh_no_conflicts">Ingen monteringskonflikter fundet</string>
-    <string name="sumh_overlay_xattr">Skjul udvidede OverlayFS-attributter</string>
     <string name="sumh_retry_apply">Prøv at anvende igen</string>
     <string name="sumh_rule_maps_spoof">Forfalsk /proc/pid/maps ino/dev/pathname</string>
     <string name="sumh_rule_mount_hide">Skjul overlay-monteringer fra /proc/mounts</string>
@@ -72,11 +69,9 @@
     <string name="sumh_saved_applied">Gemt og anvendt på kernen</string>
     <string name="sumh_saved_apply_failed">Gemt, men kunne ikke anvendes på kernen: %1$s</string>
     <string name="sumh_saved_reboot">Gemt. Monteringsbackend træder i kraft efter genstart.</string>
-    <string name="sumh_statfs_spoof">Statfs-forfalskning</string>
     <string name="sumh_status_kernel_too_old">Kernen er for gammel</string>
     <string name="sumh_status_module_too_old">Administratorens protokolversion er for gammel. Opdater administratoren.</string>
     <string name="sumh_status_not_present">Ikke til stede</string>
-    <string name="sumh_stealth">Skjult tilstand</string>
     <string name="sumh_strategy_magic_mount">Magic Mount</string>
     <string name="sumh_strategy_not_mounted">Ikke monteret</string>
     <string name="sumh_tempdir">Midlertidigt monteringspunkt</string>
