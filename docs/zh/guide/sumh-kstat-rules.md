@@ -17,7 +17,9 @@
   '{"ino":"123","size":"0","mtime":{"sec":"-1","nsec":"0"}}'
 ```
 
-管理器的 Kstat 分类页可添加、编辑和删除同一组规则。来源路径规则使用 `{"target_path":"/system/bin/target","source_path":"/system/bin/source","mode":"identity"}`；高级规则使用 `{"target_path":"/system/bin/target","mode":"custom","fields":{"size":"0"}}`。高级字段可选 `dev`、`ino`、`nlink`、`size`、`atime`、`mtime`、`ctime`、`blksize`、`blocks`；时间字段包含 `sec` 和 `nsec`。数值均为规范十进制字符串，避免大整数在 JSON 中丢精度。`dev` 是内核编码的设备号，即 `major << 20 | minor`。
+管理器的 Kstat 分类页可添加、编辑和删除同一组规则。添加和编辑时直接填写自定义字段，不再选择元数据范围或填写元数据来源路径。`dev`、`ino`、`nlink`、`size`、`atime`、`mtime`、`ctime`、`blksize`、`blocks` 全部必填；三个时间字段各自的 `sec` 和 `nsec` 也都必须填写。字段不能留空，显式填写 `0` 是有效值。
+
+命令行和配置格式仍支持来源路径模式及仅指定部分字段的 `custom` 规则。来源路径规则使用 `{"target_path":"/system/bin/target","source_path":"/system/bin/source","mode":"identity"}`；部分自定义字段规则可使用 `{"target_path":"/system/bin/target","mode":"custom","fields":{"size":"0"}}`。已有规则可以继续读取和应用，在管理器编辑后保存时须填写全部自定义字段。数值均为规范十进制字符串，避免大整数在 JSON 中丢精度。`dev` 是内核编码的设备号，即 `major << 20 | minor`。
 
 `dev`、`nlink`、`blksize` 的范围为 0 到 2^32-1；`ino`、`blocks` 为 0 到 2^64-1；`size` 为 0 到 2^63-1；时间秒数使用有符号 64 位，纳秒为 0 到 999999999。当前受管提交 ABI 使用原生 `unsigned long`，仅支持项目构建的 arm64 控制器，不提供 32 位 compat。
 

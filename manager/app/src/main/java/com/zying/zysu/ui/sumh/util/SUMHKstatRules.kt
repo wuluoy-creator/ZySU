@@ -33,10 +33,11 @@ internal fun validSUMHKstatNumber(field: String, value: String): Boolean {
     }
 }
 
-internal fun validSUMHKstatCustomFields(fields: Map<String, String>): Boolean {
+internal fun validSUMHKstatCustomFields(fields: Map<String, String>, requireAll: Boolean = false): Boolean {
     if (fields.isEmpty()) return false
     val validKeys = SUMH_KSTAT_FIELDS.filterNot { it in timeFields }.toSet() +
         timeFields.flatMap { listOf("$it.sec", "$it.nsec") }
+    if (requireAll && fields.keys != validKeys) return false
     if (fields.keys.any { it !in validKeys }) return false
     if (timeFields.any { ("$it.sec" in fields) != ("$it.nsec" in fields) }) return false
     return fields.all { (name, value) -> validSUMHKstatNumber(name, value) }

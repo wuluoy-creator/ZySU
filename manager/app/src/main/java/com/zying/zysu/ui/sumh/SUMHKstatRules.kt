@@ -2,7 +2,6 @@ package com.zying.zysu.ui.sumh
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,6 +29,7 @@ import com.zying.zysu.ui.sumh.util.SUMH_MAX_KSTAT_RULES
 import com.zying.zysu.ui.sumh.util.SUMH_KSTAT_FIELDS
 import com.zying.zysu.ui.sumh.util.validSUMHKstatPath
 import com.zying.zysu.ui.sumh.util.validSUMHKstatNumber
+import com.zying.zysu.ui.sumh.util.validSUMHKstatCustomFields
 import com.zying.zysu.ui.sumh.util.validSUMHKstatRules
 
 @Composable
@@ -192,16 +192,13 @@ private fun KstatRuleEditor(
 ) {
     val original = rules.firstOrNull { it.targetPath == originalTarget }
     var target by rememberSaveable { mutableStateOf(original?.targetPath.orEmpty()) }
-    var source by rememberSaveable { mutableStateOf(original?.sourcePath.orEmpty()) }
-    var mode by rememberSaveable { mutableStateOf(original?.mode ?: "identity") }
     var customFields by rememberSaveable { mutableStateOf(original?.customFields.orEmpty()) }
     var submitted by rememberSaveable { mutableStateOf(false) }
     var pendingCandidate by remember { mutableStateOf<List<Controller.KstatPathRule>?>(null) }
-    val candidate = Controller.KstatPathRule(target, if (mode == "custom") "" else source, mode,
-        if (mode == "custom") customFields else emptyMap())
+    val candidate = Controller.KstatPathRule(target, "", "custom", customFields)
     val replacement = if (originalTarget == null) rules + candidate
         else rules.map { if (it.targetPath == originalTarget) candidate else it }
-    val valid = validSUMHKstatRules(replacement) &&
+    val valid = validSUMHKstatCustomFields(customFields, requireAll = true) && validSUMHKstatRules(replacement) &&
         (originalTarget == null || original != null) && replacement != rules
 
     LaunchedEffect(rules, pendingCandidate) {
@@ -219,18 +216,10 @@ private fun KstatRuleEditor(
                 OutlinedTextField(target, { target = it; pendingCandidate = null }, label = { Text(stringResource(R.string.sumh_kstat_target)) },
                     modifier = Modifier.fillMaxWidth(), enabled = enabled, singleLine = true,
                     isError = submitted && !validSUMHKstatPath(target, 256))
-                if (mode != "custom") OutlinedTextField(source, { source = it; pendingCandidate = null },
-                    label = { Text(stringResource(R.string.sumh_kstat_source_label)) },
-                    modifier = Modifier.fillMaxWidth(), enabled = enabled, singleLine = true,
-                    isError = submitted && !validSUMHKstatPath(source, 4096))
-                Text(stringResource(R.string.sumh_kstat_mode), style = MaterialTheme.typography.titleSmall)
-                listOf("identity" to R.string.sumh_kstat_mode_identity,
-                    "full" to R.string.sumh_kstat_mode_full,
-                    "custom" to R.string.sumh_kstat_mode_custom).forEach { (value, label) ->
-                    FilterChip(selected = mode == value, onClick = { mode = value; pendingCandidate = null }, enabled = enabled,
-                        label = { Text(stringResource(label)) })
-                }
-                if (mode == "custom") KstatCustomFieldEditor(customFields, submitted, enabled) {
+                Text(stringResource(R.string.sumh_kstat_mode_custom), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.sumh_kstat_fields_required), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                KstatCustomFieldEditor(customFields, submitted, enabled) {
                     customFields = it
                     pendingCandidate = null
                 }
@@ -263,39 +252,31 @@ private fun KstatCustomFieldEditor(
         R.string.sumh_kstat_field_blocks,
     )
     SUMH_KSTAT_FIELDS.forEachIndexed { index, name ->
-        val selected = if (name in setOf("atime", "mtime", "ctime")) "$name.sec" in values else name in values
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = selected,
-                enabled = enabled, onValueChange = { checked ->
-                    onChange(values.toMutableMap().apply {
-                        if (name in setOf("atime", "mtime", "ctime")) {
-                            if (checked) { put("$name.sec", "0"); put("$name.nsec", "0") }
-                            else { remove("$name.sec"); remove("$name.nsec") }
-                        } else if (checked) put(name, "0") else remove(name)
-                    })
-                }), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Checkbox(checked = selected, enabled = enabled, onCheckedChange = null)
+            if (name in setOf("atime", "mtime", "ctime")) {
                 Text(stringResource(labels[index]), style = MaterialTheme.typography.bodyMedium)
-            }
-            if (selected && name in setOf("atime", "mtime", "ctime")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("sec" to R.string.sumh_kstat_seconds, "nsec" to R.string.sumh_kstat_nanoseconds)
                         .forEach { (unit, label) ->
                             val field = "$name.$unit"
+                            val invalid = submitted && !validSUMHKstatNumber(field, values[field].orEmpty())
                             OutlinedTextField(values[field].orEmpty(), { value ->
                                 onChange(values + (field to value))
                             }, label = { Text(stringResource(label)) }, modifier = Modifier.weight(1f),
                                 enabled = enabled, singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = if (unit == "sec") KeyboardType.Text else KeyboardType.Number),
-                                isError = submitted && !validSUMHKstatNumber(field, values[field].orEmpty()))
+                                isError = invalid,
+                                supportingText = if (invalid) {{ Text(stringResource(R.string.sumh_kstat_field_invalid)) }} else null)
                         }
                 }
-            } else if (selected) {
+            } else {
+                val invalid = submitted && !validSUMHKstatNumber(name, values[name].orEmpty())
                 OutlinedTextField(values[name].orEmpty(), { value -> onChange(values + (name to value)) },
                     label = { Text(stringResource(labels[index])) }, modifier = Modifier.fillMaxWidth(),
                     enabled = enabled, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = submitted && !validSUMHKstatNumber(name, values[name].orEmpty()))
+                    isError = invalid,
+                    supportingText = if (invalid) {{ Text(stringResource(R.string.sumh_kstat_field_invalid)) }} else null)
             }
         }
     }

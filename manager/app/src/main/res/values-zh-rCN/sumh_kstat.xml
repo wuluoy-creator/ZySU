@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sumh_kstat_description">为目标路径指定元数据来源，或逐项设置 stat 字段。规则仅在受支持的 SUMH 视图中生效。</string>
+    <string name="sumh_kstat_description">为目标路径自定义 stat 字段，所有字段均须填写。规则仅在受支持的 SUMH 视图中生效。</string>
     <string name="sumh_kstat_unsupported">当前内核不支持受管 Kstat 规则。</string>
     <string name="sumh_kstat_saved_count">已保存规则：%1$d</string>
     <string name="sumh_kstat_active_count">已安装快照规则：%1$d</string>
@@ -16,6 +16,8 @@
     <string name="sumh_kstat_mode_identity">设备号与 inode</string>
     <string name="sumh_kstat_mode_full">所有受支持的 stat 字段</string>
     <string name="sumh_kstat_mode_custom">自定义字段</string>
+    <string name="sumh_kstat_fields_required">所有自定义字段均为必填项，包括各时间字段的秒和纳秒。</string>
+    <string name="sumh_kstat_field_invalid">此项必填，请输入有效范围内的十进制整数。</string>
     <string name="sumh_kstat_field_dev">设备号（内核编码）</string>
     <string name="sumh_kstat_field_ino">inode</string>
     <string name="sumh_kstat_field_nlink">链接数</string>
@@ -27,5 +29,5 @@
     <string name="sumh_kstat_field_blocks">块数</string>
     <string name="sumh_kstat_seconds">秒</string>
     <string name="sumh_kstat_nanoseconds">纳秒</string>
-    <string name="sumh_kstat_invalid">请检查路径、所选字段、数值及最多 32 条规则的限制。</string>
+    <string name="sumh_kstat_invalid">请填写有效的目标路径和全部自定义字段。目标路径不能重复，规则最多 32 条。</string>
 </resources>
