@@ -12,7 +12,6 @@
     <string name="sumh_kstat_remove">Remove rule</string>
     <string name="sumh_kstat_target">Target path</string>
     <string name="sumh_kstat_source_label">Metadata source path</string>
-    <string name="sumh_kstat_mode">Metadata</string>
     <string name="sumh_kstat_mode_identity">Device and inode</string>
     <string name="sumh_kstat_mode_full">All supported stat fields</string>
     <string name="sumh_kstat_mode_custom">Custom fields</string>

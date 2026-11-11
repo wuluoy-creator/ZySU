@@ -194,7 +194,7 @@ class SUMHKstatRulesTest {
 
     private fun assertCustomOnlyEditor() {
         listOf(R.string.sumh_kstat_mode_identity, R.string.sumh_kstat_mode_full,
-            R.string.sumh_kstat_source_label, R.string.sumh_kstat_mode).forEach { label ->
+            R.string.sumh_kstat_source_label).forEach { label ->
             compose.onNode(hasText(compose.activity.getString(label)) and hasAnyAncestor(isDialog())).assertDoesNotExist()
         }
         compose.onAllNodes(isToggleable() and hasAnyAncestor(isDialog())).assertCountEquals(0)

@@ -67,6 +67,7 @@ jobs:
           userspace/ksud/third_party/readelf_toyboxAlone
 
     - name: Set up native build cache
+      id: native-cache
       uses: ./.github/actions/setup-native-build
       with:
         component: ksud-${{ inputs.target }}
@@ -141,6 +142,8 @@ jobs:
         esac
 
     - name: Build ksud
+      env:
+        NATIVE_COMPILER_LAUNCHER: ${{ steps.native-cache.outputs.launcher }}
       run: |
         cd userspace/ksud
         mkdir -p build && cd build
@@ -161,8 +164,8 @@ jobs:
           -DCMAKE_SYSTEM_VERSION=31 \
           -DCMAKE_C_COMPILER="$CC" \
           -DCMAKE_CXX_COMPILER="$CXX" \
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_C_COMPILER_LAUNCHER="$NATIVE_COMPILER_LAUNCHER" \
+          -DCMAKE_CXX_COMPILER_LAUNCHER="$NATIVE_COMPILER_LAUNCHER" \
           -DCMAKE_BUILD_TYPE=Release \
           -DZYSU_ENABLE_CLANG_TIDY=OFF
 
@@ -193,6 +196,8 @@ jobs:
         gpg --verify userspace/ksud/build/ksud.sig userspace/ksud/build/ksud
 
     - name: Show compiler cache statistics
+      if: steps.native-cache.outputs.available == 'true'
+      continue-on-error: true
       run: ccache --show-stats
 
     - name: Upload ksud artifact

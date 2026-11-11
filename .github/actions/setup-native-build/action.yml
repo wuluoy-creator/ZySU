@@ -4,29 +4,24 @@ inputs:
   component:
     description: Cache namespace for the native component.
     required: true
+outputs:
+  available:
+    description: Whether ccache is available for this build.
+    value: ${{ steps.toolchain.outputs.available }}
+  launcher:
+    description: Compiler launcher path, or an empty value when caching is unavailable.
+    value: ${{ steps.toolchain.outputs.launcher }}
 runs:
   using: composite
   steps:
     - name: Set up ccache
       id: toolchain
       shell: bash
-      run: |
-        set -euo pipefail
-        test -f "$ANDROID_NDK_HOME/source.properties"
-        test -x "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
-        if ! command -v ccache >/dev/null 2>&1; then
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ccache
-        fi
-        echo "ndk=$(sha256sum "$ANDROID_NDK_HOME/source.properties" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
-        {
-          echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
-          echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE"
-          echo "CCACHE_COMPILERCHECK=content"
-          echo "CCACHE_MAXSIZE=1G"
-        } >> "$GITHUB_ENV"
+      run: bash "$GITHUB_ACTION_PATH/setup.sh"
 
     - name: Restore compiler cache
+      if: steps.toolchain.outputs.available == 'true'
+      continue-on-error: true
       uses: actions/cache@v5
       with:
         path: ${{ runner.temp }}/ccache
@@ -35,5 +30,7 @@ runs:
           native-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.component }}-${{ steps.toolchain.outputs.ndk }}-
 
     - name: Reset cache statistics
+      if: steps.toolchain.outputs.available == 'true'
+      continue-on-error: true
       shell: bash
       run: ccache --zero-stats

@@ -12,7 +12,6 @@
     <string name="sumh_kstat_remove">删除规则</string>
     <string name="sumh_kstat_target">目标路径</string>
     <string name="sumh_kstat_source_label">元数据来源路径</string>
-    <string name="sumh_kstat_mode">元数据范围</string>
     <string name="sumh_kstat_mode_identity">设备号与 inode</string>
     <string name="sumh_kstat_mode_full">所有受支持的 stat 字段</string>
     <string name="sumh_kstat_mode_custom">自定义字段</string>
