@@ -208,7 +208,6 @@
     <string name="no">Ei</string>
     <string name="home_ContributionCard_kernelsu">ZySU Nägemine</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU on lõbu pärast loodud KernelSU haru. Eriline tänu ametlikule KernelSU projektile ning SukiSU-le, Magiskile, APatchile ja teistele nende panuse eest.</string>
-    <string name="custom_settings">Kohandatud seaded</string>
     <string name="theme_color">Teema värv</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

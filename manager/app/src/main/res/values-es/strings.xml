@@ -208,7 +208,6 @@
     <string name="no">No</string>
     <string name="home_ContributionCard_kernelsu">ZySU Visión</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, una bifurcación de KernelSU nacida para divertirse. Un agradecimiento especial al proyecto oficial KernelSU, así como a SukiSU, Magisk, APatch y otros por sus contribuciones.</string>
-    <string name="custom_settings">Ajustes personalizados</string>
     <string name="theme_color">Color del tema</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

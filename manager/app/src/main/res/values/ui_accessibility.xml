@@ -2,7 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="ui_move_source_up" tools:ignore="MissingTranslation">Move %1$s up</string>
     <string name="ui_move_source_down" tools:ignore="MissingTranslation">Move %1$s down</string>
-    <string name="ui_module_shortcut_action" tools:ignore="MissingTranslation">Shortcut</string>
     <plurals name="ui_navigation_item_count" tools:ignore="MissingTranslation">
         <item quantity="one">%1$d item</item>
         <item quantity="other">%1$d items</item>

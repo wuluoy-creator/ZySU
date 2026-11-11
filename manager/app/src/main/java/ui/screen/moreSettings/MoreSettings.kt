@@ -56,6 +56,11 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.screen.moreSettings.component.ColorCircle
+import ui.screen.moreSettings.component.AmoledSetting
+import ui.screen.moreSettings.component.AppearancePreview
+import ui.screen.moreSettings.component.BackgroundBlurSetting
+import ui.screen.moreSettings.component.HomeDisplaySettings
+import ui.screen.moreSettings.component.TypographyAndShapeSettings
 import ui.screen.moreSettings.component.LanguageSelectionDialog
 import ui.screen.moreSettings.component.MoreSettingsDialogs
 import ui.screen.moreSettings.component.MoreSettingsItemPosition
@@ -183,9 +188,10 @@ fun MoreSettingsContent(
         handlers = settingsHandlers
     )
 
+    val categoryScrollState = key(category) { rememberScrollState() }
     Column(
         modifier = (if (scrollable) {
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().verticalScroll(categoryScrollState)
         } else {
             Modifier.fillMaxWidth()
         }).padding(contentPadding)
@@ -237,6 +243,7 @@ private fun AppearanceSettings(
     pickImageLauncher: ActivityResultLauncher<String>,
     coroutineScope: CoroutineScope
 ) {
+    AppearancePreview()
     SettingsCard(title = stringResource(R.string.appearance_settings), icon = Icons.Filled.Translate) {
         LanguageSetting(state = state)
 
@@ -263,7 +270,7 @@ private fun AppearanceSettings(
             title = stringResource(R.string.dynamic_color_title),
             summary = stringResource(R.string.dynamic_color_summary),
             checked = state.useDynamicColor,
-            groupPosition = if (state.useDynamicColor) MoreSettingsItemPosition.Last else MoreSettingsItemPosition.Middle,
+            groupPosition = MoreSettingsItemPosition.Middle,
             onChange = handlers::handleDynamicColorChange
         )
 
@@ -275,8 +282,9 @@ private fun AppearanceSettings(
         ) {
             ThemeColorSelection(state = state)
         }
-
+        AmoledSetting()
     }
+    TypographyAndShapeSettings()
     SettingsCard(title = stringResource(R.string.app_dpi_title), icon = Icons.Filled.FormatSize) {
         DpiSettings(state = state, handlers = handlers)
     }
@@ -295,7 +303,7 @@ private fun CustomizationSettings(
     state: MoreSettingsState,
     handlers: MoreSettingsHandlers
 ) {
-    SettingsCard(title = stringResource(R.string.custom_settings)) {
+    SettingsCard(title = stringResource(R.string.appearance_display_modules), icon = Icons.Filled.Extension) {
 
         SwitchSettingItem(
             icon = Icons.Filled.Info,
@@ -307,8 +315,9 @@ private fun CustomizationSettings(
         )
 
         ModuleDescriptionLinesSetting(state, handlers)
-
-
+    }
+    SettingsCard(title = stringResource(R.string.appearance_display_home), icon = Icons.Filled.Home) {
+        HomeDisplaySettings()
         SwitchSettingItem(
             icon = Icons.Filled.Brush,
             title = stringResource(R.string.simple_mode),
@@ -322,9 +331,11 @@ private fun CustomizationSettings(
             title = stringResource(R.string.kernel_simple_kernel),
             summary = stringResource(R.string.kernel_simple_kernel_summary),
             checked = state.isKernelSimpleMode,
+            groupPosition = MoreSettingsItemPosition.Last,
             onChange = handlers::handleKernelSimpleModeChange
         )
-
+    }
+    SettingsCard(title = stringResource(R.string.appearance_display_visibility), icon = Icons.Filled.Visibility) {
         HideOptionsSettings(state = state, handlers = handlers)
     }
 }
@@ -499,7 +510,7 @@ private fun ThemeColorSelection(state: MoreSettingsState) {
             is ThemeColors.TransPride -> stringResource(R.string.color_trans_pride)  // 🏳️‍⚧️
             else -> stringResource(R.string.color_default)
         },
-        groupPosition = MoreSettingsItemPosition.Last,
+        groupPosition = MoreSettingsItemPosition.Middle,
         onClick = { state.showThemeColorDialog = true },
         trailingContent = {
             Row(
@@ -718,6 +729,7 @@ private fun BackgroundAdjustmentControls(
 
         DimSlider(state = state, handlers = handlers, coroutineScope = coroutineScope)
     }
+    BackgroundBlurSetting()
 }
 
 @Composable

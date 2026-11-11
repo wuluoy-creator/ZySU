@@ -12,17 +12,14 @@ import androidx.lifecycle.viewModelScope
 import com.zying.zysu.ui.webui.ModuleConfig
 import com.zying.zysu.ui.webui.ModuleConfig.Companion.asModuleConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.zying.zysu.BuildConfig
 import com.zying.zysu.ui.util.HanziToPinyin
-import com.zying.zysu.ui.util.listModules
 import com.zying.zysu.ui.util.getRootShell
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
-import java.text.Collator
 import java.text.DecimalFormat
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.log10
 import kotlin.math.pow
@@ -95,30 +92,19 @@ class ModuleViewModel : ViewModel() {
 
     var sortEnabledFirst by mutableStateOf(false)
     var sortActionFirst by mutableStateOf(false)
+    var sortByName by mutableStateOf(false)
+    var sortDescending by mutableStateOf(false)
+    val allModules: List<ModuleInfo> get() = modules
+    var hasLoaded by mutableStateOf(false)
+        private set
+    var loadFailed by mutableStateOf(false)
+        private set
     val moduleList by derivedStateOf {
-        val comparator =
-            compareBy<ModuleInfo>(
-                {
-                    val executable = it.hasWebUi || it.hasActionScript
-                    when {
-                        it.metamodule && it.enabled -> 0
-                        sortEnabledFirst && sortActionFirst -> when {
-                            it.enabled && executable -> 1
-                            it.enabled -> 2
-                            executable -> 3
-                            else -> 4
-                        }
-                        sortEnabledFirst && !sortActionFirst -> if (it.enabled) 1 else 2
-                        !sortEnabledFirst && sortActionFirst -> if (executable) 1 else 2
-                        else -> 1
-                    }
-                },
-                { if (sortEnabledFirst) !it.enabled else 0 },
-                { if (sortActionFirst) !(it.hasWebUi || it.hasActionScript) else 0 },
-            ).thenBy(Collator.getInstance(Locale.getDefault()), ModuleInfo::id)
+        val comparator = moduleListComparator(sortEnabledFirst, sortActionFirst, sortByName, sortDescending)
+        val query = search.trim()
         modules.filter {
-            it.id.contains(search, true) || it.name.contains(search, true) || HanziToPinyin.getInstance()
-                .toPinyinString(it.name)?.contains(search, true) == true
+            it.id.contains(query, true) || it.name.contains(query, true) || it.author.contains(query, true) || HanziToPinyin.getInstance()
+                .toPinyinString(it.name)?.contains(query, true) == true
         }.sortedWith(comparator)
     }
 
@@ -131,19 +117,16 @@ class ModuleViewModel : ViewModel() {
     }
 
     fun fetchModuleList() {
+        if (isRefreshing) return
+        isRefreshing = true
         viewModelScope.launch(Dispatchers.IO) {
-            isRefreshing = true
 
             val oldModuleList = modules
 
             val start = SystemClock.elapsedRealtime()
 
             kotlin.runCatching {
-                val result = listModules()
-
-                Log.i(TAG, "result: $result")
-
-                val array = JSONArray(result)
+                val array = queryModuleList()
                 val moduleInfos = (0 until array.length())
                     .asSequence()
                     .map { array.getJSONObject(it) }
@@ -170,6 +153,8 @@ class ModuleViewModel : ViewModel() {
                     }.toList()
 
                 modules = moduleInfos
+                hasLoaded = true
+                loadFailed = false
 
                 launch {
                     modules.forEach { module ->
@@ -213,7 +198,12 @@ class ModuleViewModel : ViewModel() {
                 isNeedRefresh = false
                 isRefreshing = false
             }.onFailure { e ->
+                if (e is CancellationException) {
+                    isRefreshing = false
+                    throw e
+                }
                 Log.e(TAG, "fetchModuleList: ", e)
+                loadFailed = true
                 isRefreshing = false
             }
 

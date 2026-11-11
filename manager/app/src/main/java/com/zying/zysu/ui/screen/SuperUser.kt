@@ -47,6 +47,7 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.zying.zysu.Natives
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.LocalBottomBarPadding
+import com.zying.zysu.ui.component.ListOverview
 import com.zying.zysu.ui.component.SearchAppBar
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.YukiPageScaffold
@@ -55,6 +56,7 @@ import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
 import com.zying.zysu.ui.theme.CardConfig
 import com.zying.zysu.ui.theme.getCardBorder
+import com.zying.zysu.ui.theme.getCardShape
 import com.zying.zysu.ui.util.module.ModuleModify
 import com.zying.zysu.ui.util.rememberSnackbarController
 import com.zying.zysu.ui.viewmodel.SortType
@@ -88,16 +90,27 @@ internal fun SuperUserPage(navigator: DestinationsNavigator) {
     var showOptions by rememberSaveable { mutableStateOf(false) }
     var managedUid by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingChange by remember { mutableStateOf<AuthorizationChange?>(null) }
+    var accessFilter by rememberSaveable { mutableIntStateOf(0) }
     val busy = viewModel.isUpdatingPermissions
     val visibleGroups = viewModel.appGroupList
-    val displayedGroups = remember(visibleGroups, viewModel.currentSortType) {
-        sortAuthorizationApps(visibleGroups, viewModel.currentSortType)
+    val displayedGroups = remember(visibleGroups, viewModel.currentSortType, accessFilter) {
+        sortAuthorizationApps(visibleGroups.filter { group ->
+            when (accessFilter) {
+                1 -> group.allowSu
+                2 -> !group.allowSu
+                3 -> group.hasCustomProfile
+                else -> true
+            }
+        }, viewModel.currentSortType)
     }
     val backupLauncher = ModuleModify.rememberAllowlistBackupLauncher(context, snackbar, viewModel)
     val restoreLauncher = ModuleModify.rememberAllowlistRestoreLauncher(context, snackbar, viewModel)
     val selectedGroups = SuperUserViewModel.appGroups.filter { it.uid in viewModel.selectedUids }
 
     LaunchedEffect(Unit) { if (!viewModel.hasLoaded) viewModel.fetchAppList() }
+    LaunchedEffect(viewModel.search, accessFilter, viewModel.currentSortType, viewModel.showSystemApps) {
+        listState.scrollToItem(0)
+    }
     WorkspaceOperationGuard(busy, SuperUserScreenDestination.route)
     BackHandler(viewModel.showBatchActions || busy) { if (!busy) viewModel.exitBatchMode() }
 
@@ -198,6 +211,20 @@ internal fun SuperUserPage(navigator: DestinationsNavigator) {
                 ),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (viewModel.hasLoaded) {
+                    item(key = "overview") {
+                        ListOverview(
+                            title = stringResource(R.string.list_authorization_overview),
+                            summary = stringResource(R.string.list_authorization_summary,
+                                displayedGroups.size, visibleGroups.size, visibleGroups.count { it.allowSu }),
+                            filters = listOf(R.string.list_filter_all, R.string.list_filter_granted,
+                                R.string.list_filter_not_granted, R.string.list_filter_custom).map { stringResource(it) },
+                            selected = accessFilter,
+                            onSelect = { accessFilter = it },
+                            enabled = !busy,
+                        )
+                    }
+                }
                 if (viewModel.loadError != null) {
                     item(key = "load-error") {
                         AuthorizationLoadError(viewModel.isRefreshing || busy) { scope.launch { viewModel.fetchAppList(forceRefresh = true) } }
@@ -221,8 +248,8 @@ internal fun SuperUserPage(navigator: DestinationsNavigator) {
                     item(key = "empty") {
                         AuthorizationEmptyState(
                             loading = viewModel.isRefreshing || !viewModel.hasLoaded,
-                            filtered = viewModel.search.isNotBlank(),
-                            onReset = { viewModel.search = "" },
+                            filtered = viewModel.search.isNotBlank() || accessFilter != 0,
+                            onReset = { viewModel.search = ""; accessFilter = 0 },
                             onRefresh = { scope.launch { viewModel.fetchAppList(forceRefresh = true) } },
                         )
                     }
@@ -278,11 +305,11 @@ private fun AuthorizationAppRow(
         !group.allowSu && Natives.uidShouldUmount(group.uid)
     }
     Surface(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), border = getCardBorder(),
+        modifier = Modifier.fillMaxWidth(), shape = getCardShape(), border = getCardBorder(),
         color = (if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow).copy(alpha = CardConfig.cardAlpha),
     ) {
         ListItem(
-            modifier = Modifier.clip(RoundedCornerShape(24.dp)).combinedClickable(
+            modifier = Modifier.clip(getCardShape()).combinedClickable(
                 enabled = enabled, onClick = onClick,
                 onLongClickLabel = stringResource(R.string.authorization_select), onLongClick = onLongClick,
             ),
@@ -302,6 +329,7 @@ private fun AuthorizationAppRow(
                         style = MaterialTheme.typography.labelSmall,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (group.uid >= 100000) AuthorizationBadge(stringResource(R.string.list_user_profile, group.uid / 100000))
                         AuthorizationBadge(stringResource(if (group.allowSu) R.string.authorization_granted else R.string.authorization_not_granted), group.allowSu)
                         if (modulesUnmounted) AuthorizationBadge(stringResource(R.string.authorization_unmount_enable))
                         if (group.hasCustomProfile) AuthorizationBadge(stringResource(R.string.category_custom_apps))

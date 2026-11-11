@@ -208,7 +208,6 @@
     <string name="no">خیر</string>
     <string name="home_ContributionCard_kernelsu">ZySU بینایی</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU، شاخه‌ای از KernelSU که برای سرگرمی متولد شده است. سپاس ویژه از پروژه رسمی KernelSU و همچنین SukiSU، Magisk، APatch و دیگران برای مشارکت‌هایشان.</string>
-    <string name="custom_settings">تنظیمات سفارشی</string>
     <string name="theme_color">رنگ پوسته</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

@@ -2,6 +2,7 @@ package com.zying.zysu.ui.screen
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -65,18 +66,23 @@ internal fun WorkspaceTabs(
     enabled: Boolean = true,
 ) {
     val focusManager = LocalFocusManager.current
+    val scrollTabs = labels.size > 3 || androidx.compose.ui.platform.LocalDensity.current.fontScale *
+        com.zying.zysu.ui.theme.AppearancePreferences.fontScale > 1.3f
     LiquidGlassSurface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp),
         samplePageBackdrop = false,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(4.dp).selectableGroup(),
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+                .then(if (scrollTabs) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
+                .padding(4.dp).selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             labels.forEachIndexed { index, label ->
                 val isSelected = index == selected
                 Box(
-                    modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 48.dp)
+                    modifier = (if (scrollTabs) Modifier.widthIn(min = 96.dp) else Modifier.weight(1f))
+                        .fillMaxHeight().heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent)
                         .selectable(selected = isSelected, enabled = enabled, role = Role.Tab) {

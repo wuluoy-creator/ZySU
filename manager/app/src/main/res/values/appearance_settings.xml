@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="appearance_preview_title">Appearance preview</string>
+    <string name="appearance_preview_heading">ZySU at a glance</string>
+    <string name="appearance_preview_body">See how headings, details and cards look with your settings.</string>
+    <string name="appearance_amoled">Pure black background</string>
+    <string name="appearance_amoled_summary">Use true black in dark mode while keeping cards and dialogs distinct.</string>
+    <string name="appearance_type_shape">Text and cards</string>
+    <string name="appearance_font_family">Typeface</string>
+    <string name="appearance_font_system">System</string>
+    <string name="appearance_font_serif">Serif</string>
+    <string name="appearance_font_monospace">Monospace</string>
+    <string name="appearance_font_scale">Text size</string>
+    <string name="appearance_font_scale_summary">Adjust app text while respecting the system font size.</string>
+    <string name="appearance_card_corners">Card corners</string>
+    <string name="appearance_card_corners_summary">Choose the rounding of cards, panels and dialogs.</string>
+    <string name="appearance_percentage">%1$d%%</string>
+    <string name="appearance_dp">%1$d dp</string>
+    <string name="appearance_reset">Reset text and card style</string>
+    <string name="appearance_reset_summary" formatted="false">Restore the system typeface, 100% text size, default corners and standard dark background. Your wallpaper, theme color and display options stay as configured.</string>
+    <string name="appearance_display_modules">Module information</string>
+    <string name="appearance_display_home">Home layout</string>
+    <string name="appearance_display_visibility">Home information visibility</string>
+    <string name="appearance_home_metrics">System overview</string>
+    <string name="appearance_home_metrics_summary">Show live battery, memory, storage and processor information.</string>
+    <string name="appearance_home_counts">Authorization and module counts</string>
+    <string name="appearance_home_counts_summary">Show shortcuts with the current authorization and module totals.</string>
+    <string name="appearance_home_details">Expand device details</string>
+    <string name="appearance_home_details_summary">Show the full build and device information when opening Home.</string>
+    <string name="appearance_home_layout">Overview layout</string>
+    <string name="appearance_home_layout_summary">Adapt status tiles to the available width, or keep each item on its own row.</string>
+    <string name="appearance_layout_adaptive">Adaptive</string>
+    <string name="appearance_layout_list">List</string>
+    <string name="appearance_background_blur">Background blur</string>
+    <string name="appearance_background_blur_summary">Soften the wallpaper behind cards while keeping text sharp.</string>
+</resources>

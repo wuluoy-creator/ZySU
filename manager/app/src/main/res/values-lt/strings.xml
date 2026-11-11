@@ -208,7 +208,6 @@
     <string name="no">Ne</string>
     <string name="home_ContributionCard_kernelsu">ZySU Regėjimas</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU – pramogai sukurta KernelSU atšaka. Ypatinga padėka oficialiam KernelSU projektui, SukiSU, Magisk, APatch ir kitiems už jų indėlį.</string>
-    <string name="custom_settings">Pasirinktiniai parametrai</string>
     <string name="theme_color">Temos spalva</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

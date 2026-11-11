@@ -208,7 +208,6 @@
     <string name="no">Nej</string>
     <string name="home_ContributionCard_kernelsu">ZySU-vision</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, en forgrening af KernelSU skabt for sjov. Særlig tak til det officielle KernelSU-projekt, SukiSU, Magisk, APatch og andre for deres bidrag.</string>
-    <string name="custom_settings">Brugerdefinerede indstillinger</string>
     <string name="theme_color">Temafarve</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

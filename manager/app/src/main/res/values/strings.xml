@@ -239,7 +239,6 @@
     <string name="no">No</string>
     <string name="home_ContributionCard_kernelsu">ZySU Vision</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, a KernelSU fork born for fun. Special thanks to the official KernelSU project, SukiSU, Magisk, APatch, and others for their contributions.</string>
-    <string name="custom_settings">Custom settings</string>
     <string name="predictive_back_gesture" tools:ignore="MissingTranslation">Predictive back gesture</string>
     <string name="predictive_back_gesture_summary" tools:ignore="MissingTranslation">Preview the previous page while swiping back. Off by default.</string>
     <string name="theme_color">Theme Color</string>

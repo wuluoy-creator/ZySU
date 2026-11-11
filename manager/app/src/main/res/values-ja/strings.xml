@@ -210,7 +210,6 @@
     <string name="no">いいえ</string>
     <string name="home_ContributionCard_kernelsu">ZySU ビジョン</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU は、楽しむために生まれた KernelSU のフォークです。KernelSU 公式プロジェクトをはじめ、SukiSU、Magisk、APatch などの貢献に心から感謝します。</string>
-    <string name="custom_settings">カスタム設定</string>
     <string name="theme_color">テーマカラー</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

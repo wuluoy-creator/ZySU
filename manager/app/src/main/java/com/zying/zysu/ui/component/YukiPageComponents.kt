@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zying.zysu.ui.theme.CardConfig
 import com.zying.zysu.ui.theme.getCardBorder
+import com.zying.zysu.ui.theme.getCardShape
 
 /** Quiet reading surfaces echo the dock's rounded silhouette without blurring scrolling lists. */
 @Composable
@@ -32,7 +33,7 @@ fun YukiPanel(
     val colors = MaterialTheme.colorScheme
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = getCardShape(),
         color = (if (emphasized) colors.primaryContainer else colors.surfaceContainerLow)
             .copy(alpha = CardConfig.cardAlpha),
         contentColor = if (emphasized) colors.onPrimaryContainer else colors.onSurface,

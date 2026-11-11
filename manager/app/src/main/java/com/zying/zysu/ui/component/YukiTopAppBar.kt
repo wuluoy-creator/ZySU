@@ -38,14 +38,15 @@ fun YukiTopAppBar(
     scrollBehavior: TopAppBarScrollBehavior? = null,
 ) {
     val colors = MaterialTheme.colorScheme
-    val fontScale = LocalDensity.current.fontScale
+    val fontScale = LocalDensity.current.fontScale * com.zying.zysu.ui.theme.AppearancePreferences.fontScale
     Box(
         modifier = modifier.fillMaxWidth()
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
         LiquidGlassSurface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.widthIn(max = 920.dp).fillMaxWidth(),
             samplePageBackdrop = false,
         ) {
             TopAppBar(

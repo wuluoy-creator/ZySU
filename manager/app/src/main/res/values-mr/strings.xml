@@ -208,7 +208,6 @@
     <string name="no">नाही</string>
     <string name="home_ContributionCard_kernelsu">ZySU दृष्टी</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, मजेसाठी जन्माला आलेली KernelSU ची एक शाखा. अधिकृत KernelSU प्रकल्प तसेच SukiSU, Magisk, APatch आणि इतरांचे त्यांच्या योगदानाबद्दल विशेष आभार.</string>
-    <string name="custom_settings">कस्टम सेटिंग्ज</string>
     <string name="theme_color">थीम रंग</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

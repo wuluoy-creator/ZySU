@@ -19,6 +19,8 @@ object CardConfig {
     // 卡片亮度
     var cardDim by mutableFloatStateOf(0f)
         internal set
+    var backgroundBlur by mutableFloatStateOf(0f)
+        private set
     // 卡片阴影
     var cardElevation by mutableStateOf(0.dp)
         internal set
@@ -41,6 +43,7 @@ object CardConfig {
     private object Keys {
         const val CARD_ALPHA = "card_alpha"
         const val CARD_DIM = "card_dim"
+        const val BACKGROUND_BLUR = "background_blur"
         const val CUSTOM_BACKGROUND_ENABLED = "custom_background_enabled"
         const val IS_SHADOW_ENABLED = "is_shadow_enabled"
         const val IS_CUSTOM_ALPHA_SET = "is_custom_alpha_set"
@@ -50,13 +53,17 @@ object CardConfig {
     }
 
     fun updateAlpha(alpha: Float, isCustom: Boolean = true) {
-        cardAlpha = alpha.coerceIn(0f, 1f)
+        cardAlpha = alpha.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 1f
         if (isCustom) isCustomAlphaSet = true
     }
 
     fun updateDim(dim: Float, isCustom: Boolean = true) {
-        cardDim = dim.coerceIn(0f, 1f)
+        cardDim = dim.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
         if (isCustom) isCustomDimSet = true
+    }
+
+    fun updateBackgroundBlur(radius: Float) {
+        backgroundBlur = radius.takeIf { it.isFinite() }?.coerceIn(0f, 32f) ?: 0f
     }
 
     fun updateShadow(enabled: Boolean, elevation: Dp = cardElevation) {
@@ -80,6 +87,7 @@ object CardConfig {
     fun reset() {
         cardAlpha = 1f
         cardDim = 0f
+        backgroundBlur = 0f
         cardElevation = 0.dp
         isShadowEnabled = true
         isCustomBackgroundEnabled = false
@@ -107,6 +115,7 @@ object CardConfig {
         prefs.edit().apply {
             putFloat(Keys.CARD_ALPHA, cardAlpha)
             putFloat(Keys.CARD_DIM, cardDim)
+            putFloat(Keys.BACKGROUND_BLUR, backgroundBlur)
             putBoolean(Keys.CUSTOM_BACKGROUND_ENABLED, isCustomBackgroundEnabled)
             putBoolean(Keys.IS_SHADOW_ENABLED, isShadowEnabled)
             putBoolean(Keys.IS_CUSTOM_ALPHA_SET, isCustomAlphaSet)
@@ -119,8 +128,9 @@ object CardConfig {
 
     fun load(context: Context) {
         val prefs = context.getSharedPreferences("card_settings", Context.MODE_PRIVATE)
-        cardAlpha = prefs.getFloat(Keys.CARD_ALPHA, 1f).coerceIn(0f, 1f)
-        cardDim = prefs.getFloat(Keys.CARD_DIM, 0f).coerceIn(0f, 1f)
+        updateAlpha(prefs.getFloat(Keys.CARD_ALPHA, 1f), isCustom = false)
+        updateDim(prefs.getFloat(Keys.CARD_DIM, 0f), isCustom = false)
+        updateBackgroundBlur(prefs.getFloat(Keys.BACKGROUND_BLUR, 0f))
         isCustomBackgroundEnabled = prefs.getBoolean(Keys.CUSTOM_BACKGROUND_ENABLED, false)
         isShadowEnabled = prefs.getBoolean(Keys.IS_SHADOW_ENABLED, true)
         isCustomAlphaSet = prefs.getBoolean(Keys.IS_CUSTOM_ALPHA_SET, false)
@@ -134,6 +144,9 @@ object CardConfig {
 }
 
 object CardStyleProvider {
+
+    @Composable
+    fun getCardShape() = androidx.compose.material3.MaterialTheme.shapes.large
 
     /** Shared card outline; pass a semantic color for status or warning borders. */
     @Composable
@@ -155,7 +168,7 @@ object CardStyleProvider {
 
     @Composable
     fun getCardElevation() = CardDefaults.cardElevation(
-        defaultElevation = CardConfig.cardElevation,
+        defaultElevation = if (CardConfig.isShadowEnabled) CardConfig.cardElevation else 0.dp,
         pressedElevation = if (CardConfig.isShadowEnabled) {
             (CardConfig.cardElevation.value + 0).dp
         } else 0.dp,
@@ -191,3 +204,6 @@ fun getCardColors(originalColor: Color) = CardStyleProvider.getCardColors(origin
 
 @Composable
 fun getCardElevation() = CardStyleProvider.getCardElevation()
+
+@Composable
+fun getCardShape() = CardStyleProvider.getCardShape()

@@ -208,7 +208,6 @@
     <string name="no">Xeyr</string>
     <string name="home_ContributionCard_kernelsu">ZySU Görmə</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, əyləncə üçün yaradılmış bir KernelSU qoludur. Töhfələrinə görə rəsmi KernelSU layihəsinə, SukiSU, Magisk, APatch və digərlərinə xüsusi təşəkkürlər.</string>
-    <string name="custom_settings">Fərdi ayarlar</string>
     <string name="theme_color">Tema Rəngi</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.dp
 
 /**
  * Floating headers share the scroll viewport. Callers apply [PaddingValues] inside their
@@ -58,7 +60,7 @@ internal fun YukiPageScaffold(
         snackbarHost = snackbarHost,
         contentWindowInsets = contentWindowInsets,
     ) { padding ->
-        Box(
+        BoxWithConstraints(
             Modifier.fillMaxSize()
                 .consumeWindowInsets(padding)
                 .onGloballyPositioned { backdrop.coordinates = it }
@@ -66,6 +68,15 @@ internal fun YukiPageScaffold(
                     layer.record { this@drawWithContent.drawContent() }
                     drawLayer(layer)
                 },
-        ) { content(padding) }
+        ) {
+            val direction = LocalLayoutDirection.current
+            val gutter = ((maxWidth - 840.dp) / 2).coerceAtLeast(0.dp)
+            content(PaddingValues(
+                start = padding.calculateStartPadding(direction) + gutter,
+                top = padding.calculateTopPadding(),
+                end = padding.calculateEndPadding(direction) + gutter,
+                bottom = padding.calculateBottomPadding(),
+            ))
+        }
     }
 }

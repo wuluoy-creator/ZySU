@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- New labels use English fallback outside the maintained Chinese translation. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="list_filter_all">All</string>
+    <string name="list_filter_enabled">Enabled</string>
+    <string name="list_filter_disabled">Disabled</string>
+    <string name="list_filter_pending">Pending restart</string>
+    <string name="list_filter_custom">Custom profile</string>
+    <string name="list_filter_granted">Root granted</string>
+    <string name="list_filter_not_granted">Not granted</string>
+    <string name="list_clear_filters">Clear filters</string>
+    <string name="list_no_matches">No matching results</string>
+    <string name="list_no_matches_summary">Try another search or clear the filters.</string>
+    <string name="list_authorization_overview">Application access</string>
+    <string name="list_authorization_summary">App groups: %1$d / %2$d · Root granted: %3$d</string>
+    <string name="list_modules_overview">Installed modules</string>
+    <string name="list_modules_summary">Total: %1$d · Enabled: %2$d · Pending restart: %3$d</string>
+    <string name="list_modules_results">Shown: %1$d / %2$d</string>
+    <string name="list_module_loading">Loading modules…</string>
+    <string name="list_module_load_error">Could not read the module list. Refresh to try again.</string>
+    <string name="list_module_empty_summary">Install a module from a ZIP file using the button below.</string>
+    <string name="list_module_sort_name">Sort by display name</string>
+    <string name="list_module_sort_descending">Reverse alphabetical order</string>
+    <string name="list_user_profile">Android user %1$d</string>
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_search_empty">No settings found. Try a category or feature name.</string>
+    <string name="settings_search_results">Settings results</string>
+</resources>

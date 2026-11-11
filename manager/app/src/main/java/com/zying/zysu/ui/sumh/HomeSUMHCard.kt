@@ -20,6 +20,7 @@ import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.HomeStatusCardHeader
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardColors
+import com.zying.zysu.ui.theme.getCardShape
 import com.zying.zysu.ui.theme.getCardElevation
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter as Controller
 import kotlinx.coroutines.CancellationException
@@ -150,12 +151,12 @@ internal fun SUMHStatusSummaryCard(
         onClick = onRefresh,
         enabled = canRefresh,
         modifier = modifier.heightIn(min = 136.dp)
-            .border(getCardBorder(), MaterialTheme.shapes.extraLarge)
+            .border(getCardBorder(), getCardShape())
             .semantics {
                 onClick(label = refreshLabel, action = null)
                 stateDescription = statusText
             },
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = getCardShape(),
         colors = cardColors.copy(
             disabledContainerColor = cardColors.containerColor,
             disabledContentColor = cardColors.contentColor,

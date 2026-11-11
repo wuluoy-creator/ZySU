@@ -208,7 +208,6 @@
     <string name="no">Hayır</string>
     <string name="home_ContributionCard_kernelsu">ZySU Vizyonu</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, eğlence için doğmuş bir KernelSU çatalıdır. Katkılarından dolayı resmi KernelSU projesine, SukiSU, Magisk, APatch ve diğerlerine özel teşekkürler.</string>
-    <string name="custom_settings">Özel ayarlar</string>
     <string name="theme_color">Tema Rengi</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

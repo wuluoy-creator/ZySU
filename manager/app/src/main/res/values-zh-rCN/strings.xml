@@ -235,7 +235,6 @@
     <string name="no">否</string>
     <string name="home_ContributionCard_kernelsu">ZySU 愿景</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU，一个为玩而生的 KernelSU 分支。 特别感谢 KernelSU 官方项目以及SukiSU、Magisk、APatch等做出的贡献。</string>
-    <string name="custom_settings">个性化设置</string>
     <string name="predictive_back_gesture">预测性返回手势</string>
     <string name="predictive_back_gesture_summary">返回时随手势预览上一页，默认关闭</string>
     <string name="theme_color">主题颜色</string>

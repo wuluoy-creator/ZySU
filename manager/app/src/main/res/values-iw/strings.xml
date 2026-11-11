@@ -208,7 +208,6 @@
     <string name="no">לא</string>
     <string name="home_ContributionCard_kernelsu">ZySU חזון</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, פיצול של KernelSU שנולד בשביל הכיף. תודה מיוחדת למיזם הרשמי של KernelSU, וכן ל־SukiSU, ל־Magisk, ל־APatch ולאחרים על תרומתם.</string>
-    <string name="custom_settings">הגדרות מותאמות אישית</string>
     <string name="theme_color">צבע ערכת הנושא</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

@@ -210,7 +210,6 @@
     <string name="no">لايوجد</string>
     <string name="home_ContributionCard_kernelsu">رؤية ZySU</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU، فرع من KernelSU وُلد من أجل المتعة. شكر خاص لمشروع KernelSU الرسمي وSukiSU وMagisk وAPatch وغيرهم على مساهماتهم.</string>
-    <string name="custom_settings">الإعدادات المُخصصة</string>
     <string name="theme_color">ألوان المظهر</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

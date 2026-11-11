@@ -210,7 +210,6 @@
     <string name="no">ไม่</string>
     <string name="home_ContributionCard_kernelsu">ZySU วิสัยทัศน์</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU คือฟอร์กของ KernelSU ที่เกิดมาเพื่อความสนุก ขอขอบคุณโครงการ KernelSU อย่างเป็นทางการ รวมถึง SukiSU, Magisk, APatch และโครงการอื่น ๆ เป็นพิเศษสำหรับการมีส่วนร่วม</string>
-    <string name="custom_settings">การตั้งค่าแบบกำหนดเอง</string>
     <string name="theme_color">สีธีม</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

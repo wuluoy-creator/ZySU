@@ -208,7 +208,6 @@
     <string name="no">Hindi</string>
     <string name="home_ContributionCard_kernelsu">ZySU Paningin</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, isang sangay ng KernelSU na nilikha para sa kasiyahan. Espesyal na pasasalamat sa opisyal na proyekto ng KernelSU, pati na rin sa SukiSU, Magisk, APatch, at iba pa para sa kanilang mga ambag.</string>
-    <string name="custom_settings">Mga custom na setting</string>
     <string name="theme_color">Kulay ng Tema</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

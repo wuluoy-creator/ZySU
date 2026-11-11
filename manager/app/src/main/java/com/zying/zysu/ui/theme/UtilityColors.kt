@@ -3,6 +3,19 @@ package com.zying.zysu.ui.theme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 
+/** Preserve distinct surfaces and readable modal controls when the page uses true black. */
+internal fun ColorScheme.amoledSurfaces(enabled: Boolean, transparent: Boolean): ColorScheme =
+    if (!enabled) this else copy(
+        background = if (transparent) Color.Transparent else Color.Black,
+        surface = if (transparent) Color.Transparent else Color.Black,
+        surfaceDim = Color.Black,
+        surfaceContainerLowest = Color.Black,
+        surfaceContainerLow = Color(0xFF101216),
+        surfaceContainer = Color(0xFF191C21),
+        surfaceContainerHigh = Color(0xFF24282E),
+        surfaceContainerHighest = Color(0xFF30363F),
+    )
+
 /** Neutral reading surfaces shared by every palette; brand and status colors stay intact. */
 internal fun ColorScheme.utilitySurfaces(dark: Boolean, transparent: Boolean): ColorScheme =
     if (dark) copy(

@@ -19,6 +19,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zying.zysu.ui.theme.getCardColors
+import com.zying.zysu.ui.theme.AppearancePreferences
+import com.zying.zysu.ui.theme.getCardShape
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardElevation
 
@@ -38,8 +40,8 @@ internal fun HomeSummaryCard(
         onClick = onClick,
         modifier = modifier
             .heightIn(min = 136.dp)
-            .border(getCardBorder(), RoundedCornerShape(28.dp)),
-        shape = RoundedCornerShape(28.dp),
+            .border(getCardBorder(), getCardShape()),
+        shape = getCardShape(),
         colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
         elevation = getCardElevation(),
     ) {
@@ -138,25 +140,30 @@ internal fun HomeStatusCardHeader(
 @Composable
 internal fun HomeStatusLayout(
     modifier: Modifier = Modifier,
+    listLayout: Boolean = false,
     status: @Composable (Modifier) -> Unit,
     daemon: @Composable (Modifier) -> Unit,
     kernel: @Composable (Modifier) -> Unit,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        status(Modifier.fillMaxWidth())
-        if (LocalDensity.current.fontScale >= 1.3f) {
-            daemon(Modifier.fillMaxWidth())
-            kernel(Modifier.fillMaxWidth())
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                daemon(Modifier.weight(1f).fillMaxHeight())
-                kernel(Modifier.weight(1f).fillMaxHeight())
+    val largeText = LocalDensity.current.fontScale * AppearancePreferences.fontScale >= 1.3f
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val stack = listLayout || largeText || maxWidth < 300.dp
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            status(Modifier.fillMaxWidth())
+            if (stack) {
+                daemon(Modifier.fillMaxWidth())
+                kernel(Modifier.fillMaxWidth())
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    daemon(Modifier.weight(1f).fillMaxHeight())
+                    kernel(Modifier.weight(1f).fillMaxHeight())
+                }
             }
         }
     }

@@ -209,7 +209,6 @@
     <string name="home_ContributionCard_kernelsu">ZySU Látás
 A</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, egy szórakozás kedvéért született KernelSU-elágazás. Külön köszönet a hivatalos KernelSU projekt, a SukiSU, a Magisk, az APatch és más projektek hozzájárulásaiért.</string>
-    <string name="custom_settings">Egyéni beállítások</string>
     <string name="theme_color">Témaszín</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

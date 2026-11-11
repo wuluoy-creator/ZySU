@@ -210,7 +210,6 @@
     <string name="no">Tidak</string>
     <string name="home_ContributionCard_kernelsu">ZySU Visi</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, sebuah fork KernelSU yang lahir untuk bersenang-senang. Terima kasih khusus kepada proyek resmi KernelSU serta SukiSU, Magisk, APatch, dan lainnya atas kontribusi mereka.</string>
-    <string name="custom_settings">Pengaturan kostum</string>
     <string name="theme_color">Warna Tema</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="list_filter_all">全部</string>
+    <string name="list_filter_enabled">已启用</string>
+    <string name="list_filter_disabled">已停用</string>
+    <string name="list_filter_pending">待重启</string>
+    <string name="list_filter_custom">自定义配置</string>
+    <string name="list_filter_granted">已授权 Root</string>
+    <string name="list_filter_not_granted">未授权</string>
+    <string name="list_clear_filters">清除筛选</string>
+    <string name="list_no_matches">没有匹配结果</string>
+    <string name="list_no_matches_summary">请尝试其他关键词，或清除筛选条件。</string>
+    <string name="list_authorization_overview">应用访问权限</string>
+    <string name="list_authorization_summary">显示 %2$d 个应用组中的 %1$d 个 · %3$d 个已授权 Root</string>
+    <string name="list_modules_overview">已安装模块</string>
+    <string name="list_modules_summary">共 %1$d 个 · %2$d 个已启用 · %3$d 个待重启</string>
+    <string name="list_modules_results">显示 %2$d 个模块中的 %1$d 个</string>
+    <string name="list_module_loading">正在加载模块…</string>
+    <string name="list_module_load_error">无法读取模块列表，请刷新重试。</string>
+    <string name="list_module_empty_summary">使用下方安装按钮，从 ZIP 文件安装模块。</string>
+    <string name="list_module_sort_name">按显示名称排序</string>
+    <string name="list_module_sort_descending">反向字母排序</string>
+    <string name="list_user_profile">Android 用户 %1$d</string>
+    <string name="settings_search_hint">搜索设置</string>
+    <string name="settings_search_empty">未找到相关设置，请尝试分类或功能名称。</string>
+    <string name="settings_search_results">设置搜索结果</string>
+</resources>

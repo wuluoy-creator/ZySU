@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Engineering
 import androidx.compose.material.icons.filled.*
@@ -50,9 +51,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.InstallScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ModuleScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SuperUserScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.zying.zysu.KernelVersion
 import com.zying.zysu.Natives
@@ -68,6 +74,9 @@ import com.zying.zysu.ui.sumh.SUMHStatusSummaryCard
 import com.zying.zysu.ui.sumh.util.SUMHUiAdapter
 import com.zying.zysu.ui.component.KsudStatusCard
 import com.zying.zysu.ui.component.HomeCardIcon
+import com.zying.zysu.ui.component.HomeDeviceOverview
+import com.zying.zysu.ui.component.HomeCountCards
+import com.zying.zysu.ui.component.HomeSectionTitle
 import com.zying.zysu.ui.component.HomeStatusLayout
 import com.zying.zysu.ui.component.rememberConfirmDialog
 import com.zying.zysu.ui.component.YukiIcon
@@ -80,6 +89,7 @@ import com.zying.zysu.ui.component.clickHapticFeedback
 import com.zying.zysu.ui.theme.CardConfig
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardColors
+import com.zying.zysu.ui.theme.getCardShape
 import com.zying.zysu.ui.theme.getCardElevation
 import com.zying.zysu.ui.theme.isExpressiveUi
 import com.zying.zysu.ui.theme.UtilityPreviewTheme
@@ -89,6 +99,8 @@ import com.zying.zysu.ui.util.checkNewVersion
 import com.zying.zysu.ui.util.module.LatestVersionInfo
 import com.zying.zysu.ui.util.reboot
 import com.zying.zysu.ui.viewmodel.HomeViewModel
+import com.zying.zysu.ui.viewmodel.HomeDeviceMetrics
+import com.zying.zysu.ui.viewmodel.HomeDeviceMetricsReader
 import com.zying.zysu.ui.component.SuperKeyDialog
 import com.zying.zysu.ui.component.rememberSuperKeyDialog
 import com.zying.zysu.ui.component.SuperKeyAuthResult
@@ -96,6 +108,7 @@ import com.zying.zysu.ui.activity.util.AppData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
 /**
@@ -120,18 +133,16 @@ fun HomeScreen(navigator: DestinationsNavigator) {
         }
     }
 
-    LaunchedEffect(key1 = navigator) {
-        viewModel.loadUserSettings(context)
-        coroutineScope.launch {
-            viewModel.loadCoreData()
-            delay(100)
-            viewModel.loadExtendedData(context)
-        }
-
-        // 启动数据变化监听（降低频率减少卡顿）
-        coroutineScope.launch {
-            while (true) {
-                delay(15000) // 每15秒检查一次
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.loadUserSettings(context)
+            viewModel.loadCoreData()?.join()
+            viewModel.loadExtendedData(context)?.join()
+            // A retained Home tab must reflect grants/revocations made on another tab.
+            viewModel.autoRefreshIfNeeded(context, forceRefresh = true)
+            while (isActive) {
+                delay(15_000)
                 viewModel.autoRefreshIfNeeded(context)
             }
         }
@@ -139,8 +150,20 @@ fun HomeScreen(navigator: DestinationsNavigator) {
 
     val homeRefreshKey by viewModel.dataRefreshTrigger.collectAsState()
     var hasLoadedCore by remember(viewModel) { mutableStateOf(false) }
-    LaunchedEffect(viewModel.isCoreDataLoaded) {
+    var hasLoadedExtended by remember(viewModel) { mutableStateOf(false) }
+    LaunchedEffect(viewModel.isCoreDataLoaded, viewModel.isExtendedDataLoaded) {
         if (viewModel.isCoreDataLoaded) hasLoadedCore = true
+        if (viewModel.isExtendedDataLoaded) hasLoadedExtended = true
+    }
+    val deviceMetrics by produceState<HomeDeviceMetrics?>(null, lifecycleOwner, viewModel.showDeviceMetrics && !viewModel.isSimpleMode, homeRefreshKey) {
+        if (viewModel.showDeviceMetrics && !viewModel.isSimpleMode) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    value = withContext(Dispatchers.IO) { HomeDeviceMetricsReader.read(context.applicationContext) }
+                    delay(10_000)
+                }
+            }
+        }
     }
 
     // SuperKey 对话框
@@ -283,6 +306,8 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(innerPadding)
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+                    .widthIn(max = 1000.dp)
                     .padding(bottom = LocalBottomBarPadding.current)
                     .padding(top = 16.dp, start = 20.dp, end = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -293,6 +318,7 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                     val needsSuperKeyAuth = isNotManager && !superKeyAuthSuccess && viewModel.systemStatus.ksuVersion == null
 
                     HomeStatusLayout(
+                        listLayout = viewModel.useListLayout,
                         status = { tileModifier ->
                             StatusCard(
                                 modifier = tileModifier,
@@ -302,6 +328,8 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                                 onClickInstall = { navigator.navigate(InstallScreenDestination) },
                                 onSuperKeyAuth = { superKeyDialog.show() },
                                 isSignatureOk = isSignatureOk,
+                                hideVersion = viewModel.isHideVersion,
+                                hideOtherInfo = viewModel.isHideOtherInfo,
                             )
                         },
                         daemon = { tileModifier ->
@@ -345,7 +373,24 @@ fun HomeScreen(navigator: DestinationsNavigator) {
 
                 }
 
-                if (viewModel.isExtendedDataLoaded) {
+                if (viewModel.informationLoadFailed) {
+                    WarningCard(stringResource(R.string.home_load_retry), onClick = { viewModel.onPullRefresh(context) })
+                }
+                if (viewModel.showCounts && !viewModel.isSimpleMode && viewModel.systemStatus.isManager &&
+                    (viewModel.isExtendedDataLoaded || hasLoadedExtended)) {
+                    HomeCountCards(
+                        superuserCount = viewModel.systemInfo.superuserCount,
+                        moduleCount = viewModel.systemInfo.moduleCount,
+                        onSuperuser = { navigator.navigate(SuperUserScreenDestination) },
+                        onModules = { navigator.navigate(ModuleScreenDestination) },
+                        listLayout = viewModel.useListLayout,
+                    )
+                }
+                if (viewModel.showDeviceMetrics && !viewModel.isSimpleMode) {
+                    HomeDeviceOverview(deviceMetrics, listLayout = viewModel.useListLayout)
+                }
+
+                if (viewModel.isExtendedDataLoaded || hasLoadedExtended) {
                     val checkUpdate = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
                         .getBoolean("check_update", true)
                     if (checkUpdate) {
@@ -361,15 +406,18 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                         isHideZygiskImplement = viewModel.isHideZygiskImplement,
                         isHideMetaModuleImplement = viewModel.isHideMetaModuleImplement,
                         isHideSeccompStatus = viewModel.isHideSeccompStatus,
+                        showDeviceDetails = viewModel.showDeviceDetails,
+                        managerUapiVersion = viewModel.systemStatus.managerUapiVersion,
                     )
 
                 }
 
-                if (viewModel.isExtendedDataLoaded) {
+                if (viewModel.isExtendedDataLoaded || hasLoadedExtended) {
                     // 链接卡片
                     if (!viewModel.isSimpleMode && !viewModel.isHideLinkCard) {
                         ElevatedCard(
-                            modifier = Modifier.border(getCardBorder(), CardDefaults.elevatedShape),
+                            modifier = Modifier.border(getCardBorder(), getCardShape()),
+                            shape = getCardShape(),
                             colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
                             elevation = getCardElevation(),
                         ) {
@@ -383,7 +431,7 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                     }
                 }
 
-                if (!viewModel.isExtendedDataLoaded) {
+                if (!viewModel.isExtendedDataLoaded && !hasLoadedExtended) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -561,18 +609,14 @@ private fun StatusCard(
     isSuperKeyMode: Boolean = false,
     needsSuperKeyAuth: Boolean = false,
     isSignatureOk: Boolean = false,
+    hideVersion: Boolean = false,
+    hideOtherInfo: Boolean = false,
     onClickInstall: () -> Unit = {},
     onSuperKeyAuth: () -> Unit = {},
 ) {
     val installed = systemStatus.ksuVersion != null
     val safeMode = installed && Natives.isSafeMode
-    val context = LocalContext.current
-    val isHideVersion by produceState(initialValue = false) {
-        value = withContext(Dispatchers.IO) {
-            context.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean("is_hide_version", false)
-        }
-    }
-    val version = systemStatus.ksuFullVersion?.takeIf { installed && !isHideVersion }
+    val version = systemStatus.ksuFullVersion?.takeIf { installed && !hideVersion }
     val machine = if (installed) remember { Os.uname().machine } else null
     val labels = buildList {
         if (installed && isSignatureOk) add(stringResource(R.string.home_auth_signature_tag))
@@ -596,7 +640,7 @@ private fun StatusCard(
                 stringResource(R.string.home_status_build_api, systemStatus.ksuVersion ?: 0, systemStatus.kernelUapiVersion)
             } else stringResource(R.string.home_status_build, systemStatus.ksuVersion ?: 0)
         },
-        labels = labels,
+        labels = if (hideOtherInfo) emptyList() else labels,
         needsSuperKeyAuth = !installed && needsSuperKeyAuth,
         onSuperKeyAuth = onSuperKeyAuth,
     )
@@ -621,9 +665,9 @@ private fun InstallationStatusCard(
         onClick = onClickInstall,
         modifier = modifier
             .heightIn(min = 168.dp)
-            .border(getCardBorder(statusColor.copy(alpha = 0.16f)), RoundedCornerShape(32.dp)),
+            .border(getCardBorder(statusColor.copy(alpha = 0.16f)), getCardShape()),
         colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
-        shape = RoundedCornerShape(32.dp),
+        shape = getCardShape(),
         elevation = getCardElevation(),
     ) {
         Column(
@@ -710,7 +754,8 @@ fun WarningCard(
     onClick: (() -> Unit)? = null
 ) {
     ElevatedCard(
-        modifier = Modifier.border(getCardBorder(), CardDefaults.elevatedShape),
+        modifier = Modifier.border(getCardBorder(), getCardShape()),
+        shape = getCardShape(),
         colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
         elevation = getCardElevation(),
     ) {
@@ -841,11 +886,13 @@ private fun HomeInfoItem(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (contentColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else contentColor,
-            )
+            SelectionContainer {
+                Text(
+                    text = content.ifBlank { stringResource(R.string.home_reading_unavailable) },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (contentColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else contentColor,
+                )
+            }
         }
         trailing?.invoke()
         if (onClick != null && trailing == null) {
@@ -877,120 +924,87 @@ private fun InfoCard(
     isHideZygiskImplement: Boolean,
     isHideMetaModuleImplement: Boolean,
     isHideSeccompStatus: Boolean = false,
+    showDeviceDetails: Boolean = false,
+    managerUapiVersion: Int = 0,
 ) {
-    val seccompText = when (systemInfo.seccompStatus) {
-        -1 -> stringResource(R.string.seccomp_status_not_supported)
-        0 -> stringResource(R.string.seccomp_status_disabled)
-        1 -> stringResource(R.string.seccomp_status_strict)
-        2 -> stringResource(R.string.seccomp_status_filter)
-        else -> stringResource(R.string.seccomp_status_unknown)
-    }
-    val hookType = remember(canReadHookType) {
-        if (canReadHookType) {
-            runCatching(Natives::getHookType).getOrNull()?.takeIf(String::isNotBlank)
-        } else {
-            null
-        }
-    }
-    val patchType = remember(canReadHookType) {
-        if (canReadHookType) {
-            when (runCatching(Natives::getLoadMode).getOrDefault(Natives.LOAD_MODE_UNKNOWN)) {
-                Natives.LOAD_MODE_RAMDISK -> "Ramdisk"
-                Natives.LOAD_MODE_IMAGE_PATCH -> "ImgPatch"
-                Natives.LOAD_MODE_LATE -> "Lateload"
-                else -> null
-            }
-        } else {
-            null
-        }
-    }
-    val workingMode = hookType?.let { hook ->
-        patchType?.let { patch -> "$hook | $patch" } ?: hook
-    }
-    val entries = buildList {
-        add(HomeInfoEntry(
-            label = stringResource(R.string.home_kernel),
-            content = systemInfo.kernelRelease,
-            icon = Icons.Default.Memory,
-        ))
+    val unknown = stringResource(R.string.home_reading_unavailable)
+    fun String.displayValue() = takeUnless { it.isBlank() || it == "Unknown" } ?: unknown
+    val systemEntries = buildList {
+        add(HomeInfoEntry(stringResource(R.string.home_device_model), systemInfo.deviceModel.displayValue(), Icons.Default.PhoneAndroid))
         if (!isSimpleMode) {
-            add(HomeInfoEntry(
-                label = stringResource(R.string.home_android_version),
-                content = systemInfo.androidVersion,
-                icon = Icons.Default.Android,
-            ))
+            add(HomeInfoEntry(stringResource(R.string.home_android_version),
+                stringResource(R.string.home_android_api, systemInfo.androidVersion.displayValue(), Build.VERSION.SDK_INT), Icons.Default.Android))
         }
-        add(HomeInfoEntry(
-            label = stringResource(R.string.home_device_model),
-            content = systemInfo.deviceModel,
-            icon = Icons.Default.PhoneAndroid,
-        ))
-        add(HomeInfoEntry(
-            label = stringResource(R.string.home_manager_version),
-            content = "${systemInfo.managerVersion.first} (${systemInfo.managerVersion.second.toInt()}/${Natives.getManagerUapiVersion()})",
-            icon = Icons.Default.SettingsSuggest,
-        ))
-        if (!isSimpleMode && workingMode != null) {
-            add(HomeInfoEntry(
-                label = stringResource(R.string.home_working_mode),
-                content = workingMode,
-                icon = Icons.Default.Link,
-            ))
+        add(HomeInfoEntry(stringResource(R.string.home_kernel), systemInfo.kernelRelease.displayValue(), Icons.Default.Memory))
+        val managerVersion = buildString {
+            append(systemInfo.managerVersion.first.displayValue())
+            if (systemInfo.managerVersion.second > 0) append(" (${systemInfo.managerVersion.second})")
+            if (managerUapiVersion > 0) append(" · UAPI $managerUapiVersion")
         }
-        add(HomeInfoEntry(
-            label = stringResource(R.string.home_selinux_status),
-            content = systemInfo.seLinuxStatus,
-            icon = Icons.Default.Security,
-        ))
+        add(HomeInfoEntry(stringResource(R.string.home_manager_version), managerVersion, Icons.Default.SettingsSuggest))
+    }
+    val runtimeEntries = buildList {
+        if (!isSimpleMode && canReadHookType && systemInfo.workingMode != null) {
+            add(HomeInfoEntry(stringResource(R.string.home_working_mode), systemInfo.workingMode, Icons.Default.Link))
+        }
+        add(HomeInfoEntry(stringResource(R.string.home_selinux_status), systemInfo.seLinuxStatus.displayValue(), Icons.Default.Security))
         if (!isHideSeccompStatus) {
-            add(HomeInfoEntry(
-                label = stringResource(R.string.home_seccomp_status),
-                content = seccompText,
-                icon = Icons.Default.LocalPolice,
-            ))
+            val seccompText = stringResource(when (systemInfo.seccompStatus) {
+                -1 -> R.string.seccomp_status_not_supported
+                0 -> R.string.seccomp_status_disabled
+                1 -> R.string.seccomp_status_strict
+                2 -> R.string.seccomp_status_filter
+                else -> R.string.seccomp_status_unknown
+            })
+            add(HomeInfoEntry(stringResource(R.string.home_seccomp_status), seccompText, Icons.Default.LocalPolice))
         }
-        if (!isHideZygiskImplement && !isSimpleMode && systemInfo.zygiskImplement != "None") {
-            add(HomeInfoEntry(
-                label = stringResource(R.string.home_zygisk_implement),
-                content = systemInfo.zygiskImplement,
-                iconRes = R.drawable.ms_syringe,
-            ))
+        if (!isHideZygiskImplement && !isSimpleMode && systemInfo.zygiskImplement.isNotBlank() && systemInfo.zygiskImplement != "None") {
+            add(HomeInfoEntry(stringResource(R.string.home_zygisk_implement), systemInfo.zygiskImplement, iconRes = R.drawable.ms_syringe))
         }
-        if (!isHideMetaModuleImplement && !isSimpleMode && systemInfo.metaModuleImplement != "None") {
-            add(HomeInfoEntry(
-                label = stringResource(R.string.home_meta_module_implement),
-                content = systemInfo.metaModuleImplement,
-                icon = Icons.Default.Extension,
-            ))
+        if (!isHideMetaModuleImplement && !isSimpleMode && systemInfo.metaModuleImplement.isNotBlank() && systemInfo.metaModuleImplement != "None") {
+            add(HomeInfoEntry(stringResource(R.string.home_meta_module_implement), systemInfo.metaModuleImplement, Icons.Default.Extension))
         }
     }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        HomeInfoGroup(stringResource(R.string.home_system_section), systemEntries)
+        HomeInfoGroup(stringResource(R.string.home_runtime_section), runtimeEntries)
+        if (!isSimpleMode) {
+            var detailsExpanded by rememberSaveable(showDeviceDetails) { mutableStateOf(showDeviceDetails) }
+            TextButton(onClick = { detailsExpanded = !detailsExpanded }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                YukiIcon(if (detailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(if (detailsExpanded) R.string.home_collapse_details else R.string.home_expand_details))
+            }
+            if (detailsExpanded) {
+                HomeInfoGroup(stringResource(R.string.home_build_section), listOf(
+                    HomeInfoEntry(stringResource(R.string.home_security_patch), systemInfo.securityPatch.displayValue(), Icons.Default.Security),
+                    HomeInfoEntry(stringResource(R.string.home_architecture), systemInfo.architecture.displayValue(), Icons.Default.DeveloperBoard),
+                    HomeInfoEntry(stringResource(R.string.home_build_id), systemInfo.buildId.displayValue(), Icons.Default.Info),
+                    HomeInfoEntry(stringResource(R.string.home_fingerprint), systemInfo.fingerprint.displayValue(), Icons.Default.Fingerprint),
+                ))
+            }
+        }
+    }
+}
 
-    ElevatedCard(
-        modifier = Modifier.border(getCardBorder(), CardDefaults.elevatedShape),
-        colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = getCardElevation(),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+@Composable
+private fun HomeInfoGroup(title: String, entries: List<HomeInfoEntry>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        HomeSectionTitle(title)
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth().border(getCardBorder(), getCardShape()),
+            shape = getCardShape(),
+            colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
+            elevation = getCardElevation(),
+        ) {
             entries.forEachIndexed { index, entry ->
-                HomeInfoItem(
-                    label = entry.label,
-                    content = entry.content,
-                    icon = entry.icon,
-                    iconRes = entry.iconRes,
-                    contentColor = entry.contentColor,
-                    onClick = entry.onClick,
-                    trailing = entry.trailing,
-                )
+                HomeInfoItem(entry.label, entry.content, entry.icon, entry.iconRes, entry.contentColor, entry.onClick, entry.trailing)
                 if (index < entries.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 56.dp, end = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp, end = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         }
     }
-
 }
 
 @Composable

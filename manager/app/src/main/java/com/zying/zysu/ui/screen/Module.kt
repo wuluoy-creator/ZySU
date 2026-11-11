@@ -95,6 +95,8 @@ import com.zying.zysu.ui.util.*
 import com.zying.zysu.ui.util.module.ModuleUtils
 import com.zying.zysu.ui.util.module.Shortcut
 import com.zying.zysu.ui.viewmodel.ModuleViewModel
+import com.zying.zysu.ui.viewmodel.ModuleListFilter
+import com.zying.zysu.ui.theme.getCardShape
 import com.zying.zysu.ui.webui.WebUIActivity
 import com.zying.zysu.ui.webui.WebUIXActivity
 import kotlinx.coroutines.Dispatchers
@@ -164,6 +166,7 @@ internal fun ModulePage(navigator: DestinationsNavigator) {
     var mountDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
     var mountRefresh by remember { mutableIntStateOf(0) }
     var mountFilter by rememberSaveable { mutableStateOf("all") }
+    var moduleFilter by rememberSaveable { mutableStateOf(ModuleListFilter.All) }
     var mountConflicts by remember { mutableStateOf<List<SUMHManager.MountConflict>?>(null) }
     var checkingConflicts by remember { mutableStateOf(false) }
     val mountRevision by SUMHManager.revision.collectAsState()
@@ -367,11 +370,17 @@ internal fun ModulePage(navigator: DestinationsNavigator) {
     }
 
     LaunchedEffect(Unit) {
-        if (viewModel.moduleList.isEmpty() || viewModel.isNeedRefresh) {
-            viewModel.sortEnabledFirst = prefs.getBoolean("module_sort_enabled_first", false)
-            viewModel.sortActionFirst = prefs.getBoolean("module_sort_action_first", false)
+        viewModel.sortEnabledFirst = prefs.getBoolean("module_sort_enabled_first", false)
+        viewModel.sortActionFirst = prefs.getBoolean("module_sort_action_first", false)
+        viewModel.sortByName = prefs.getBoolean("module_sort_by_name", false)
+        viewModel.sortDescending = prefs.getBoolean("module_sort_descending", false)
+        if (!viewModel.hasLoaded || viewModel.isNeedRefresh) {
             viewModel.fetchModuleList()
         }
+    }
+    LaunchedEffect(viewModel.search, moduleFilter, mountFilter, viewModel.sortEnabledFirst,
+        viewModel.sortActionFirst, viewModel.sortByName, viewModel.sortDescending) {
+        listState.scrollToItem(0)
     }
 
     // Both checks were re-running on every recomposition; cache them.
@@ -495,6 +504,9 @@ internal fun ModulePage(navigator: DestinationsNavigator) {
                     listState = listState,
                     mountState = mountState,
                     mountFilter = mountFilter,
+                    moduleFilter = moduleFilter,
+                    onModuleFilter = { moduleFilter = it },
+                    onClearFilters = { moduleFilter = ModuleListFilter.All; mountFilter = "all"; viewModel.search = "" },
                     onMountConfig = { id, name -> mountDialog = id to name },
                     onRefreshMounts = { mountRefresh++ },
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -824,55 +836,22 @@ private fun ModuleBottomSheetContent(
             modifier = Modifier.padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.module_sort_action_first),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                YukiSwitch(
-                    checked = viewModel.sortActionFirst,
-                    onCheckedChange = { checked ->
-                        viewModel.sortActionFirst = checked
-                        prefs.edit {
-                            putBoolean("module_sort_action_first", checked)
-                        }
-                        scope.launch {
-                            viewModel.fetchModuleList()
-                            bottomSheetState.hide()
-                            onDismiss()
-                        }
-                    }
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.module_sort_enabled_first),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                YukiSwitch(
-                    checked = viewModel.sortEnabledFirst,
-                    onCheckedChange = { checked ->
-                        viewModel.sortEnabledFirst = checked
-                        prefs.edit {
-                            putBoolean("module_sort_enabled_first", checked)
-                        }
-                        scope.launch {
-                            viewModel.fetchModuleList()
-                            bottomSheetState.hide()
-                            onDismiss()
-                        }
-                    }
-                )
-            }
+            com.zying.zysu.ui.component.SwitchItem(
+                title = stringResource(R.string.module_sort_action_first), checked = viewModel.sortActionFirst,
+                onCheckedChange = { viewModel.sortActionFirst = it; prefs.edit { putBoolean("module_sort_action_first", it) } },
+            )
+            com.zying.zysu.ui.component.SwitchItem(
+                title = stringResource(R.string.module_sort_enabled_first), checked = viewModel.sortEnabledFirst,
+                onCheckedChange = { viewModel.sortEnabledFirst = it; prefs.edit { putBoolean("module_sort_enabled_first", it) } },
+            )
+            com.zying.zysu.ui.component.SwitchItem(
+                title = stringResource(R.string.list_module_sort_name), checked = viewModel.sortByName,
+                onCheckedChange = { viewModel.sortByName = it; prefs.edit { putBoolean("module_sort_by_name", it) } },
+            )
+            com.zying.zysu.ui.component.SwitchItem(
+                title = stringResource(R.string.list_module_sort_descending), checked = viewModel.sortDescending,
+                onCheckedChange = { viewModel.sortDescending = it; prefs.edit { putBoolean("module_sort_descending", it) } },
+            )
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             ConfigChoice(stringResource(R.string.sumh_mount_filter), mountFilter,
                 listOf("all", "auto", "sumh", "overlay", "magic", "none", "sumh-active"),
@@ -894,6 +873,9 @@ private fun ModuleList(
     listState: LazyListState,
     mountState: SUMHManager.MountState?,
     mountFilter: String,
+    moduleFilter: ModuleListFilter,
+    onModuleFilter: (ModuleListFilter) -> Unit,
+    onClearFilters: () -> Unit,
     onMountConfig: (String, String) -> Unit,
     onRefreshMounts: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1065,7 +1047,7 @@ private fun ModuleList(
         isRefreshing = viewModel.isRefreshing
     ) {
         val visibleModules = viewModel.moduleList.filter { module ->
-            when (mountFilter) {
+            moduleFilter.matches(module) && when (mountFilter) {
                 "all" -> true
                 "sumh-active" -> mountState?.activeSUMHIds?.contains(module.dirId) == true
                 else -> mountState?.modules?.get(module.dirId)?.mode == mountFilter
@@ -1083,18 +1065,54 @@ private fun ModuleList(
                 bottom = contentPadding.calculateBottomPadding() + LocalBottomBarPadding.current + 16.dp + 56.dp + 16.dp + 48.dp + 6.dp,
             ),
         ) {
+            if (viewModel.hasLoaded || viewModel.allModules.isNotEmpty()) {
+                item(key = "overview") {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        ListOverview(
+                            title = stringResource(R.string.list_modules_overview),
+                            summary = stringResource(R.string.list_modules_summary,
+                                viewModel.allModules.size,
+                                viewModel.allModules.count { ModuleListFilter.Enabled.matches(it) },
+                                viewModel.allModules.count { ModuleListFilter.Pending.matches(it) }),
+                            filters = listOf(R.string.list_filter_all, R.string.list_filter_enabled,
+                                R.string.list_filter_disabled, R.string.list_filter_pending).map { stringResource(it) },
+                            selected = moduleFilter.ordinal,
+                            onSelect = { onModuleFilter(ModuleListFilter.entries[it]) },
+                        )
+                        if (viewModel.search.isNotBlank() || mountFilter != "all" || moduleFilter != ModuleListFilter.All) {
+                            Text(stringResource(R.string.list_modules_results, visibleModules.size, viewModel.allModules.size),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TextButton(onClick = onClearFilters) { Text(stringResource(R.string.list_clear_filters)) }
+                        }
+                    }
+                }
+            }
+            if (viewModel.loadFailed) {
+                item(key = "load-error") {
+                    YukiPanel {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(stringResource(R.string.list_module_load_error), color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = viewModel::fetchModuleList, enabled = !viewModel.isRefreshing) {
+                                Text(stringResource(R.string.refresh))
+                            }
+                        }
+                    }
+                }
+            }
             when {
-                visibleModules.isEmpty() -> {
+                visibleModules.isEmpty() && !viewModel.loadFailed -> {
                     item {
+                        val loading = !viewModel.hasLoaded && viewModel.isRefreshing
+                        val filtered = viewModel.search.isNotBlank() || mountFilter != "all" || moduleFilter != ModuleListFilter.All
                         Box(
-                            modifier = Modifier.fillParentMaxSize(),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                YukiIcon(
+                                if (loading) CircularProgressIndicator(Modifier.padding(bottom = 16.dp)) else YukiIcon(
                                     imageVector = Icons.Outlined.Extension,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1103,9 +1121,14 @@ private fun ModuleList(
                                         .size(48.dp)
                                 )
                                 Text(
-                                    text = stringResource(R.string.module_empty),
+                                    text = stringResource(if (loading) R.string.list_module_loading else if (filtered) R.string.list_no_matches else R.string.module_empty),
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodyLarge,
+                                )
+                                if (!loading) Text(
+                                    stringResource(if (filtered) R.string.list_no_matches_summary else R.string.list_module_empty_summary),
+                                    Modifier.padding(top = 8.dp), textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -1225,7 +1248,7 @@ fun ModuleItem(
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
         elevation = getCardElevation(),
-        shape = RoundedCornerShape(20.dp),
+        shape = getCardShape(),
         border = getCardBorder(),
     ) {
         val textDecoration = if (!module.remove) null else TextDecoration.LineThrough

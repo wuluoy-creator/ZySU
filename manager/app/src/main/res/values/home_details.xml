@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="home_device_overview">Device overview</string>
+    <string name="home_memory_usage">Memory used</string>
+    <string name="home_storage_usage">Internal storage used</string>
+    <string name="home_battery">Battery</string>
+    <string name="home_cpu_temperature">CPU temperature</string>
+    <string name="home_reading_unavailable">Unavailable</string>
+    <string name="home_charging">Charging</string>
+    <string name="home_on_battery">On battery</string>
+    <string name="home_temperature_value">%1$s °C</string>
+    <string name="home_cpu_frequency">Highest core clock: %1$s MHz</string>
+    <string name="home_uptime_value">Uptime: %1$d d %2$d h %3$d min</string>
+    <string name="home_capacity_value">%1$s of %2$s</string>
+    <string name="home_authorized_apps">Authorized apps</string>
+    <string name="home_installed_modules">Installed modules</string>
+    <string name="home_system_section">System and device</string>
+    <string name="home_runtime_section">Root environment</string>
+    <string name="home_build_section">Build details</string>
+    <string name="home_security_patch">Android security patch</string>
+    <string name="home_fingerprint">Build fingerprint</string>
+    <string name="home_build_id">Build ID</string>
+    <string name="home_architecture">Architecture</string>
+    <string name="home_android_api">Android %1$s · API %2$d</string>
+    <string name="home_expand_details">Show build details</string>
+    <string name="home_collapse_details">Hide build details</string>
+    <string name="home_load_retry">Some information could not be loaded. Tap to retry.</string>
+</resources>

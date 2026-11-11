@@ -24,6 +24,7 @@ import com.zying.zysu.R
 import com.zying.zysu.integrity.KsudIntegrityStatus
 import com.zying.zysu.ui.theme.UtilityPreviewTheme
 import com.zying.zysu.ui.theme.getCardColors
+import com.zying.zysu.ui.theme.getCardShape
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardElevation
 
@@ -75,12 +76,12 @@ internal fun KsudStatusCard(
         onClick = onSync,
         enabled = canSync,
         modifier = modifier.heightIn(min = 136.dp)
-            .border(getCardBorder(), MaterialTheme.shapes.extraLarge)
+            .border(getCardBorder(), getCardShape())
             .semantics {
                 onClick(label = syncLabel, action = null)
                 stateDescription = if (loading || syncing) status else syncUnavailableReason ?: status
             },
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = getCardShape(),
         // Disabling the action must not fade the status information or wallpaper backing.
         colors = cardColors.copy(
             disabledContainerColor = cardColors.containerColor,

@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import coil.compose.AsyncImagePainter
@@ -255,6 +257,7 @@ fun KernelSUTheme(
 
     val colorScheme = createColorScheme(context, darkTheme, dynamicColor)
         .utilitySurfaces(darkTheme, CardConfig.isCustomBackgroundEnabled)
+        .amoledSurfaces(darkTheme && AppearancePreferences.amoled, CardConfig.isCustomBackgroundEnabled)
 
     // 系统栏样式
     SystemBarController(darkTheme)
@@ -271,8 +274,10 @@ fun KernelSUTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        shapes = ExpressiveShapes,
+        typography = remember(AppearancePreferences.fontScale, AppearancePreferences.fontFamily) {
+            Typography.withAppearance(AppearancePreferences.fontScale, AppearancePreferences.fontFamily)
+        },
+        shapes = appearanceShapes(AppearancePreferences.cornerRadius),
         motionScheme = MotionScheme.standard(),
         content = themedContent
     )
@@ -307,6 +312,7 @@ private fun ThemeInitializer(context: Context, systemIsDark: Boolean) {
             ThemeManager.loadThemeColors(context)
             ThemeManager.loadDynamicColorState(context)
             ThemeManager.loadTransPrideState(context)
+            AppearancePreferences.load(context)
             CardConfig.load(context)
 
             if (!ThemeConfig.backgroundImageLoaded && !ThemeConfig.preventBackgroundRefresh) {
@@ -384,6 +390,7 @@ private fun CustomBackgroundLayer(uri: Uri, darkTheme: Boolean) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .blur(CardConfig.backgroundBlur.dp)
                 .paint(painter = painter, contentScale = ContentScale.Crop)
                 .graphicsLayer {
                     this.alpha = (painter.state as? AsyncImagePainter.State.Success)?.let { 1f } ?: 0f

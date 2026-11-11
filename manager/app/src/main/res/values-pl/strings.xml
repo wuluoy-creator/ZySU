@@ -210,7 +210,6 @@
     <string name="no">Nie</string>
     <string name="home_ContributionCard_kernelsu">ZySU Wizja</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, fork KernelSU stworzony dla zabawy. Specjalne podziękowania dla oficjalnego projektu KernelSU, a także SukiSU, Magisk, APatch i innych za ich wkład.</string>
-    <string name="custom_settings">Ustawienia niestandardowe</string>
     <string name="theme_color">Kolor motywu</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

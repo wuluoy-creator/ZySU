@@ -46,6 +46,7 @@ import com.ramcosta.composedestinations.generated.destinations.FlashScreenDestin
 import com.ramcosta.composedestinations.generated.destinations.KernelPolicyScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.MountIsolationScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.DiagnosticsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.AuthorizationPoliciesScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.zying.zysu.BuildConfig
 import com.zying.zysu.Natives
@@ -90,11 +91,19 @@ private enum class SettingsWorkspaceCategory(val titleRes: Int) {
 @Composable
 fun SettingScreen(navigator: DestinationsNavigator) {
     var category by rememberSaveable { mutableStateOf<SettingsWorkspaceCategory?>(null) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val aboutDialog = rememberCustomDialog { AboutDialog(it) }
     val savedState = rememberSaveableStateHolder()
     BackHandler(enabled = category != null) { category = null }
     YukiPageScaffold(
         topBar = {
-            YukiTopAppBar(
+            if (category == null) SearchAppBar(
+                title = { YukiTopBarTitle(stringResource(R.string.settings)) },
+                searchText = query,
+                onSearchTextChange = { query = it },
+                onClearClick = { query = "" },
+                placeholder = { Text(stringResource(R.string.settings_search_hint)) },
+            ) else YukiTopAppBar(
                 title = {
                     YukiTopBarTitle(
                         text = stringResource(category?.titleRes ?: R.string.settings),
@@ -117,7 +126,19 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                     SettingsWorkspaceCategory.Appearance -> MoreSettingsContent(PreferenceCategory.Appearance, contentPadding = padding)
                     SettingsWorkspaceCategory.Display -> MoreSettingsContent(PreferenceCategory.Display, contentPadding = padding)
                     SettingsWorkspaceCategory.App -> UpdateUninstallSettingsContent(navigator, padding)
-                    null -> SettingsWorkspaceIndex(navigator, padding) { category = it }
+                    null -> if (query.isBlank()) SettingsWorkspaceIndex(navigator, padding) { category = it }
+                    else SettingsSearchResults(query, padding) { target ->
+                        when (target) {
+                            SettingsSearchTarget.Appearance -> category = SettingsWorkspaceCategory.Appearance
+                            SettingsSearchTarget.Display -> category = SettingsWorkspaceCategory.Display
+                            SettingsSearchTarget.App -> category = SettingsWorkspaceCategory.App
+                            SettingsSearchTarget.Authorization -> navigator.navigate(AuthorizationPoliciesScreenDestination)
+                            SettingsSearchTarget.Mount -> navigator.navigate(MountIsolationScreenDestination)
+                            SettingsSearchTarget.Kernel -> navigator.navigate(KernelPolicyScreenDestination())
+                            SettingsSearchTarget.Diagnostics -> navigator.navigate(DiagnosticsScreenDestination)
+                            SettingsSearchTarget.About -> aboutDialog.show()
+                        }
+                    }
                 }
             }
         }

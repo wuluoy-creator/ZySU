@@ -208,7 +208,6 @@
     <string name="no">Ні</string>
     <string name="home_ContributionCard_kernelsu">ZySU Бачення</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU — форк KernelSU, створений заради задоволення. Особлива подяка офіційному проєкту KernelSU, а також SukiSU, Magisk, APatch та іншим за їхній внесок.</string>
-    <string name="custom_settings">Власні налаштування</string>
     <string name="theme_color">Колір теми</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

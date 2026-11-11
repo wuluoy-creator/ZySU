@@ -194,9 +194,12 @@ class MoreSettingsHandlers(
         state.isCustomBackgroundEnabled = false
         CardConfig.cardAlpha = 1f
         CardConfig.cardDim = 0f
+        CardConfig.updateBackgroundBlur(0f)
         CardConfig.isCustomAlphaSet = false
         CardConfig.isCustomDimSet = false
         CardConfig.isCustomBackgroundEnabled = false
+        state.cardAlpha = CardConfig.cardAlpha
+        state.cardDim = CardConfig.cardDim
         saveCardConfig(context)
         ThemeConfig.preventBackgroundRefresh = false
 
@@ -212,23 +215,15 @@ class MoreSettingsHandlers(
     }
 
     fun handleCardAlphaChange(newValue: Float) {
-        state.cardAlpha = newValue
-        CardConfig.cardAlpha = newValue
-        CardConfig.isCustomAlphaSet = true
-        prefs.edit {
-            putBoolean("is_custom_alpha_set", true)
-            putFloat("card_alpha", newValue)
-        }
+        CardConfig.updateAlpha(newValue)
+        state.cardAlpha = CardConfig.cardAlpha
+        CardConfig.save(context)
     }
 
     fun handleCardDimChange(newValue: Float) {
-        state.cardDim = newValue
-        CardConfig.cardDim = newValue
-        CardConfig.isCustomDimSet = true
-        prefs.edit {
-            putBoolean("is_custom_dim_set", true)
-            putFloat("card_dim", newValue)
-        }
+        CardConfig.updateDim(newValue)
+        state.cardDim = CardConfig.cardDim
+        CardConfig.save(context)
     }
 
     fun handleSimpleModeChange(newValue: Boolean) {

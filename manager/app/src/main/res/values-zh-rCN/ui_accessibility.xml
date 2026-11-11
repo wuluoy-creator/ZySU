@@ -2,7 +2,6 @@
 <resources>
     <string name="ui_move_source_up">上移 %1$s</string>
     <string name="ui_move_source_down">下移 %1$s</string>
-    <string name="ui_module_shortcut_action">快捷方式</string>
     <plurals name="ui_navigation_item_count">
         <item quantity="other">%1$d 项</item>
     </plurals>

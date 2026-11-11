@@ -26,3 +26,12 @@ val ExpressiveShapes = Shapes(
     extraLargeIncreased = RoundedCornerShape(32.dp),
     extraExtraLarge = RoundedCornerShape(36.dp)
 )
+
+internal fun appearanceShapes(radius: Float) = ExpressiveShapes.copy(
+    medium = RoundedCornerShape((radius - 4f).coerceAtLeast(8f).dp),
+    large = RoundedCornerShape(radius.dp),
+    extraLarge = RoundedCornerShape((radius + 4f).dp),
+    largeIncreased = RoundedCornerShape((radius + 4f).dp),
+    extraLargeIncreased = RoundedCornerShape((radius + 8f).dp),
+    extraExtraLarge = RoundedCornerShape((radius + 12f).dp),
+)

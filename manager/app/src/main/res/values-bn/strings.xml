@@ -208,7 +208,6 @@
     <string name="no">না</string>
     <string name="home_ContributionCard_kernelsu">ZySU দৃষ্টি</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, মজা করার জন্য তৈরি একটি KernelSU শাখা। অবদানের জন্য মূল KernelSU প্রকল্প, SukiSU, Magisk, APatch এবং অন্যান্যদের বিশেষ ধন্যবাদ।</string>
-    <string name="custom_settings">কাস্টম সেটিংস</string>
     <string name="theme_color">থিম রঙ</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

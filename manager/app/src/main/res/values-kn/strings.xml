@@ -208,7 +208,6 @@
     <string name="no">ಇಲ್ಲ</string>
     <string name="home_ContributionCard_kernelsu">ZySU ದೃಷ್ಟಿ</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, ಮೋಜಿಗಾಗಿ ಹುಟ್ಟಿದ KernelSU ಶಾಖೆ. ಅಧಿಕೃತ KernelSU ಯೋಜನೆ ಹಾಗೂ SukiSU, Magisk, APatch ಮತ್ತು ಇತರರ ಕೊಡುಗೆಗಳಿಗೆ ವಿಶೇಷ ಧನ್ಯವಾದಗಳು.</string>
-    <string name="custom_settings">ಕಸ್ಟಮ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು</string>
     <string name="theme_color">ಥೀಮ್ ಬಣ್ಣ</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

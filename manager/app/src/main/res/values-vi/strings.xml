@@ -208,7 +208,6 @@
     <string name="no">Không</string>
     <string name="home_ContributionCard_kernelsu">ZySU Tầm nhìn</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, một bản fork của KernelSU ra đời vì niềm vui. Đặc biệt cảm ơn dự án KernelSU chính thức cùng SukiSU, Magisk, APatch và các dự án khác vì những đóng góp của họ.</string>
-    <string name="custom_settings">Cài đặt tùy chỉnh</string>
     <string name="theme_color">Màu chủ đề</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->

@@ -208,7 +208,6 @@
     <string name="no">కాదు</string>
     <string name="home_ContributionCard_kernelsu">ZySU విజన్</string>
     <string name="home_click_to_ContributionCard_kernelsu">ZySU, సరదా కోసం పుట్టిన KernelSU శాఖ. అధికారిక KernelSU ప్రాజెక్ట్‌తో పాటు SukiSU, Magisk, APatch మరియు ఇతరులు అందించిన సహకారానికి ప్రత్యేక ధన్యవాదాలు.</string>
-    <string name="custom_settings">కస్టమ్ సెట్టింగ్‌లు</string>
     <string name="theme_color">థీమ్ రంగు</string>
     <!-- Error Messages -->
     <!-- lkm/gki install -->
