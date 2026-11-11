@@ -143,8 +143,7 @@ sumh_proc_proxy_kind_for_file(struct file *file,
 				      : SUMH_PROC_PROXY_MOUNTS;
 	if (ksu_is_unshare_mnt_enabled() && name->len == 9 &&
 	    !memcmp(name->name, "mountinfo", 9) &&
-	    is_appuid(__kuid_val(current_uid())) &&
-	    ksu_uid_should_umount(__kuid_val(current_uid())))
+	    sumh_policy_uid_should_umount(__kuid_val(task_uid(current))))
 		return SUMH_PROC_PROXY_MOUNTINFO_GROUPS;
 	if ((spoof && (sumh_feature_enabled_mask & SUMH_FEATURE_MAPS_SPOOF)) &&
 	    ((name->len == 4 && !memcmp(name->name, "maps", 4)) ||

@@ -164,8 +164,6 @@
     <string name="home_android_version">Versi Android</string>
     <string name="home_device_model">Model peranti</string>
     <string name="su_not_allowed">Pemberian superuser kepada %s tidak dibenarkan</string>
-    <string name="settings_disable_kernel_umount">Lumpuhkan nyahlekap kernel</string>
-    <string name="settings_disable_kernel_umount_summary">Lumpuhkan kelakuan nyahlekap pada peringkat kernel yang dikawal oleh KernelSU</string>
     <string name="settings_selinux_hide">Dayakan penyembunyian SELinux</string>
     <string name="settings_selinux_hide_summary">Sembunyikan perubahan dasar SELinux KernelSU daripada pemeriksaan pihak aplikasi</string>
     <string name="feature_status_unsupported_summary">Kernel tidak menyokong ciri ini</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Muatkan Lebih Banyak Log</string>
     <string name="log_viewer_all_logs_loaded">Semua log dipaparkan</string>
     <string name="incompatible_kernel_msg">Pengurus semasa tidak serasi dengan kernel ini! Sila naik taraf kernel kepada versi %2$d atau lebih tinggi (kini %1$d)</string>
-    <string name="umount_path_manager">Pengurusan Laluan Nyahlekap</string>
-    <string name="umount_path_restart_notice">But semula diperlukan untuk perubahan berkuat kuasa. Sistem akan menerapkan konfigurasi baharu pada but seterusnya</string>
-    <string name="add_umount_path">Tambah Laluan Nyahlekap</string>
-    <string name="mount_path">Laluan Lekapan</string>
-    <string name="umount_flags">Bendera Nyahlekap</string>
-    <string name="umount_flags_hint">0=Nyahlekap biasa, 2=MNT_DETACH</string>
-    <string name="flags">Bendera</string>
-    <string name="confirm_delete">Sahkan Pemadaman</string>
-    <string name="confirm_delete_umount_path">Adakah anda pasti mahu memadam laluan %s?</string>
-    <string name="umount_path_added">Laluan ditambah, akan berkuat kuasa selepas but semula</string>
-    <string name="umount_path_removed">Laluan dialih keluar, akan berkuat kuasa selepas but semula</string>
     <string name="operation_failed">Operasi gagal</string>
-    <string name="confirm_action">Sahkan Tindakan</string>
-    <string name="confirm_clear_custom_paths">Adakah anda pasti mahu mengosongkan semua laluan tersuai? (laluan lalai akan dikekalkan)</string>
-    <string name="custom_paths_cleared">Laluan tersuai dikosongkan</string>
-    <string name="clear_custom_paths">Kosongkan Laluan Tersuai</string>
-    <string name="apply_config">Terapkan Konfigurasi</string>
-    <string name="config_applied">Konfigurasi diterapkan pada kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Mengandungi %d aplikasi</string>
     <string name="settings_disable_sulog">Pengelogan superuser</string>
     <string name="settings_disable_sulog_summary">Log akses superuser KernelSU</string>

@@ -177,7 +177,7 @@ fun KernelPolicyScreen(navigator: DestinationsNavigator, initialPage: Int = 0) {
     WorkspaceScaffold(stringResource(R.string.nav_kernel_policy), navigator, navigationEnabled = !saving) {
         KsuIsValid {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                FeatureControlContent(navigator, onSavingChanged = { saving = it }, scrollable = false)
+                FeatureControlContent(onSavingChanged = { saving = it }, scrollable = false)
                 MoreSettingsContent(PreferenceCategory.Advanced, scrollable = false)
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     SettingsCard { WebUIEngineSelector() }

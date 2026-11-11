@@ -191,8 +191,6 @@
     <string name="su_not_allowed">Granting superuser to %s is not allowed</string>
     <string name="settings_unshare_mnt">Mount view cleanup</string>
     <string name="settings_unshare_mnt_summary">Rebuild the namespace and normalize visible IDs after unmounting. Restart the app to apply.</string>
-    <string name="settings_disable_kernel_umount">Disable kernel umount</string>
-    <string name="settings_disable_kernel_umount_summary">Disable kernel-level umount behavior controlled by KernelSU</string>
     <string name="settings_webview_zygote_umount" tools:ignore="MissingTranslation">Unmount modules for WebView</string>
     <string name="settings_webview_zygote_umount_summary" tools:ignore="MissingTranslation">Unmount modules from the WebView zygote to prevent mount information leaks. This may break modules that modify WebView resources; reboot to apply.</string>
     <string name="settings_selinux_hide">Enable SELinux hide</string>
@@ -369,25 +367,7 @@
     <string name="incompatible_kernel_msg">
     The current manager is incompatible with this kernel! Please upgrade the kernel to version %2$d or higher (currently %1$d)
     </string>
-    <string name="umount_path_manager">Umount Path Management</string>
-    <string name="umount_path_restart_notice">A reboot is required for changes to take effect. The system will apply the new configuration on the next boot</string>
-    <string name="add_umount_path">Add Umount Path</string>
-    <string name="mount_path">Mount Path</string>
-    <string name="umount_flags">Unmount Flags</string>
-    <string name="umount_flags_hint">0=Normal unmount, 2=MNT_DETACH</string>
-    <string name="flags">Flags</string>
-    <string name="confirm_delete">Confirm Delete</string>
-    <string name="confirm_delete_umount_path">Are you sure you want to delete the path %s?</string>
-    <string name="umount_path_added">Path added, will take effect after reboot</string>
-    <string name="umount_path_removed">Path removed, will take effect after reboot</string>
     <string name="operation_failed">Operation failed</string>
-    <string name="confirm_action">Confirm Action</string>
-    <string name="confirm_clear_custom_paths">Are you sure you want to clear all custom paths? (default paths will be preserved)</string>
-    <string name="custom_paths_cleared">Custom paths cleared</string>
-    <string name="clear_custom_paths">Clear Custom Paths</string>
-    <string name="apply_config">Apply Configuration</string>
-    <string name="config_applied">Configuration applied to kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps" tools:ignore="PluralsCandidate">Contains %d apps</string>
     <string name="settings_disable_sulog">Superuser logging</string>
     <string name="settings_disable_sulog_summary">Log KernelSU superuser access</string>

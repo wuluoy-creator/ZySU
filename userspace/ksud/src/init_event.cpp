@@ -14,7 +14,6 @@
 #include "module/preinit.hpp"
 #include "profile/profile.hpp"
 #include "sulog.hpp"
-#include "umount.hpp"
 #include "utils.hpp"
 
 #include <fcntl.h>
@@ -220,8 +219,6 @@ int on_post_fs_data() {
 
     // Metamodule metamount runs AFTER all post-fs-data.
     metamodule_exec_mount_script();
-
-    umount_apply_config();
 
     run_stage("post-mount", wait);
     if (refresh_sucompat_vfs() != 0) {

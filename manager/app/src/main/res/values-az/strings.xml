@@ -164,8 +164,6 @@
     <string name="home_android_version">Android versiyası</string>
     <string name="home_device_model">Cihaz modeli</string>
     <string name="su_not_allowed">%s üçün superistifadəçi səlahiyyəti verilməsinə icazə yoxdur</string>
-    <string name="settings_disable_kernel_umount">Nüvə ayırmasını deaktiv et</string>
-    <string name="settings_disable_kernel_umount_summary">KernelSU tərəfindən idarə olunan nüvə səviyyəsindəki ayırma davranışını deaktiv edin</string>
     <string name="settings_selinux_hide">SELinux gizlətməsini aktivləşdir</string>
     <string name="settings_selinux_hide_summary">KernelSU SELinux siyasəti dəyişikliklərini tətbiq tərəfli yoxlamalardan gizlət</string>
     <string name="feature_status_unsupported_summary">Nüvə bu xüsusiyyəti dəstəkləmir</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Daha Çox Jurnal Yüklə</string>
     <string name="log_viewer_all_logs_loaded">Bütün jurnallar göstərildi</string>
     <string name="incompatible_kernel_msg">Cari menecer bu nüvə ilə uyğun deyil! Zəhmət olmasa nüvəni %2$d və ya daha yüksək versiyaya yeniləyin (hazırda %1$d)</string>
-    <string name="umount_path_manager">Ayırma Yolu İdarəetməsi</string>
-    <string name="umount_path_restart_notice">Dəyişikliklərin qüvvəyə minməsi üçün yenidən başlatma lazımdır. Sistem yeni konfiqurasiyanı növbəti yüklənmədə tətbiq edəcək</string>
-    <string name="add_umount_path">Ayırma Yolu Əlavə Et</string>
-    <string name="mount_path">Bağlama Yolu</string>
-    <string name="umount_flags">Ayırma Bayraqları</string>
-    <string name="umount_flags_hint">0=Normal ayırma, 2=MNT_DETACH</string>
-    <string name="flags">Bayraqlar</string>
-    <string name="confirm_delete">Silməni Təsdiqlə</string>
-    <string name="confirm_delete_umount_path">%s yolunu silmək istədiyinizə əminsiniz?</string>
-    <string name="umount_path_added">Yol əlavə edildi, yenidən başladıqdan sonra qüvvəyə minəcək</string>
-    <string name="umount_path_removed">Yol silindi, yenidən başladıqdan sonra qüvvəyə minəcək</string>
     <string name="operation_failed">Əməliyyat alınmadı</string>
-    <string name="confirm_action">Əməliyyatı Təsdiqlə</string>
-    <string name="confirm_clear_custom_paths">Bütün fərdi yolları təmizləmək istədiyinizə əminsiniz? (standart yollar qorunacaq)</string>
-    <string name="custom_paths_cleared">Fərdi yollar təmizləndi</string>
-    <string name="clear_custom_paths">Fərdi Yolları Təmizlə</string>
-    <string name="apply_config">Konfiqurasiyanı Tətbiq Et</string>
-    <string name="config_applied">Konfiqurasiya nüvəyə tətbiq edildi</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">%d tətbiq daxildir</string>
     <string name="settings_disable_sulog">Superistifadəçi jurnalı</string>
     <string name="settings_disable_sulog_summary">KernelSU superistifadəçi girişini jurnala yazır</string>

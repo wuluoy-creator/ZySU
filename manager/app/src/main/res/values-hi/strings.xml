@@ -164,8 +164,6 @@
     <string name="home_android_version">Android संस्करण</string>
     <string name="home_device_model">डिवाइस मॉडल</string>
     <string name="su_not_allowed">%s को सुपरयूज़र प्रदान करने की अनुमति नहीं है</string>
-    <string name="settings_disable_kernel_umount">कर्नेल umount अक्षम करें</string>
-    <string name="settings_disable_kernel_umount_summary">KernelSU द्वारा नियंत्रित कर्नेल-स्तरीय umount व्यवहार अक्षम करें</string>
     <string name="settings_selinux_hide">SELinux छिपाना सक्षम करें</string>
     <string name="settings_selinux_hide_summary">KernelSU SELinux नीति परिवर्तनों को ऐप-सामना करने वाली जांच से छिपाएं</string>
     <string name="feature_status_unsupported_summary">कर्नेल इस सुविधा का समर्थन नहीं करता</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">अधिक लॉग लोड करें</string>
     <string name="log_viewer_all_logs_loaded">सभी लॉग प्रदर्शित किए गए</string>
     <string name="incompatible_kernel_msg">वर्तमान प्रबंधक इस कर्नेल के साथ असंगत है! कृपया कर्नेल को संस्करण %2$d या उच्चतर में अपग्रेड करें (वर्तमान में %1$d)</string>
-    <string name="umount_path_manager">Umount पथ प्रबंधन</string>
-    <string name="umount_path_restart_notice">परिवर्तन प्रभावी होने के लिए रीबूट आवश्यक है। सिस्टम अगले बूट पर नई कॉन्फ़िगरेशन लागू करेगा</string>
-    <string name="add_umount_path">Umount पथ जोड़ें</string>
-    <string name="mount_path">माउंट पथ</string>
-    <string name="umount_flags">अनमाउंट फ़्लैग</string>
-    <string name="umount_flags_hint">0=सामान्य अनमाउंट, 2=MNT_DETACH</string>
-    <string name="flags">फ़्लैग</string>
-    <string name="confirm_delete">हटाने की पुष्टि करें</string>
-    <string name="confirm_delete_umount_path">क्या आप वाकई पथ %s हटाना चाहते हैं?</string>
-    <string name="umount_path_added">पथ जोड़ा गया, रीबूट के बाद प्रभावी होगा</string>
-    <string name="umount_path_removed">पथ हटाया गया, रीबूट के बाद प्रभावी होगा</string>
     <string name="operation_failed">ऑपरेशन विफल</string>
-    <string name="confirm_action">क्रिया की पुष्टि करें</string>
-    <string name="confirm_clear_custom_paths">क्या आप वाकई सभी कस्टम पथ साफ़ करना चाहते हैं? (डिफ़ॉल्ट पथ संरक्षित रहेंगे)</string>
-    <string name="custom_paths_cleared">कस्टम पथ साफ़ किए गए</string>
-    <string name="clear_custom_paths">कस्टम पथ साफ़ करें</string>
-    <string name="apply_config">कॉन्फ़िगरेशन लागू करें</string>
-    <string name="config_applied">कॉन्फ़िगरेशन कर्नेल पर लागू की गई</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">%d ऐप्स शामिल हैं</string>
     <string name="settings_disable_sulog">सुपरयूज़र लॉगिंग</string>
     <string name="settings_disable_sulog_summary">KernelSU सुपरयूज़र एक्सेस लॉग करें</string>

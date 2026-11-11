@@ -1,5 +1,4 @@
 #include "sumhp/embedded.hpp"
-#include <sys/mount.h>
 #include <unistd.h>
 #include <cerrno>
 #include <filesystem>
@@ -123,17 +122,14 @@ void embedded_mount_skipped(const std::string& reason) {
 }
 
 bool embedded_register_umount(const std::string& path) {
-    // Skeletons contain child binds and files may already be open in zygote.
-    // Match the mountinfo scan's detach semantics when the kernel falls back
-    // to this list; ordinary umount can leave the whole tree behind with EBUSY.
-    const bool ok = ksud::umount_list_add(path, MNT_DETACH) == 0;
+    const bool ok = sumh::register_managed_mount(path);
     if (!ok)
         logging::write(logging::Level::Error, "mount", "failed to register unmount path " + path);
     return ok;
 }
 
 bool embedded_unregister_umount(const std::string& path) {
-    return ksud::umount_list_del(path) == 0;
+    return sumh::unregister_managed_mount(path);
 }
 
 std::string embedded_external_mount_owner() {

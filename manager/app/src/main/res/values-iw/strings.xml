@@ -164,8 +164,6 @@
     <string name="home_android_version">גרסת Android</string>
     <string name="home_device_model">דגם המכשיר</string>
     <string name="su_not_allowed">הענקת הרשאת משתמש-על ל-%s אינה מותרת</string>
-    <string name="settings_disable_kernel_umount">השבת umount של הליבה</string>
-    <string name="settings_disable_kernel_umount_summary">השבת התנהגות umount ברמת הליבה הנשלטת על ידי KernelSU</string>
     <string name="settings_selinux_hide">הפעל הסתרת SELinux</string>
     <string name="settings_selinux_hide_summary">הסתר שינויי מדיניות SELinux של KernelSU מבדיקות מצד האפליקציה</string>
     <string name="feature_status_unsupported_summary">הליבה אינה תומכת בתכונה זו</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">טען יומנים נוספים</string>
     <string name="log_viewer_all_logs_loaded">כל היומנים מוצגים</string>
     <string name="incompatible_kernel_msg">המנהל הנוכחי אינו תואם לליבה זו! אנא שדרג את הליבה לגרסה %2$d או גבוהה יותר (כעת %1$d)</string>
-    <string name="umount_path_manager">ניהול נתיבי umount</string>
-    <string name="umount_path_restart_notice">נדרשת הפעלה מחדש כדי שהשינויים ייכנסו לתוקף. המערכת תחיל את התצורה החדשה באתחול הבא</string>
-    <string name="add_umount_path">הוסף נתיב umount</string>
-    <string name="mount_path">נתיב עיגון</string>
-    <string name="umount_flags">דגלי ביטול עיגון</string>
-    <string name="umount_flags_hint">0=ביטול עיגון רגיל, 2=MNT_DETACH</string>
-    <string name="flags">דגלים</string>
-    <string name="confirm_delete">אשר מחיקה</string>
-    <string name="confirm_delete_umount_path">האם אתה בטוח שברצונך למחוק את הנתיב %s?</string>
-    <string name="umount_path_added">הנתיב נוסף, ייכנס לתוקף לאחר הפעלה מחדש</string>
-    <string name="umount_path_removed">הנתיב הוסר, ייכנס לתוקף לאחר הפעלה מחדש</string>
     <string name="operation_failed">הפעולה נכשלה</string>
-    <string name="confirm_action">אשר פעולה</string>
-    <string name="confirm_clear_custom_paths">האם אתה בטוח שברצונך לנקות את כל הנתיבים המותאמים אישית? (הנתיבים שכברירת מחדל יישמרו)</string>
-    <string name="custom_paths_cleared">הנתיבים המותאמים אישית נוקו</string>
-    <string name="clear_custom_paths">נקה נתיבים מותאמים אישית</string>
-    <string name="apply_config">החל תצורה</string>
-    <string name="config_applied">התצורה הוחלה על הליבה</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">מכיל %d אפליקציות</string>
     <string name="settings_disable_sulog">רישום משתמש-על</string>
     <string name="settings_disable_sulog_summary">רשום ביומן גישת משתמש-על של KernelSU</string>

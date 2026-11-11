@@ -251,22 +251,6 @@ int64_t query_feature(uint32_t feature_id) {
   return (int64_t)value;
 }
 
-bool set_kernel_umount_enabled(bool enabled) {
-  return set_feature(KSU_FEATURE_KERNEL_UMOUNT, enabled ? 1 : 0);
-}
-
-bool is_kernel_umount_enabled() {
-  uint64_t value = 0;
-  bool supported = false;
-  if (!get_feature(KSU_FEATURE_KERNEL_UMOUNT, &value, &supported)) {
-    return false;
-  }
-  if (!supported) {
-    return false;
-  }
-  return value != 0;
-}
-
 bool set_sulog_enabled(bool enabled) {
   return set_feature(KSU_FEATURE_SULOG, enabled ? 1 : 0);
 }

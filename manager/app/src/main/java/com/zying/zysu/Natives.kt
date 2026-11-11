@@ -102,15 +102,6 @@ object Natives {
     external fun getProtectedProfileAppIds(): IntArray
 
     /**
-     * Kernel module umount can be disabled temporarily.
-     *  0: disabled
-     *  1: enabled
-     *  negative : error
-     */
-    external fun isKernelUmountEnabled(): Boolean
-    external fun setKernelUmountEnabled(enabled: Boolean): Boolean
-
-    /**
      * Su Log can be enabled/disabled.
      *  0: disabled
      *  1: enabled
@@ -155,7 +146,6 @@ object Natives {
      * 0-99 are upstream KernelSU's; ZySU extensions start at 100.
      */
     const val FEATURE_SU_COMPAT = 0
-    const val FEATURE_KERNEL_UMOUNT = 1
     const val FEATURE_SULOG = 2
     const val FEATURE_ADB_ROOT = 3
     const val FEATURE_SELINUX_HIDE = 4

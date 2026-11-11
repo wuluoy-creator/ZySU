@@ -164,8 +164,6 @@
     <string name="home_android_version">Android-version</string>
     <string name="home_device_model">Enhedsmodel</string>
     <string name="su_not_allowed">Det er ikke tilladt at give superbruger til %s</string>
-    <string name="settings_disable_kernel_umount">Deaktiver kerne-afmontering</string>
-    <string name="settings_disable_kernel_umount_summary">Deaktiver afmonteringsadfærd på kerneniveau styret af KernelSU</string>
     <string name="settings_selinux_hide">Aktivér SELinux-skjul</string>
     <string name="settings_selinux_hide_summary">Skjul KernelSU SELinux-politikændringer fra app-rettede probes</string>
     <string name="feature_status_unsupported_summary">Kernen understøtter ikke denne funktion</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Indlæs flere logge</string>
     <string name="log_viewer_all_logs_loaded">Alle logge vises</string>
     <string name="incompatible_kernel_msg">Den nuværende manager er inkompatibel med denne kerne! Opgrader venligst kernen til version %2$d eller højere (i øjeblikket %1$d)</string>
-    <string name="umount_path_manager">Administration af afmonteringsstier</string>
-    <string name="umount_path_restart_notice">En genstart er påkrævet, før ændringerne træder i kraft. Systemet anvender den nye konfiguration ved næste opstart</string>
-    <string name="add_umount_path">Tilføj afmonteringssti</string>
-    <string name="mount_path">Monteringssti</string>
-    <string name="umount_flags">Afmonteringsflag</string>
-    <string name="umount_flags_hint">0=Normal afmontering, 2=MNT_DETACH</string>
-    <string name="flags">Flag</string>
-    <string name="confirm_delete">Bekræft sletning</string>
-    <string name="confirm_delete_umount_path">Er du sikker på, at du vil slette stien %s?</string>
-    <string name="umount_path_added">Sti tilføjet, træder i kraft efter genstart</string>
-    <string name="umount_path_removed">Sti fjernet, træder i kraft efter genstart</string>
     <string name="operation_failed">Handling mislykkedes</string>
-    <string name="confirm_action">Bekræft handling</string>
-    <string name="confirm_clear_custom_paths">Er du sikker på, at du vil rydde alle brugerdefinerede stier? (standardstier bevares)</string>
-    <string name="custom_paths_cleared">Brugerdefinerede stier ryddet</string>
-    <string name="clear_custom_paths">Ryd brugerdefinerede stier</string>
-    <string name="apply_config">Anvend konfiguration</string>
-    <string name="config_applied">Konfiguration anvendt på kernen</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Indeholder %d apps</string>
     <string name="settings_disable_sulog">Superbruger-logning</string>
     <string name="settings_disable_sulog_summary">Log KernelSU superbruger-adgang</string>

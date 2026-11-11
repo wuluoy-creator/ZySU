@@ -164,8 +164,6 @@
     <string name="home_android_version">Android sürümü</string>
     <string name="home_device_model">Cihaz modeli</string>
     <string name="su_not_allowed">%s için süper kullanıcı yetkisi verilemiyor</string>
-    <string name="settings_disable_kernel_umount">Çekirdek ayırmasını devre dışı bırak</string>
-    <string name="settings_disable_kernel_umount_summary">KernelSU tarafından kontrol edilen çekirdek seviyesindeki ayırma davranışını devre dışı bırakın</string>
     <string name="settings_selinux_hide">SELinux gizlemeyi etkinleştir</string>
     <string name="settings_selinux_hide_summary">KernelSU SELinux politika değişikliklerini uygulama tarafı sondalardan gizle.</string>
     <string name="feature_status_unsupported_summary">Çekirdek bu özelliği desteklemiyor</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Daha Fazla Günlük Yükle</string>
     <string name="log_viewer_all_logs_loaded">Tüm günlükler görüntülendi</string>
     <string name="incompatible_kernel_msg">Mevcut yönetici bu çekirdekle uyumsuz! Lütfen çekirdeği %2$d veya daha yüksek bir sürüme yükseltin (mevcut sürüm %1$d)</string>
-    <string name="umount_path_manager">Bağlantı Kaldırma Yolu Yönetimi</string>
-    <string name="umount_path_restart_notice">Değişikliklerin etkili olması için yeniden başlatma gereklidir. Sistem yeni yapılandırmayı bir sonraki önyüklemede uygulayacaktır</string>
-    <string name="add_umount_path">Bağlantı Kaldırma Yolu Ekle</string>
-    <string name="mount_path">Bağlama Yolu</string>
-    <string name="umount_flags">Bağlantı Kaldırma Bayrakları</string>
-    <string name="umount_flags_hint">0=Normal bağlantı kesme, 2=MNT_DETACH</string>
-    <string name="flags">Bayraklar</string>
-    <string name="confirm_delete">Silmeyi Onayla</string>
-    <string name="confirm_delete_umount_path">%s yolunu silmek istediğinizden emin misiniz?</string>
-    <string name="umount_path_added">Yol eklendi, yeniden başlattıktan sonra geçerli olacak</string>
-    <string name="umount_path_removed">Yol kaldırıldı, yeniden başlattıktan sonra geçerli olacak</string>
     <string name="operation_failed">İşlem başarısız oldu</string>
-    <string name="confirm_action">Eylemi Onayla</string>
-    <string name="confirm_clear_custom_paths">Tüm özel yolları temizlemek istediğinizden emin misiniz? (varsayılan yollar korunacaktır)</string>
-    <string name="custom_paths_cleared">Özel yollar temizlendi</string>
-    <string name="clear_custom_paths">Özel Yolları Temizle</string>
-    <string name="apply_config">Yapılandırmayı Uygula</string>
-    <string name="config_applied">Yapılandırma çekirdeğe uygulandı</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">%d uygulama içeriyor</string>
     <string name="settings_disable_sulog">Süper kullanıcı günlük kaydı</string>
     <string name="settings_disable_sulog_summary">KernelSU süper kullanıcı erişimini günlüğe kaydeder</string>

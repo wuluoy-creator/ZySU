@@ -75,6 +75,8 @@ typedef unsigned int uid_t;
 #define FIRST_APPLICATION_UID 10000
 #define LAST_APPLICATION_UID 19999
 #define FIRST_ISOLATED_UID 99000
+#define FIRST_APP_ZYGOTE_ISOLATED_UID 90000
+#define WEBVIEW_ZYGOTE_UID 1053
 #define LAST_ISOLATED_UID 99999
 #define READ_ONCE(v) (v)
 #define smp_load_acquire(p) (*(p))
@@ -95,7 +97,8 @@ static int allowed, umount_app, resolving, rcu_depth;
 static void rcu_read_lock(void) { rcu_depth++; }
 static void rcu_read_unlock(void) { rcu_depth--; }
 static bool sumh_hide_rules_resolving(void) { return resolving; }
-static bool ksu_uid_should_umount(uid_t uid) { (void)uid; return umount_app; }
+static bool ksu_app_profile_should_umount(uid_t uid) { (void)uid; return umount_app; }
+static bool ksu_is_webview_zygote_umount_enabled(void) { return false; }
 static bool ksu_is_allow_uid(uid_t uid) { (void)uid; return allowed; }
 """
     policy = "\n".join(
@@ -104,7 +107,8 @@ static bool ksu_is_allow_uid(uid_t uid) { (void)uid; return allowed; }
     )
     policy += "\n".join(
         function("kernel/sumh/policy/sumh_path_policy.c", marker)
-        for marker in ("static enum sumh_policy_scope sumh_policy_scope_for_uid",
+        for marker in ("bool sumh_policy_uid_should_umount",
+                       "static enum sumh_policy_scope sumh_policy_scope_for_uid",
                        "enum sumh_policy_scope sumh_policy_current_scope",
                        "bool sumh_policy_current_is_spoof_target",
                        "bool sumh_policy_current_is_isolated",

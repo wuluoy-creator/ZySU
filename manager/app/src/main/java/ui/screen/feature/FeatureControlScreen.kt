@@ -7,7 +7,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -25,7 +24,6 @@ import com.zying.zysu.ui.component.KsuIsValid
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
-import com.zying.zysu.ui.screen.SettingItem
 import com.zying.zysu.ui.util.LocalSnackbarHost
 import com.zying.zysu.ui.util.getFeatureStatus
 import com.zying.zysu.ui.util.getFeatureValue
@@ -33,7 +31,6 @@ import com.zying.zysu.ui.util.restartAdbd
 import com.zying.zysu.ui.util.setFeatureValue
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.UmountManagerScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -66,10 +63,9 @@ internal class FeatureToggleState(initialChecked: Boolean) {
 @Composable
 internal fun rememberFeatureToggleState(
     featureId: Int,
-    displayInverted: Boolean = false
-): FeatureToggleState = remember(featureId, displayInverted) {
+): FeatureToggleState = remember(featureId) {
     val enabled = getFeatureValue(featureId)
-    FeatureToggleState(if (displayInverted) !enabled else enabled)
+    FeatureToggleState(enabled)
 }
 
 private fun CoroutineScope.persistFeature(
@@ -77,7 +73,6 @@ private fun CoroutineScope.persistFeature(
     featureId: Int,
     featureName: String,
     kernelEnabled: Boolean,
-    displayInverted: Boolean = false,
     relatedStates: List<FeatureToggleState> = emptyList(),
     optimistic: Boolean = false,
     afterPersist: suspend () -> Boolean = { true },
@@ -92,7 +87,7 @@ private fun CoroutineScope.persistFeature(
 
     val previousKernelEnabled = getFeatureValue(featureId)
     if (optimistic) {
-        state.checked = if (displayInverted) !kernelEnabled else kernelEnabled
+        state.checked = kernelEnabled
     }
     savingStates.forEach { it.saving = true }
     launch(start = CoroutineStart.UNDISPATCHED) {
@@ -108,7 +103,7 @@ private fun CoroutineScope.persistFeature(
             }
             val current = getFeatureValue(featureId)
             onRuntimeSettled(current)
-            state.checked = if (displayInverted) !current else current
+            state.checked = current
             savingStates.forEach { it.saving = false }
             persisted
         }
@@ -128,14 +123,13 @@ fun FeatureControlScreen(navigator: DestinationsNavigator) {
         contentWindowInsets = WindowInsets.safeDrawing,
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-            FeatureControlContent(navigator)
+            FeatureControlContent()
         }
     }
 }
 
 @Composable
 fun FeatureControlContent(
-    navigator: DestinationsNavigator,
     onSavingChanged: (Boolean) -> Unit = {},
     scrollable: Boolean = true,
 ) {
@@ -158,10 +152,6 @@ fun FeatureControlContent(
             3L -> R.string.selinux_hide_runtime_failed
             else -> R.string.selinux_hide_runtime_unknown
         }
-    )
-    val kernelUmountDisabled = rememberFeatureToggleState(
-        Natives.FEATURE_KERNEL_UMOUNT,
-        displayInverted = true
     )
     val webViewZygoteUmount = rememberFeatureToggleState(
         Natives.FEATURE_WEBVIEW_ZYGOTE_UMOUNT
@@ -194,7 +184,7 @@ fun FeatureControlContent(
     }
 
     val saving = listOf(
-        selinuxHide, kernelUmountDisabled, webViewZygoteUmount,
+        selinuxHide, webViewZygoteUmount,
         adbRoot, hideBootloader, shellSuAdbOnly,
         unicodePathGuard,
     ).any { it.saving }
@@ -240,23 +230,6 @@ fun FeatureControlContent(
                 )
 
                 FeatureSwitchItem(
-                    featureId = Natives.FEATURE_KERNEL_UMOUNT,
-                    icon = Icons.Rounded.RemoveCircle,
-                    title = stringResource(R.string.settings_disable_kernel_umount),
-                    summary = stringResource(R.string.settings_disable_kernel_umount_summary),
-                    state = kernelUmountDisabled,
-                    onChange = { disabled ->
-                        scope.persistFeature(
-                            state = kernelUmountDisabled,
-                            featureId = Natives.FEATURE_KERNEL_UMOUNT,
-                            featureName = "kernel_umount",
-                            kernelEnabled = !disabled,
-                            displayInverted = true
-                        )
-                    }
-                )
-
-                FeatureSwitchItem(
                     featureId = Natives.FEATURE_WEBVIEW_ZYGOTE_UMOUNT,
                     icon = Icons.Filled.Language,
                     title = stringResource(R.string.settings_webview_zygote_umount),
@@ -272,14 +245,6 @@ fun FeatureControlContent(
                             onFailure = { snackbarHost.showSnackbar(failedMessage) }
                         )
                     }
-                )
-
-                SettingItem(
-                    icon = Icons.Filled.FolderOff,
-                    title = stringResource(R.string.nav_umount_paths),
-                    summary = stringResource(R.string.nav_umount_paths_summary),
-                    enabled = !saving,
-                    onClick = { navigator.navigate(UmountManagerScreenDestination) },
                 )
 
                 FeatureSwitchItem(

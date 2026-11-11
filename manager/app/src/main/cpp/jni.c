@@ -501,14 +501,6 @@ NativeBridge(uidShouldUmount, jboolean, jint uid) {
   return uid_should_umount(uid);
 }
 
-NativeBridgeNP(isKernelUmountEnabled, jboolean) {
-  return is_kernel_umount_enabled();
-}
-
-NativeBridge(setKernelUmountEnabled, jboolean, jboolean enabled) {
-  return set_kernel_umount_enabled(enabled);
-}
-
 NativeBridgeNP(isSuLogEnabled, jboolean) { return is_sulog_enabled(); }
 
 NativeBridge(setSuLogEnabled, jboolean, jboolean enabled) {

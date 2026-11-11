@@ -107,7 +107,7 @@ writing if unsupported. Omitting these options clears previous overrides.
 Forced features report `forced` from `feature check`, appear as `[FORCED]` in
 `feature list`, and reject runtime writes. `feature load` and boot initialization
 skip them; `feature save` preserves their previous saved values. Forced sulog
-still starts its userspace logger. Fixed SUMH/security features and read-only
+still starts its userspace logger. Fixed SUMH/security features, removed features, and read-only
 status IDs cannot be forced. See the [boot configuration guide](zh/guide/boot-config.md)
 for available IDs and validation commands.
 
@@ -188,7 +188,11 @@ SUMH replay compiles the new module plan before clearing existing mappings; unsu
 
 `config merge-json` validates keys, types, enums, paths and numeric ranges. `config gen` writes defaults. `config apply` applies supported runtime settings; changing a mount layout still requires reboot. For kernel build overrides, either `set` operand may be `default`, but not both; `reset` restores both. See [kernel build overrides](zh/guide/sumh-kernel-build.md).
 
-Stealth, mount hiding, OverlayFS attribute hiding and statfs views are fixed built-in behaviors. They have no configuration fields or runtime switches. Old saved fields are ignored and omitted from exported configuration; attempts to modify them are rejected. Mount hiding uses native namespace identities with no configurable mode. OverlayFS targets are registered automatically when mounts are created; target registration and cleanup do not constitute a feature switch. SUMH protocol 2 requires matching kernel and userspace components so an older kernel cannot be mistaken for one providing these fixed behaviors.
+Stealth, mount hiding, OverlayFS attribute hiding and statfs views are fixed built-in behaviors. They have no configuration fields or runtime switches. Old saved fields are ignored and omitted from exported configuration; attempts to modify them are rejected. Mount hiding uses native namespace identities with no configurable mode. OverlayFS targets are registered automatically when mounts are created; target registration and cleanup do not constitute a feature switch. SUMH protocol 3 requires matching kernel and userspace components, including automatic mount registration.
+
+The `kernel_umount` feature and global disable switch have been removed, including their query and write interfaces. Former feature ID 1 is unused and cannot be selected by name or number. SUMHP manages module mounts and unmount targets; the kernel detaches inherited module mounts according to app profiles, alongside SUMH path and mount-view isolation. Legacy saved values are discarded by the generic configuration cleanup, and old boot overrides are ignored. Per-app module-unmount choices remain available.
+
+Manual unmount-path management has also been removed: the Manager page, `umount` and `kernel umount` command families, and their old kernel ioctls no longer exist. The old `/data/adb/ksu/.umount` file is never loaded or applied. SUMHP registers and unregisters actual mounts through SUMH's managed-mount channel during mounting and rollback; the kernel verifies each mount's identity and uses `MNT_DETACH`. There are no manual flags, list or clear operations. Registration errors propagate to the existing mount rollback path. Update the kernel, ksud and Manager together (UAPI 7 / SUMH protocol 3), then reboot; the controller does not fall back to the removed interfaces.
 
 Daemon control requests use a 5-second client timeout; other requests use 60 seconds. Timeout does not cancel an executing operation. Lost responses do not trigger replay; inspect state before retrying changes. Automatic startup/retry is limited to missing/refused socket connections. The newline-terminated transport limits requests to 64 KiB and client responses to 1 MiB; the daemon allows 5 seconds to receive or send a frame.
 
@@ -208,11 +212,6 @@ Legacy state migration runs before daemon startup or kernel-build restoration. M
 | `flash map <SLOT>` | Map logical partitions |
 | `flash avb [disable]` | Query AVB; `disable` modifies verification configuration |
 | `insmod <KO> [PARAMS...]` | Load an LKM with kallsyms support; also `debug insmod` |
-| `umount add <MOUNT>` | `--flags` / `-f <UINT32>`; register an unmount path |
-| `umount del <MOUNT>`, `umount remove <MOUNT>` | Delete an unmount entry |
-| `umount list`, `save`, `apply`, `clear-custom` | Inspect/persist custom unmount state |
-| `kernel umount add <MOUNT>` | `--flags` / `-f <UINT32>` |
-| `kernel umount del <MOUNT>`, `kernel umount wipe` | Modify the kernel unmount list |
 | `kernel nuke-ext4-sysfs <MOUNT>`, `kernel notify-module-mounted` | Low-level integration |
 
 `SLOT` accepts `a`, `b`, `_a`, `_b`; omission selects the current slot. `flash image` and `flash ak3` do not require an additional `--flash` flag.

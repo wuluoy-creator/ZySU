@@ -166,8 +166,6 @@
     <string name="home_android_version">Android versija</string>
     <string name="home_device_model">Ierīces modelis</string>
     <string name="su_not_allowed">Superlietotāja tiesību piešķiršana %s nav atļauta</string>
-    <string name="settings_disable_kernel_umount">Atspējot kodola umount</string>
-    <string name="settings_disable_kernel_umount_summary">Atspējot KernelSU kontrolēto kodola līmeņa umount darbību</string>
     <string name="settings_selinux_hide">Iespējot SELinux slēpšanu</string>
     <string name="settings_selinux_hide_summary">Slēpt KernelSU SELinux politikas izmaiņas no lietotņu puses pārbaudēm.</string>
     <string name="feature_status_unsupported_summary">Kodols neatbalsta šo funkciju</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Ielādēt vairāk žurnālu</string>
     <string name="log_viewer_all_logs_loaded">Visi žurnāli parādīti</string>
     <string name="incompatible_kernel_msg">Pašreizējais pārvaldnieks nav saderīgs ar šo kodolu! Lūdzu, atjauniniet kodolu uz versiju %2$d vai jaunāku (pašreiz %1$d)</string>
-    <string name="umount_path_manager">Paaugstināta ceļa pārvaldība</string>
-    <string name="umount_path_restart_notice">Lai izmaiņas stātos spēkā, nepieciešama restartēšana. Sistēma lietos jauno konfigurāciju nākamajā sāknēšanā</string>
-    <string name="add_umount_path">Pievienot umount ceļu</string>
-    <string name="mount_path">Montēšanas ceļš</string>
-    <string name="umount_flags">Atmontēšanas karodziņi</string>
-    <string name="umount_flags_hint">0=parastā atmontēšana, 2=MNT_DETACH</string>
-    <string name="flags">Karodziņi</string>
-    <string name="confirm_delete">Apstiprināt dzēšanu</string>
-    <string name="confirm_delete_umount_path">Vai tiešām vēlaties dzēst ceļu %s?</string>
-    <string name="umount_path_added">Ceļš pievienots, stāsies spēkā pēc restartēšanas</string>
-    <string name="umount_path_removed">Ceļš noņemts, stāsies spēkā pēc restartēšanas</string>
     <string name="operation_failed">Darbība neizdevās</string>
-    <string name="confirm_action">Apstiprināt darbību</string>
-    <string name="confirm_clear_custom_paths">Vai tiešām vēlaties notīrīt visus pielāgotos ceļus? (noklusējuma ceļi tiks saglabāti)</string>
-    <string name="custom_paths_cleared">Pielāgotie ceļi notīrīti</string>
-    <string name="clear_custom_paths">Notīrīt pielāgotos</string>
-    <string name="apply_config">Lietot konfigurāciju</string>
-    <string name="config_applied">Konfigurācija lietota kodolam</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Satur %d lietotnes</string>
     <string name="settings_disable_sulog">Superlietotāja reģistrēšana</string>
     <string name="settings_disable_sulog_summary">Reģistrēt KernelSU superlietotāja piekļuvi</string>

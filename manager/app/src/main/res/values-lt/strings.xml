@@ -164,8 +164,6 @@
     <string name="home_android_version">Android versija</string>
     <string name="home_device_model">Įrenginio modelis</string>
     <string name="su_not_allowed">Supervartotojo teisių suteikimas %s neleidžiamas</string>
-    <string name="settings_disable_kernel_umount">Išjungti branduolio umount</string>
-    <string name="settings_disable_kernel_umount_summary">Išjungti KernelSU valdomą branduolio lygio umount elgseną</string>
     <string name="settings_selinux_hide">Įjungti SELinux slėpimą</string>
     <string name="settings_selinux_hide_summary">Slėpti KernelSU SELinux politikos pakeitimus nuo programos pusės patikrinimų.</string>
     <string name="feature_status_unsupported_summary">Branduolys nepalaiko šios funkcijos</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Įkelti daugiau žurnalų</string>
     <string name="log_viewer_all_logs_loaded">Rodomi visi žurnalai</string>
     <string name="incompatible_kernel_msg">Dabartinė tvarkyklė nesuderinama su šiuo branduoliu! Atnaujinkite branduolį į versiją %2$d arba naujesnę (dabar %1$d)</string>
-    <string name="umount_path_manager">Umount kelių tvarkymas</string>
-    <string name="umount_path_restart_notice">Kad pakeitimai įsigaliotų, reikia paleisti iš naujo. Sistema pritaikys naują konfigūraciją kitą kartą paleidžiant</string>
-    <string name="add_umount_path">Pridėti umount kelią</string>
-    <string name="mount_path">Prijungimo kelias</string>
-    <string name="umount_flags">Atjungimo vėliavėlės</string>
-    <string name="umount_flags_hint">0=įprastas atjungimas, 2=MNT_DETACH</string>
-    <string name="flags">Vėliavėlės</string>
-    <string name="confirm_delete">Patvirtinti ištrynimą</string>
-    <string name="confirm_delete_umount_path">Ar tikrai norite ištrinti kelią %s?</string>
-    <string name="umount_path_added">Kelias pridėtas, įsigalios po paleidimo iš naujo</string>
-    <string name="umount_path_removed">Kelias pašalintas, įsigalios po paleidimo iš naujo</string>
     <string name="operation_failed">Operacija nepavyko</string>
-    <string name="confirm_action">Patvirtinti veiksmą</string>
-    <string name="confirm_clear_custom_paths">Ar tikrai norite išvalyti visus pasirinktinius kelius? (numatytieji keliai bus išsaugoti)</string>
-    <string name="custom_paths_cleared">Pasirinktiniai keliai išvalyti</string>
-    <string name="clear_custom_paths">Išvalyti pasirinktinius</string>
-    <string name="apply_config">Pritaikyti konfigūraciją</string>
-    <string name="config_applied">Konfigūracija pritaikyta branduoliui</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Turi %d programas</string>
     <string name="settings_disable_sulog">Supervartotojo registravimas</string>
     <string name="settings_disable_sulog_summary">Registruoti KernelSU supervartotojo prieigą</string>

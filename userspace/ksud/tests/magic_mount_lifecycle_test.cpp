@@ -89,16 +89,22 @@ namespace logging {
 enum class Level { Info, Error };
 void write(Level, const std::string&, const std::string&) {}
 }  // namespace logging
-namespace ksud {
-int umount_list_add(const std::string& path, int flags) {
+namespace sumh {
+bool register_managed_mount(const std::string& path) {
     fixture::state.registration_attempts.push_back(path);
     fixture::state.events.push_back("register:" + path);
     if (fixture::state.fail_registration == path)
-        return -1;
-    fixture::state.registrations[path] = flags;
-    return 0;
+        return false;
+    fixture::state.registrations[path] = MNT_DETACH;
+    return true;
 }
-}  // namespace ksud
+bool unregister_managed_mount(const std::string& path) {
+    if (fixture::state.fail_unregistration == path)
+        return false;
+    fixture::state.registrations.erase(path);
+    return true;
+}
+}  // namespace sumh
 #include "embedded_umount_under_test.inc"
 
 fs::path runtime_data_dir() {
@@ -142,10 +148,7 @@ bool register_umount(const std::string& path) {
     return embedded_register_umount(path);
 }
 bool unregister_umount(const std::string& path) {
-    if (fixture::state.fail_unregistration == path)
-        return false;
-    fixture::state.registrations.erase(path);
-    return true;
+    return embedded_unregister_umount(path);
 }
 bool read_mount_journal(const std::string&, std::vector<MountRecord>& records, bool& legacy) {
     records = fixture::state.journal;

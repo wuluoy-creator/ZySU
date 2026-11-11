@@ -166,8 +166,6 @@
     <string name="home_android_version">เวอร์ชัน Android</string>
     <string name="home_device_model">รุ่นอุปกรณ์</string>
     <string name="su_not_allowed">ไม่อนุญาตให้มอบสิทธิ์ซูเปอร์ยูเซอร์แก่ %s</string>
-    <string name="settings_disable_kernel_umount">ปิดใช้งาน umount ของเคอร์เนล</string>
-    <string name="settings_disable_kernel_umount_summary">ปิดใช้งานพฤติกรรม umount ระดับเคอร์เนลที่ควบคุมโดย KernelSU</string>
     <string name="settings_selinux_hide">เปิดใช้งานการซ่อน SELinux</string>
     <string name="settings_selinux_hide_summary">ซ่อนการเปลี่ยนแปลงนโยบาย SELinux ของ KernelSU จากการตรวจสอบฝั่งแอป</string>
     <string name="feature_status_unsupported_summary">เคอร์เนลไม่รองรับฟีเจอร์นี้</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">โหลดบันทึกเพิ่มเติม</string>
     <string name="log_viewer_all_logs_loaded">แสดงบันทึกทั้งหมดแล้ว</string>
     <string name="incompatible_kernel_msg">ตัวจัดการปัจจุบันไม่เข้ากันกับเคอร์เนลนี้! กรุณาอัปเกรดเคอร์เนลเป็นเวอร์ชัน %2$d หรือสูงกว่า (ปัจจุบัน %1$d)</string>
-    <string name="umount_path_manager">การจัดการพาธ umount</string>
-    <string name="umount_path_restart_notice">ต้องรีบูตเพื่อให้การเปลี่ยนแปลงมีผล ระบบจะใช้การกำหนดค่าใหม่เมื่อบูตครั้งถัดไป</string>
-    <string name="add_umount_path">เพิ่มพาธ umount</string>
-    <string name="mount_path">พาธการเมานต์</string>
-    <string name="umount_flags">แฟล็กการยกเลิกการเมานต์</string>
-    <string name="umount_flags_hint">0=ยกเลิกการเมานต์ปกติ, 2=MNT_DETACH</string>
-    <string name="flags">แฟล็ก</string>
-    <string name="confirm_delete">ยืนยันการลบ</string>
-    <string name="confirm_delete_umount_path">คุณแน่ใจหรือไม่ว่าต้องการลบพาธ %s?</string>
-    <string name="umount_path_added">เพิ่มพาธแล้ว จะมีผลหลังจากรีบูต</string>
-    <string name="umount_path_removed">ลบพาธแล้ว จะมีผลหลังจากรีบูต</string>
     <string name="operation_failed">การดำเนินการล้มเหลว</string>
-    <string name="confirm_action">ยืนยันการกระทำ</string>
-    <string name="confirm_clear_custom_paths">คุณแน่ใจหรือไม่ว่าต้องการล้างพาธแบบกำหนดเองทั้งหมด? (พาธเริ่มต้นจะถูกเก็บไว้)</string>
-    <string name="custom_paths_cleared">ล้างพาธแบบกำหนดเองแล้ว</string>
-    <string name="clear_custom_paths">ล้างแบบกำหนดเอง</string>
-    <string name="apply_config">ใช้การกำหนดค่า</string>
-    <string name="config_applied">ใช้การกำหนดค่ากับเคอร์เนลแล้ว</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">มี %d แอป</string>
     <string name="settings_disable_sulog">การบันทึกซูเปอร์ยูเซอร์</string>
     <string name="settings_disable_sulog_summary">บันทึกการเข้าถึงซูเปอร์ยูเซอร์ของ KernelSU</string>

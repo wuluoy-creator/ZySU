@@ -164,8 +164,6 @@
     <string name="home_android_version">Android వెర్షన్</string>
     <string name="home_device_model">పరికర మోడల్</string>
     <string name="su_not_allowed">%sకు సూపర్‌యూజర్ ఇవ్వడానికి అనుమతి లేదు</string>
-    <string name="settings_disable_kernel_umount">కెర్నల్ umountను నిలిపివేయండి</string>
-    <string name="settings_disable_kernel_umount_summary">KernelSU చేత నియంత్రించబడే కెర్నల్-స్థాయి umount ప్రవర్తనను నిలిపివేయండి</string>
     <string name="settings_selinux_hide">SELinux దాచడాన్ని ప్రారంభించండి</string>
     <string name="settings_selinux_hide_summary">యాప్-ముఖ ప్రోబ్‌ల నుండి KernelSU SELinux విధాన మార్పులను దాచండి</string>
     <string name="feature_status_unsupported_summary">కెర్నల్ ఈ ఫీచర్‌కు మద్దతు ఇవ్వదు</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">మరిన్ని లాగ్‌లను లోడ్ చేయండి</string>
     <string name="log_viewer_all_logs_loaded">అన్ని లాగ్‌లు ప్రదర్శించబడ్డాయి</string>
     <string name="incompatible_kernel_msg">ప్రస్తుత మేనేజర్ ఈ కెర్నల్‌తో అనుకూలంగా లేదు! దయచేసి కెర్నల్‌ను వెర్షన్ %2$d లేదా అంతకంటే ఎక్కువకు అప్‌గ్రేడ్ చేయండి (ప్రస్తుతం %1$d)</string>
-    <string name="umount_path_manager">Umount పాత్ నిర్వహణ</string>
-    <string name="umount_path_restart_notice">మార్పులు అమలులోకి రావడానికి రీబూట్ అవసరం. సిస్టమ్ తదుపరి బూట్‌లో కొత్త కాన్ఫిగరేషన్‌ను వర్తింపజేస్తుంది</string>
-    <string name="add_umount_path">Umount పాత్ జోడించండి</string>
-    <string name="mount_path">మౌంట్ పాత్</string>
-    <string name="umount_flags">అన్‌మౌంట్ ఫ్లాగ్‌లు</string>
-    <string name="umount_flags_hint">0=సాధారణ అన్‌మౌంట్, 2=MNT_DETACH</string>
-    <string name="flags">ఫ్లాగ్‌లు</string>
-    <string name="confirm_delete">తొలగింపును నిర్ధారించండి</string>
-    <string name="confirm_delete_umount_path">మీరు ఖచ్చితంగా %s పాత్‌ను తొలగించాలనుకుంటున్నారా?</string>
-    <string name="umount_path_added">పాత్ జోడించబడింది, రీబూట్ తర్వాత అమలులోకి వస్తుంది</string>
-    <string name="umount_path_removed">పాత్ తీసివేయబడింది, రీబూట్ తర్వాత అమలులోకి వస్తుంది</string>
     <string name="operation_failed">ఆపరేషన్ విఫలమైంది</string>
-    <string name="confirm_action">చర్యను నిర్ధారించండి</string>
-    <string name="confirm_clear_custom_paths">మీరు ఖచ్చితంగా అన్ని కస్టమ్ పాత్‌లను క్లియర్ చేయాలనుకుంటున్నారా? (డిఫాల్ట్ పాత్‌లు భద్రపరచబడతాయి)</string>
-    <string name="custom_paths_cleared">కస్టమ్ పాత్‌లు క్లియర్ చేయబడ్డాయి</string>
-    <string name="clear_custom_paths">కస్టమ్ పాత్‌లను క్లియర్ చేయండి</string>
-    <string name="apply_config">కాన్ఫిగరేషన్‌ను వర్తింపజేయండి</string>
-    <string name="config_applied">కెర్నల్‌కు కాన్ఫిగరేషన్ వర్తింపజేయబడింది</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">%d యాప్‌లను కలిగి ఉంది</string>
     <string name="settings_disable_sulog">సూపర్‌యూజర్ లాగింగ్</string>
     <string name="settings_disable_sulog_summary">KernelSU సూపర్‌యూజర్ యాక్సెస్‌ను లాగ్ చేయండి</string>

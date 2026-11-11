@@ -44,6 +44,11 @@ typedef unsigned int uid_t;
 #define pr_debug(...) ((void)0)
 #define unlikely(x) (x)
 #define __user
+#define READ_ONCE(v) (v)
+#define WRITE_ONCE(v, x) ((v) = (x))
+static unsigned proc_proxy_refs;
+static int sumh_proc_proxy_get(void) { ++proc_proxy_refs; return 0; }
+static void sumh_proc_proxy_put(void) { assert(proc_proxy_refs); --proc_proxy_refs; }
 #define KSU_FEATURE_FLAG_SUPPORTED 1
 #define KSU_FEATURE_FLAG_FORCED 2
 struct ksu_get_feature_cmd { u32 feature_id; u64 value; unsigned char supported; };
@@ -134,6 +139,24 @@ int main(void) {
     assert(!ksu_feature_is_forced(99) && !ksu_feature_is_forced(100));
     assert(!ksu_feature_is_forced(106) && !ksu_feature_is_forced(108));
     assert(!ksu_feature_is_forced(UINT32_MAX) && !ksu_feature_is_forced(0));
+    // The removed global switch has no handler, including after real umount init.
+    ksu_kernel_umount_init();
+    ksu_feature_parse_forced("kernel_umount:0,1:0,kernel_umount:1,1:1");
+    assert(!ksu_feature_is_forced(1) && !test_bit(1, forced_pending));
+    struct ksu_get_feature_cmd umount_query = {1, UINT64_MAX, 0xff};
+    assert(!do_get_feature(&umount_query));
+    assert(umount_query.value == 0 && umount_query.supported == 0);
+    assert(ksu_set_feature(1, 0) == -EOPNOTSUPP);
+    assert(ksu_set_feature(1, 1) == -EOPNOTSUPP);
+    ksu_feature_apply_forced();
+    assert(!do_get_feature(&umount_query) && umount_query.supported == 0);
+    // The independent WebView and namespace cleanup controls still work.
+    assert(!ksu_set_feature(KSU_FEATURE_WEBVIEW_ZYGOTE_UMOUNT, 1));
+    assert(ksu_is_webview_zygote_umount_enabled());
+    assert(!ksu_set_feature(KSU_FEATURE_UNSHARE_MNT, 1));
+    assert(ksu_is_unshare_mnt_enabled() && proc_proxy_refs == 1);
+    ksu_kernel_umount_exit();
+    assert(!ksu_is_unshare_mnt_enabled() && proc_proxy_refs == 0);
     ksu_feature_parse_forced("sulog:3");
     assert(forced_values[2] == 3);
     ksu_feature_apply_forced();
@@ -211,6 +234,10 @@ def main():
     args = parser.parse_args()
     compiler = [str(args.zig), 'cc'] if args.zig else [args.cc]
     code = PRELUDE + source('kernel/policy/feature.h') + source('kernel/policy/feature.c')
+    umount = source('kernel/feature/kernel_umount.c')
+    code += umount[:umount.index('extern int path_umount(')]
+    code += function('kernel/feature/kernel_umount.c', 'void ksu_kernel_umount_init(')
+    code += function('kernel/feature/kernel_umount.c', 'void ksu_kernel_umount_exit(')
     code += function('kernel/supercall/dispatch.c', 'static int do_get_feature(')
     code += source('kernel/feature/shell_su_adb_only.c')
     code += function('kernel/policy/allowlist.c', 'bool ksu_is_uid_granted_root(')

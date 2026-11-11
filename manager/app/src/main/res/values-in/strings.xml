@@ -166,8 +166,6 @@
     <string name="home_android_version">Versi Android</string>
     <string name="home_device_model">Model Perangkat</string>
     <string name="su_not_allowed">Memberikan hak superuser kepada %s tidak diizinkan</string>
-    <string name="settings_disable_kernel_umount">Nonaktifkan pelepasan (unmount) kernel</string>
-    <string name="settings_disable_kernel_umount_summary">Nonaktifkan perilaku unmount pada level kernel yang digunakan oleh KernelSU.</string>
     <string name="settings_selinux_hide">Aktifkan sembunyikan SELinux</string>
     <string name="settings_selinux_hide_summary">Sembunyikan perubahan kebijakan SELinux KernelSU dari pemeriksaan sisi aplikasi.</string>
     <string name="feature_status_unsupported_summary">Kernel tidak mendukung fitur ini</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Muat lebih banyak log</string>
     <string name="log_viewer_all_logs_loaded">Semua log ditampilkan</string>
     <string name="incompatible_kernel_msg">Pengelola saat ini tidak kompatibel dengan kernel ini! Silakan tingkatkan kernel ke versi %2$d atau lebih tinggi (saat ini %1$d)</string>
-    <string name="umount_path_manager">Pengelolaan jalur umount</string>
-    <string name="umount_path_restart_notice">Diperlukan mulai ulang agar perubahan berlaku. Sistem akan menerapkan konfigurasi baru saat boot berikutnya</string>
-    <string name="add_umount_path">Tambah jalur umount</string>
-    <string name="mount_path">Jalur pemasangan</string>
-    <string name="umount_flags">Tanda lepas pasang</string>
-    <string name="umount_flags_hint">0=lepas pasang normal, 2=MNT_DETACH</string>
-    <string name="flags">Tanda</string>
-    <string name="confirm_delete">Konfirmasi hapus</string>
-    <string name="confirm_delete_umount_path">Apakah Anda yakin ingin menghapus jalur %s?</string>
-    <string name="umount_path_added">Jalur ditambahkan, akan berlaku setelah mulai ulang</string>
-    <string name="umount_path_removed">Jalur dihapus, akan berlaku setelah mulai ulang</string>
     <string name="operation_failed">Operasi gagal</string>
-    <string name="confirm_action">Konfirmasi tindakan</string>
-    <string name="confirm_clear_custom_paths">Apakah Anda yakin ingin menghapus semua jalur kustom? (jalur bawaan akan dipertahankan)</string>
-    <string name="custom_paths_cleared">Jalur kustom dihapus</string>
-    <string name="clear_custom_paths">Hapus kustom</string>
-    <string name="apply_config">Terapkan konfigurasi</string>
-    <string name="config_applied">Konfigurasi diterapkan ke kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Berisi %d aplikasi</string>
     <string name="settings_disable_sulog">Pencatatan superuser</string>
     <string name="settings_disable_sulog_summary">Catat akses superuser KernelSU</string>

@@ -6,8 +6,6 @@
     <string name="nav_records_summary">查看应用的 Root 请求和命令记录</string>
     <string name="nav_records_disabled">授权日志尚未开启，可在「诊断」中开启后查看记录。</string>
     <string name="nav_kernel_policy">其他设置</string>
-    <string name="nav_umount_paths">卸载路径</string>
-    <string name="nav_umount_paths_summary">管理从应用挂载命名空间卸载的路径</string>
     <string name="nav_diagnostics">诊断与日志</string>
     <string name="nav_diagnostic_options">选项与导出</string>
     <string name="nav_kernel_logs">运行日志</string>

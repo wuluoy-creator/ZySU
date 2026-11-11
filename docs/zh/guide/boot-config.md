@@ -19,7 +19,6 @@ ksud boot-patch-v2 --boot boot.img --output patched-boot.img \
 
 | 名称 | ID |
 | --- | --- |
-| `kernel_umount` | 1 |
 | `sulog` | 2 |
 | `adb_root` | 3 |
 | `selinux_hide` | 4 |
@@ -29,8 +28,21 @@ ksud boot-patch-v2 --boot boot.img --output patched-boot.img \
 | `unshare_mnt` | 107 |
 | `unicode_path_guard` | 109 |
 
-本地 ID 5 仍在使用，不能复用于 Shell 限制。`su_compat`、SUMH、增强安全、默认
+本地 ID 5 仍在使用，不能复用于 Shell 限制。已移除的功能、`su_compat`、SUMH、增强安全、默认
 NO_NEW_PRIVS 和只读状态 ID 不接受强制配置，避免改变固定策略或锁住 SUMH 的路径重绑定。
+
+`kernel_umount` 功能及“关闭内核 umount”设置已完整移除，包括查询和写入接口。
+原 ID 1 留空且不再复用，功能名称和数字编号均不可再选用。
+SUMHP 管理模块挂载及卸载目标，内核按应用配置卸载继承的模块挂载，SUMH 负责路径与挂载视图隔离。
+旧功能配置由通用配置清理流程丢弃，旧启动镜像中的对应强制项也会被忽略。
+按应用的“卸载模块”仍然可用。
+
+“卸载路径”手工管理功能、`umount` / `kernel umount` 命令及旧内核接口也已删除。
+旧 `/data/adb/ksu/.umount` 文件不再读取或开机恢复，避免覆盖 SUMHP 的实际挂载状态。
+SUMHP 在挂载、回滚和卸载过程中通过 SUMH 自动登记、注销目标；登记时校验完整路径和实际
+挂载身份，内核统一使用 `MNT_DETACH`，不提供手工列表、清空或 flags 设置。
+登记失败会交给现有挂载回滚流程处理。内核、ksud 和管理器须一同更新至 UAPI 7 / SUMH
+协议 3 并重启，不回退到已移除的接口。
 
 ramdisk 修补通过 `/ksu_config` 传递配置；直接 LKM 注入使用本地 512 字节
 ImgPatch 配置块，当前版本为 4，不改变现有引导胶囊格式。版本 3 引入强制功能与模块屏蔽，

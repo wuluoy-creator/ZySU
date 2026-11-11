@@ -9,6 +9,13 @@ on:
       - 'kernel/selinux/**'
       - 'kernel/infra/btf_parser.*'
       - 'kernel/infra/file_wrapper.c'
+      - 'kernel/infra/mount_policy.*'
+      - 'kernel/feature/kernel_umount.*'
+      - 'kernel/policy/allowlist.*'
+      - 'kernel/hook/setuid_hook.c'
+      - 'kernel/hook/tp_marker.c'
+      - 'kernel/supercall/dispatch.c'
+      - 'uapi/supercall.h'
       - 'uapi/feature.h'
       - 'scripts/ci/test_selinux_*.py'
       - 'scripts/ci/test_sepolicy_avtab.py'
@@ -39,6 +46,13 @@ on:
       - 'kernel/selinux/**'
       - 'kernel/infra/btf_parser.*'
       - 'kernel/infra/file_wrapper.c'
+      - 'kernel/infra/mount_policy.*'
+      - 'kernel/feature/kernel_umount.*'
+      - 'kernel/policy/allowlist.*'
+      - 'kernel/hook/setuid_hook.c'
+      - 'kernel/hook/tp_marker.c'
+      - 'kernel/supercall/dispatch.c'
+      - 'uapi/supercall.h'
       - 'uapi/feature.h'
       - 'scripts/ci/test_selinux_*.py'
       - 'scripts/ci/test_sepolicy_avtab.py'
@@ -85,6 +99,9 @@ jobs:
           python3 scripts/ci/test_sumh_directory_names.py --cc clang
           python3 scripts/ci/test_sumh_directory_stream.py --cc clang
           python3 scripts/ci/test_sumh_mount_views.py --cc clang
+          python3 scripts/ci/test_sumh_managed_mounts.py --cc clang
+          python3 scripts/ci/test_sumh_app_umount.py --cc clang
+          python3 scripts/ci/test_sumh_zygote_umount.py --cc clang
           python3 scripts/ci/test_sumh_native_namespace.py --cc clang
           python3 scripts/ci/test_selinux_btf.py --cc clang
           python3 scripts/ci/test_selinux_policy_updates.py --cc clang

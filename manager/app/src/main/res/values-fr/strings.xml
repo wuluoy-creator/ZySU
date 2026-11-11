@@ -166,8 +166,6 @@
     <string name="home_android_version">Version Android</string>
     <string name="home_device_model">Modèle du téléphone</string>
     <string name="su_not_allowed">Donner un super-utilisateur à %s n\'est pas autorisé</string>
-    <string name="settings_disable_kernel_umount">Désactiver le démontage du noyau</string>
-    <string name="settings_disable_kernel_umount_summary">Désactiver le comportement de démontage au niveau du noyau contrôlé par KernelSU</string>
     <string name="settings_selinux_hide">Activer le masquage SELinux</string>
     <string name="settings_selinux_hide_summary">Masquer les modifications de la politique SELinux de KernelSU vis-à-vis des sondes côté application.</string>
     <string name="feature_status_unsupported_summary">Le noyau ne prend pas en charge cette fonction</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Charger plus de journaux</string>
     <string name="log_viewer_all_logs_loaded">Tous les journaux affichés</string>
     <string name="incompatible_kernel_msg">Le gestionnaire actuel est incompatible avec ce noyau ! Veuillez mettre à niveau le noyau vers la version %2$d ou supérieure (actuellement %1$d)</string>
-    <string name="umount_path_manager">Gestion des chemins de démontage</string>
-    <string name="umount_path_restart_notice">Un redémarrage est nécessaire pour que les modifications prennent effet. Le système appliquera la nouvelle configuration au prochain démarrage</string>
-    <string name="add_umount_path">Ajouter un chemin de démontage</string>
-    <string name="mount_path">Chemin de montage</string>
-    <string name="umount_flags">Indicateurs de démontage</string>
-    <string name="umount_flags_hint">0=démontage normal, 2=MNT_DETACH</string>
-    <string name="flags">Indicateurs</string>
-    <string name="confirm_delete">Confirmer la suppression</string>
-    <string name="confirm_delete_umount_path">Voulez-vous vraiment supprimer le chemin %s ?</string>
-    <string name="umount_path_added">Chemin ajouté, prendra effet après le redémarrage</string>
-    <string name="umount_path_removed">Chemin supprimé, prendra effet après le redémarrage</string>
     <string name="operation_failed">Échec de l\'opération</string>
-    <string name="confirm_action">Confirmer l\'action</string>
-    <string name="confirm_clear_custom_paths">Voulez-vous vraiment effacer tous les chemins personnalisés ? (les chemins par défaut seront conservés)</string>
-    <string name="custom_paths_cleared">Chemins personnalisés effacés</string>
-    <string name="clear_custom_paths">Effacer les personnalisés</string>
-    <string name="apply_config">Appliquer la configuration</string>
-    <string name="config_applied">Configuration appliquée au noyau</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Contient %d applications</string>
     <string name="settings_disable_sulog">Journalisation superutilisateur</string>
     <string name="settings_disable_sulog_summary">Journaliser les accès superutilisateur de KernelSU</string>

@@ -27,14 +27,6 @@ using GetWrapperFdCmd = ksu_get_wrapper_fd_cmd;
 using GetSulogFdCmd = ksu_get_sulog_fd_cmd;
 using ManageMarkCmd = ksu_manage_mark_cmd;
 using NukeExt4SysfsCmd = ksu_nuke_ext4_sysfs_cmd;
-using AddTryUmountCmd = ksu_add_try_umount_cmd;
-
-// ZySU-only: list umount ioctl (not in upstream uapi)
-struct ListTryUmountCmd {
-    uint64_t arg;
-    uint32_t buf_size;
-};
-#define KSU_IOCTL_LIST_TRY_UMOUNT _IOC(_IOC_READ | _IOC_WRITE, 'K', 200, 0)
 
 // API functions
 // Install the SIGSYS guard used only while trying the legacy reboot syscall
@@ -92,12 +84,6 @@ int mark_refresh();
 
 int nuke_ext4_sysfs(const std::string& mnt);
 int set_init_pgrp();
-
-// Umount list management
-int umount_list_wipe();
-int umount_list_add(const std::string& path, uint32_t flags);
-int umount_list_del(const std::string& path);
-std::optional<std::string> umount_list_list();
 
 int get_manager_uid();
 

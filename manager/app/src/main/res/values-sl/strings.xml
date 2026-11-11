@@ -164,8 +164,6 @@
     <string name="home_android_version">Različica Android</string>
     <string name="home_device_model">Model naprave</string>
     <string name="su_not_allowed">Dodelitev pravic superuporabnika za %s ni dovoljena</string>
-    <string name="settings_disable_kernel_umount">Onemogoči umount jedra</string>
-    <string name="settings_disable_kernel_umount_summary">Onemogoči vedenje umount na ravni jedra, ki ga nadzoruje KernelSU</string>
     <string name="settings_selinux_hide">Omogoči skrivanje SELinux</string>
     <string name="settings_selinux_hide_summary">Skrij spremembe politike SELinux KernelSU pred preverjanji na strani aplikacij.</string>
     <string name="feature_status_unsupported_summary">Jedro ne podpira te funkcije</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Naloži več dnevnikov</string>
     <string name="log_viewer_all_logs_loaded">Prikazani vsi dnevniki</string>
     <string name="incompatible_kernel_msg">Trenutni upravitelj ni združljiv s tem jedrom! Nadgradite jedro na različico %2$d ali novejšo (trenutno %1$d)</string>
-    <string name="umount_path_manager">Upravljanje poti umount</string>
-    <string name="umount_path_restart_notice">Za uveljavitev sprememb je potreben ponovni zagon. Sistem bo uporabil novo konfiguracijo ob naslednjem zagonu</string>
-    <string name="add_umount_path">Dodaj pot umount</string>
-    <string name="mount_path">Pot priklopa</string>
-    <string name="umount_flags">Zastavice odklopa</string>
-    <string name="umount_flags_hint">0=običajni odklop, 2=MNT_DETACH</string>
-    <string name="flags">Zastavice</string>
-    <string name="confirm_delete">Potrdi brisanje</string>
-    <string name="confirm_delete_umount_path">Ali ste prepričani, da želite izbrisati pot %s?</string>
-    <string name="umount_path_added">Pot dodana, uveljavi se po ponovnem zagonu</string>
-    <string name="umount_path_removed">Pot odstranjena, uveljavi se po ponovnem zagonu</string>
     <string name="operation_failed">Operacija ni uspela</string>
-    <string name="confirm_action">Potrdi dejanje</string>
-    <string name="confirm_clear_custom_paths">Ali ste prepričani, da želite počistiti vse lastne poti? (privzete poti bodo ohranjene)</string>
-    <string name="custom_paths_cleared">Lastne poti počiščene</string>
-    <string name="clear_custom_paths">Počisti lastne</string>
-    <string name="apply_config">Uporabi konfiguracijo</string>
-    <string name="config_applied">Konfiguracija uporabljena za jedro</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Vsebuje %d aplikacij</string>
     <string name="settings_disable_sulog">Beleženje superuporabnika</string>
     <string name="settings_disable_sulog_summary">Beleži dostop superuporabnika KernelSU</string>

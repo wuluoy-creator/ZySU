@@ -1,6 +1,7 @@
 #include "klog.h" // IWYU pragma: keep
 #include "ksu.h"
 #include "linux/cred.h"
+#include <linux/kernel.h>
 #include "linux/sched.h"
 #include "linux/version.h"
 #include "selinux.h"
@@ -213,9 +214,66 @@ bool is_ksu_domain()
 	return is_task_ksu_domain(current_cred());
 }
 
-bool is_zygote(const struct cred *cred)
+static bool ksu_is_zygote_context(const char *context, u32 len)
 {
-	return is_sid_match(cred, cached_zygote_sid, ZYGOTE_CONTEXT);
+	static const char *const prefixes[] = {
+	    "u:r:zygote:",
+	    "u:r:app_zygote:",
+	    "u:r:webview_zygote:",
+	};
+	size_t i, prefix_len;
+
+	if (!context || !len)
+		return false;
+	if (context[len - 1] == '\0')
+		len--;
+	/* SID-to-context supplies a validated SELinux context. Match the full
+	 * type and its delimiter; retain any MLS level/category suffix. */
+	for (i = 0; i < ARRAY_SIZE(prefixes); i++) {
+		prefix_len = strlen(prefixes[i]);
+		if (len > prefix_len &&
+		    !strncmp(context, prefixes[i], prefix_len))
+			return true;
+	}
+	return false;
+}
+
+bool ksu_is_trusted_zygote(const struct cred *cred)
+{
+	struct lsm_context ctx;
+	bool trusted;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0)
+	const struct task_security_struct *tsec;
+#else
+	const struct cred_security_struct *tsec;
+#endif
+
+	if (!cred || !(tsec = selinux_cred(cred)))
+		return false;
+	if (cached_zygote_sid && tsec->sid == cached_zygote_sid)
+		return true;
+	if (__security_secid_to_secctx(tsec->sid, &ctx))
+		return false;
+	trusted = ksu_is_zygote_context(ctx.context, ctx.len);
+	__security_release_secctx(&ctx);
+	return trusted;
+}
+
+bool ksu_zygote_cred_changed(const struct cred *old, const struct cred *new)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0)
+	const struct task_security_struct *old_sec, *new_sec;
+#else
+	const struct cred_security_struct *old_sec, *new_sec;
+#endif
+
+	if (!old || !new)
+		return false;
+	old_sec = selinux_cred(old);
+	new_sec = selinux_cred(new);
+	if (!old_sec || !new_sec || old_sec->sid == new_sec->sid)
+		return false;
+	return ksu_is_trusted_zygote(new) || ksu_is_trusted_zygote(old);
 }
 
 bool is_init(const struct cred *cred)

@@ -22,7 +22,7 @@ def rules_source():
 #define EFAULT 14
 #define GFP_KERNEL 0
 #define SUMH_IOC_LIST_RULES 1
-#define SUMH_PROTOCOL_VERSION 2
+#define SUMH_PROTOCOL_VERSION 3
 #define SUMH_FEATURE_MOUNT_HIDE 1
 #define SUMH_FEATURE_MAPS_SPOOF 2
 #define SUMH_FEATURE_STATFS_SPOOF 4
@@ -161,7 +161,7 @@ static long list_rules(unsigned int cmd, void *arg) {
     return -1;
 }
 int main(void) {
-    static const char expected[] = "SUMH Protocol: 2\nSUMH Enabled: 1\n"
+    static const char expected[] = "SUMH Protocol: 3\nSUMH Enabled: 1\n"
         "add /system/test /data/adb/modules/demo/system/test 0\n"
         "stealth enabled\n";
     const size_t length = sizeof(expected) - 1;
@@ -210,7 +210,7 @@ int main(void) {
     sumh_paths = NULL;
     sumh_feature_enabled_mask = 0;
     sumh_proc_proxy_registered = statfs_ready = 1;
-    static const char fixed[] = "SUMH Protocol: 2\nSUMH Enabled: 1\n"
+    static const char fixed[] = "SUMH Protocol: 3\nSUMH Enabled: 1\n"
         "mount_hide enabled mode=normal\nstatfs_spoof enabled\nstealth enabled\n";
     CHECK(list_rules(SUMH_IOC_LIST_RULES, &request) == 0);
     CHECK(request.size == sizeof(fixed) - 1 && !strncmp(output, fixed, request.size));

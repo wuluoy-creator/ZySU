@@ -164,8 +164,6 @@
     <string name="home_android_version">Phiên bản Android</string>
     <string name="home_device_model">Mẫu thiết bị</string>
     <string name="su_not_allowed">Không thể cấp quyền Superuser cho %s</string>
-    <string name="settings_disable_kernel_umount">Vô hiệu hoá kernel umount</string>
-    <string name="settings_disable_kernel_umount_summary">Vô hiệu hoá umount kernel-level được kiểm soát bởi KernelSU</string>
     <string name="settings_selinux_hide">Bật ẩn SELinux</string>
     <string name="settings_selinux_hide_summary">Ẩn các thay đổi chính sách SELinux của KernelSU khỏi các thăm dò từ phía ứng dụng.</string>
     <string name="feature_status_unsupported_summary">Kernel không hỗ trợ tính năng này</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Đang load thêm nhật ký</string>
     <string name="log_viewer_all_logs_loaded">Tất cả nhật ký đã được hiển thị</string>
     <string name="incompatible_kernel_msg">Trình quản lý hiện tại không tương thích với Kernel này! Vui lòng nâng cấp Kernel lên phiên bản %2$d hoặc cao hơn (hiện tại là %1$d)</string>
-    <string name="umount_path_manager">Quản lý Đường dẫn Umount</string>
-    <string name="umount_path_restart_notice">Cần khởi động lại để các thay đổi có hiệu lực. Hệ thống sẽ áp dụng cấu hình mới vào lần khởi động tiếp theo</string>
-    <string name="add_umount_path">Thêm Đường dẫn Umount</string>
-    <string name="mount_path">Đường dẫn Mount</string>
-    <string name="umount_flags">Umount Flags</string>
-    <string name="umount_flags_hint">0=Tháo gắn bình thường, 2=MNT_DETACH</string>
-    <string name="flags">Cờ</string>
-    <string name="confirm_delete">Xác nhận Xoá?</string>
-    <string name="confirm_delete_umount_path">Bạn có chắc chắn muốn xóa đường dẫn %s không?</string>
-    <string name="umount_path_added">Đã thêm đường dẫn, sẽ có hiệu lực sau khi khởi động lại</string>
-    <string name="umount_path_removed">Đường dẫn đã bị xóa, sẽ có hiệu lực sau khi khởi động lại</string>
     <string name="operation_failed">Thao tác thất bại</string>
-    <string name="confirm_action">Xác nhận Khởi chạy?</string>
-    <string name="confirm_clear_custom_paths">Bạn có chắc chắn muốn xóa tất cả các đường dẫn tùy chỉnh không? (các đường dẫn mặc định sẽ được giữ nguyên)</string>
-    <string name="custom_paths_cleared">Đường dẫn tùy chỉnh đã được xóa</string>
-    <string name="clear_custom_paths">Xóa Đường dẫn Tùy chỉnh</string>
-    <string name="apply_config">Áp dụng Cấu hình</string>
-    <string name="config_applied">Cấu hình đã được áp dụng cho Kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Chứa %d ứng dụng</string>
     <string name="settings_disable_sulog">Ghi nhật ký Superuser</string>
     <string name="settings_disable_sulog_summary">Ghi nhật ký truy cập Superuser của KernelSU</string>

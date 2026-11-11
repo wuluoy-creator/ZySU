@@ -67,6 +67,8 @@ def policy_source():
 #define FIRST_APPLICATION_UID 10000
 #define LAST_APPLICATION_UID 19999
 #define FIRST_ISOLATED_UID 99000
+#define FIRST_APP_ZYGOTE_ISOLATED_UID 90000
+#define WEBVIEW_ZYGOTE_UID 1053
 #define LAST_ISOLATED_UID 99999
 #define PROC_SUPER_MAGIC 0x9fa0
 #define SUMH_FEATURE_MOUNT_HIDE 1
@@ -114,13 +116,14 @@ struct sumh_mount_file_proxy {
     long stream_orig_pos, stream_user_pos, stream_generation;
 };
 static int sumh_enabled = 1, sumh_feature_enabled_mask, resolving, allowed, umount_app;
-static int unshare_mnt;
+static int unshare_mnt, webview_umount;
 static int fake_mi_active = 1;
 static int sumh_proxy_shutdown, sumh_proxy_live, sumh_proxy_list_lock, sumh_proxy_list;
 static int allocation_fails, allocations, frees, fops_get_fails, lock_depth;
 static struct sumh_mount_file_proxy allocated;
 static bool sumh_hide_rules_resolving(void) { return resolving; }
-static bool ksu_uid_should_umount(uid_t uid) { (void)uid; return umount_app; }
+static bool ksu_app_profile_should_umount(uid_t uid) { (void)uid; return umount_app; }
+static bool ksu_is_webview_zygote_umount_enabled(void) { return webview_umount; }
 static bool ksu_is_allow_uid(uid_t uid) { (void)uid; return allowed; }
 static bool ksu_is_unshare_mnt_enabled(void) { return unshare_mnt; }
 static bool sumh_fake_mi_active(void) { return fake_mi_active; }
@@ -154,7 +157,7 @@ static void select_name(struct file *file, const char *name) {
     bodies = "".join(extract("kernel/policy/allowlist.h", name)
                      for name in ("is_appuid", "is_isolated_process"))
     bodies += "".join(extract("kernel/sumh/policy/sumh_path_policy.c", name)
-                      for name in ("sumh_policy_scope_for_uid", "sumh_policy_current_scope",
+                      for name in ("sumh_policy_uid_should_umount", "sumh_policy_scope_for_uid", "sumh_policy_current_scope",
                                    "sumh_policy_current_is_isolated",
                                    "sumh_policy_current_is_mount_view_target"))
     bodies += "".join(extract("kernel/sumh/hooks/sumh_proc_read_hooks.c", name)
@@ -203,6 +206,26 @@ int main(void) {
         CHECK(sumh_policy_current_is_mount_view_target());
         CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_MOUNTINFO);
     }
+    /* Unshare group filtering uses the same content decision, including
+     * app-zygote isolated UIDs; unrelated system UIDs stay untouched. */
+    fake_mi_active = 0; unshare_mnt = 1;
+    for (size_t i = 0; i < ARRAY_SIZE(isolated); i++) {
+        task.uid = isolated[i];
+        CHECK(sumh_policy_uid_should_umount(task.uid));
+        CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_MOUNTINFO_GROUPS);
+    }
+    task.uid = WEBVIEW_ZYGOTE_UID;
+    CHECK(sumh_policy_current_scope() == SUMH_POLICY_SCOPE_VIEW);
+    CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_NONE);
+    webview_umount = 1;
+    CHECK(sumh_policy_current_scope() == SUMH_POLICY_SCOPE_SPOOF);
+    CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_MOUNTINFO_GROUPS);
+    for (size_t i = 0; i < ARRAY_SIZE(excluded); i++) {
+        task.uid = excluded[i]; umount_app = 1;
+        CHECK(!sumh_policy_uid_should_umount(task.uid));
+        CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_NONE);
+    }
+    webview_umount = 0; unshare_mnt = 0; fake_mi_active = 1;
     task.uid = 12345;
     allowed = 1;
     CHECK(!sumh_policy_current_is_mount_view_target());
@@ -211,6 +234,7 @@ int main(void) {
     for (int state = 0; state < 2; state++) {
         sumh_enabled = state; resolving = state;
         CHECK(sumh_policy_current_scope() == SUMH_POLICY_SCOPE_NONE);
+        CHECK(sumh_policy_uid_should_umount(task.uid));
         CHECK(!sumh_policy_current_is_mount_view_target());
         CHECK(sumh_proc_proxy_kind_for_file(&file, &scope) == SUMH_PROC_PROXY_NONE);
     }

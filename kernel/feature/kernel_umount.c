@@ -30,35 +30,14 @@
 #include "ksu.h"
 #include "util.h"
 #include "sumh_proc_read_hooks.h"
+#include "sumh_path_policy.h"
 #include "runtime/ksud_boot.h"
 #include "runtime/ksud.h"
 #include "selinux/selinux.h"
 
-static bool ksu_kernel_umount_enabled = true;
 static bool ksu_webview_zygote_umount_enabled;
 static bool ksu_unshare_mnt_enabled;
 static bool ksu_unshare_mnt_hooks_held;
-
-static int kernel_umount_feature_get(u64 *value)
-{
-	*value = READ_ONCE(ksu_kernel_umount_enabled) ? 1 : 0;
-	return 0;
-}
-
-static int kernel_umount_feature_set(u64 value)
-{
-	bool enable = value != 0;
-	WRITE_ONCE(ksu_kernel_umount_enabled, enable);
-	pr_info("kernel_umount: set to %d\n", enable);
-	return 0;
-}
-
-static const struct ksu_feature_handler kernel_umount_handler = {
-    .feature_id = KSU_FEATURE_KERNEL_UMOUNT,
-    .name = "kernel_umount",
-    .get_handler = kernel_umount_feature_get,
-    .set_handler = kernel_umount_feature_set,
-};
 
 bool ksu_is_webview_zygote_umount_enabled(void)
 {
@@ -131,23 +110,6 @@ static int ksu_umount_mnt(struct path *path, int flags)
 		pr_info("umount %s failed: %d\n", path->dentry->d_iname, err);
 	}
 	return err;
-}
-
-void try_umount(const char *mnt, int flags)
-{
-	struct path path;
-	int err = kern_path(mnt, 0, &path);
-	if (err) {
-		return;
-	}
-
-	if (path.dentry != path.mnt->mnt_root) {
-		// it is not root mountpoint, maybe umounted by others already.
-		path_put(&path);
-		return;
-	}
-
-	ksu_umount_mnt(&path, flags);
 }
 
 /* ── robust per-app module umount ──────────────────────────────────────────
@@ -391,6 +353,7 @@ enum ksu_umount_scan_source {
 
 struct umount_tw {
 	struct callback_head cb;
+	uid_t uid;
 	enum ksu_umount_scan_source source;
 	struct file *mountinfo;
 };
@@ -398,22 +361,58 @@ struct umount_tw {
 static void ksu_umount_mount_list(void)
 {
 	struct mount_entry *entry;
+	struct ksu_umount_target *targets;
+	char *path_buf;
+	unsigned int count = 0, i;
+
+	targets =
+	    kmalloc_array(KSU_UMOUNT_MAX_TARGETS, sizeof(*targets), GFP_KERNEL);
+	path_buf = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!targets || !path_buf)
+		goto out;
 
 	down_read(&mount_list_lock);
 	list_for_each_entry (entry, &mount_list, list) {
-		pr_info("%s: unmounting: %s flags 0x%x\n", __func__,
-			entry->umountable, entry->flags);
-		try_umount(entry->umountable, entry->flags);
+		if (count == KSU_UMOUNT_MAX_TARGETS)
+			goto unlock;
+		if (!entry->mount_root || !entry->mount_fstype)
+			continue;
+		targets[count] = (struct ksu_umount_target){
+		    .path = entry->umountable,
+		    .root = entry->mount_root,
+		    .fstype = entry->mount_fstype,
+		    .dev = entry->mount_dev,
+		    .order = count,
+		};
+		count++;
 	}
+	/* SUMHP's registered identity, not the path alone, owns the detach.
+	 * Keep entries pinned while checking the child's live mounts. */
+	sort(targets, count, sizeof(*targets), ksu_umount_target_cmp, NULL);
+	for (i = 0; i < count; i++)
+		ksu_try_umount_verified(&targets[i], path_buf);
+unlock:
 	up_read(&mount_list_lock);
+out:
+	kfree(path_buf);
+	kfree(targets);
 }
 
 static void umount_tw_func(struct callback_head *cb)
 {
 	struct umount_tw *tw = container_of(cb, struct umount_tw, cb);
-	const struct cred *saved = override_creds(ksu_cred);
+	const struct cred *saved;
 	bool signature_mismatch = false;
 	int scanned = -EINVAL;
+
+	/* A profile may change after enqueue. Decide before override_creds(),
+	 * using the real application UID rather than the privileged worker UID.
+	 */
+	if ((current->flags & PF_EXITING) ||
+	    __kuid_val(task_uid(current)) != tw->uid ||
+	    !sumh_policy_uid_should_umount(tw->uid))
+		goto out;
+	saved = override_creds(ksu_cred);
 
 	if (tw->source == KSU_UMOUNT_SCAN_PARENT) {
 		struct file *f = tw->mountinfo;
@@ -439,6 +438,7 @@ static void umount_tw_func(struct callback_head *cb)
 
 	revert_creds(saved);
 
+out:
 	if (tw->mountinfo)
 		filp_close(tw->mountinfo, NULL);
 	kfree(tw);
@@ -457,7 +457,7 @@ static bool ksu_parent_scan_context(struct task_struct *parent)
 		return false;
 
 	cred = get_task_cred(parent);
-	valid = is_zygote(cred);
+	valid = ksu_is_trusted_zygote(cred);
 	put_cred(cred);
 	if (!valid)
 		return false;
@@ -528,35 +528,20 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
 		return 0;
 	}
 
-	if (!READ_ONCE(ksu_kernel_umount_enabled)) {
-		return 0;
-	}
-
 	if (!ksu_cred) {
 		return 0;
 	}
 
-	// There are 6 scenarios:
-	// 1. Normal app: zygote -> appuid
-	// 2. Isolated process forked from zygote: zygote -> isolated_process
-	// 3. App zygote forked from zygote: zygote -> appuid
-	// 4. WebView zygote forked from zygote: zygote -> webview_zygote
-	// 5. Isolated process forked from app zygote (already handled by 3)
-	// 6. Isolated process forked from WebView zygote (already handled by 4)
-	if (!is_appuid(new_uid) && new_uid != WEBVIEW_ZYGOTE_UID &&
-	    !is_isolated_process(new_uid)) {
+	/* Authorization, SUMH content routing and physical detach share one
+	 * decision, including both Android isolated UID ranges and WebView. */
+	if (!sumh_policy_uid_should_umount(new_uid)) {
 		return 0;
 	}
 
-	if (!ksu_uid_should_umount(new_uid) && !is_isolated_process(new_uid)) {
-		return 0;
-	}
-
-	// check old process's selinux context, if it is not zygote, ignore it!
-	// because some su apps may setuid to untrusted_app but they are in
-	// global mount namespace when we umount for such process, that is a
-	// disaster! also handle case 4 and 5
-	bool is_zygote_child = is_zygote(get_current_cred());
+	/* Specialization still runs in the trusted factory's SELinux domain.
+	 * The parent check below separately rejects a shared mount namespace.
+	 */
+	bool is_zygote_child = ksu_is_trusted_zygote(current_cred());
 	if (!is_zygote_child) {
 		pr_info("handle umount ignore non zygote child: %d\n",
 			current->pid);
@@ -577,6 +562,7 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
 		goto close_mountinfo;
 
 	tw->cb.func = umount_tw_func;
+	tw->uid = new_uid;
 	if (IS_ERR(mountinfo)) {
 		tw->source = KSU_UMOUNT_SCAN_NONE;
 		tw->mountinfo = NULL;
@@ -603,9 +589,6 @@ close_mountinfo:
 
 void ksu_kernel_umount_init(void)
 {
-	if (ksu_register_feature_handler(&kernel_umount_handler)) {
-		pr_err("Failed to register kernel_umount feature handler\n");
-	}
 	if (ksu_register_feature_handler(&webview_zygote_umount_handler)) {
 		pr_err("Failed to register webview_zygote_umount feature "
 		       "handler\n");
@@ -624,5 +607,4 @@ void ksu_kernel_umount_exit(void)
 		ksu_unshare_mnt_hooks_held = false;
 	}
 	ksu_unregister_feature_handler(KSU_FEATURE_WEBVIEW_ZYGOTE_UMOUNT);
-	ksu_unregister_feature_handler(KSU_FEATURE_KERNEL_UMOUNT);
 }

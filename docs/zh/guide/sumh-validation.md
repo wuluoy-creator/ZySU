@@ -11,7 +11,17 @@ SUMH 是内核中的 VFS 视图引擎；`ksud` 内置的 SUMHP 控制器负责�
 | 用户空间 | [`userspace/ksud/sumhp`](../../../userspace/ksud/sumhp) | ioctl 客户端、配置校验/持久化、恢复、挂载后端、daemon 传输 |
 | 管理器 | [`ui/sumh`](../../../manager/app/src/main/java/com/zying/zysu/ui/sumh) | 能力判断、保存/应用结果、状态刷新与错误显示 |
 
-当前 SUMH 协议版本为 2。隐身模式、挂载隐藏、OverlayFS 扩展属性隐藏和 Statfs 视图是固定内建行为，没有配置开关或可修改的启停状态。内核引擎初始化、控制器协议匹配、各项 hook 能力及目标视图范围仍须分别验证；协议匹配不表示所有可选 hook 都存在。
+当前 SUMH 协议版本为 3。隐身模式、挂载隐藏、OverlayFS 扩展属性隐藏和 Statfs 视图是固定内建行为，没有配置开关或可修改的启停状态。内核引擎初始化、控制器协议匹配、各项 hook 能力及目标视图范围仍须分别验证；协议匹配不表示所有可选 hook 都存在。
+
+### 授权页的模块隔离
+
+授权页“卸载模块挂载”保留按应用 UID 的设置。应用 profile 是唯一配置来源；SUMH 的有效 UID 策略同时供管理器查询、模块内容视图和实际卸载使用。SUMHP 负责登记真实模块挂载及其设备、根目录和文件系统身份，不维护另一份按应用开关，也不会因单个应用的设置而全局卸载模块。
+
+开启后，该应用不使用 SUMH 提供的模块文件，并在安全的独立挂载命名空间内卸载继承的模块挂载。关闭后，应用可继续使用模块内容；挂载表过滤是独立行为。修改后必须重启应用，已有进程的命名空间和文件句柄不会自动恢复。Root 授权和管理器保持原有豁免，系统服务 UID 不提供按应用修改入口。
+
+两段隔离 UID 范围（90000–98999、99000–99999，含多用户）使用相同的隔离决策。WebView zygote 的内容视图与卸载均遵循其专用设置。实际卸载仍要求可信 zygote 来源和与父进程不同的挂载命名空间；共享命名空间不会被修改。延迟任务执行前重新检查 UID 与有效策略，回退卸载须匹配 SUMHP 登记的挂载身份。
+
+设备回归应分别检查 SUMH、Magic Mount、OverlayFS 下开关前后重启应用的实际文件内容，包含默认值、显式覆盖、Root 撤销、共享 UID、多用户、app-zygote 隔离子进程和 WebView。确认保留模块的父应用不受隔离子进程影响，并验证与父进程共享命名空间时不会卸载父进程挂载。
 
 ## 主机回归
 
@@ -25,6 +35,9 @@ python3 scripts/ci/test_sumh_vfs_helpers.py --cc clang
 python3 scripts/ci/test_sumh_directory_names.py --cc clang
 python3 scripts/ci/test_sumh_directory_stream.py --cc clang
 python3 scripts/ci/test_sumh_mount_views.py --cc clang
+python3 scripts/ci/test_sumh_managed_mounts.py --cc clang
+python3 scripts/ci/test_sumh_app_umount.py --cc clang
+python3 scripts/ci/test_sumh_zygote_umount.py --cc clang
 python3 scripts/ci/test_sumh_native_namespace.py --cc clang
 python3 scripts/ci/test_selinux_hide_status.py --cc clang
 python3 scripts/ci/test_sumh_guards.py --cc clang
@@ -41,6 +54,9 @@ python3 scripts/ci/test_sumh_kstat.py --cc clang
 | `test_sumh_directory_names.py` | 目录名称索引、合并和虚拟目录去重、首条优先与输出顺序、非 NUL 结尾名称及分配失败恢复 |
 | `test_sumh_directory_stream.py` | 小缓冲目录续读、注入与原生目录 cookie 边界、合并规则与单独文件规则组合、负 dentry 及过滤后空批次 |
 | `test_sumh_mount_views.py` | 保留模块时的 proc 视图策略与过滤函数 |
+| `test_sumh_managed_mounts.py` | SUMHP 登记协议、挂载身份、失败原子性及回退卸载验证 |
+| `test_sumh_app_umount.py` | 应用配置、有效 UID 策略、授权查询及延迟卸载复查 |
+| `test_sumh_zygote_umount.py` | 可信 zygote 类型、非 root 隔离进程路径及父进程命名空间保护 |
 | `test_sumh_native_namespace.py` | 保留原生命名空间身份，以及旧启停/模式修改请求被拒绝 |
 | `test_selinux_hide_status.py` | 配置意图与实际 SELinux 运行状态、初始化失败 |
 | `test_sumh_guards.py` | 递归保护、哈希冲突、嵌套任务标记和空桶锁获取 |

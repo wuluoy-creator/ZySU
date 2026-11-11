@@ -88,7 +88,8 @@ int main() {
     assert(config.force_features() == "2:0,6:1");
     for (const auto* invalid :
          {"", "sulog", "sulog=-1", "sulog=+1", "sulog=1;reboot", "999=1", "su_compat=1", "sumh=0",
-          "enhanced_security=0", "selinux_hide_status=1", "sulog=18446744073709551616"})
+          "enhanced_security=0", "kernel_umount=0", "kernel_umount=1", "1=0", "1=1",
+          "selinux_hide_status=1", "sulog=18446744073709551616"})
         assert(!config.add_force_feature(invalid));
     assert(config.add_force_feature("109=18446744073709551615"));
     assert(config.add_block_modules(" mkp,vr "));
@@ -136,6 +137,8 @@ int main() {
                                                {"--force-feature"},
                                                {"--block-module", "a;reboot"},
                                                {"--force-feature", "sumh=0"},
+                                               {"--force-feature", "kernel_umount=0"},
+                                               {"--force-feature", "1=0"},
                                                {"--force-feature", "sulog=-1"}}) {
         assert(!legacy::parse_boot_patch_args(invalid).valid);
         assert(!direct::parse_args(invalid).valid);

@@ -164,8 +164,6 @@
     <string name="home_android_version">Versión de Android</string>
     <string name="home_device_model">Modelo do dispositivo</string>
     <string name="su_not_allowed">Non se permite conceder superusuario a %s</string>
-    <string name="settings_disable_kernel_umount">Desactivar o umount do kernel</string>
-    <string name="settings_disable_kernel_umount_summary">Desactivar o comportamento de umount a nivel de kernel controlado por KernelSU</string>
     <string name="settings_selinux_hide">Activar a ocultación do SELinux</string>
     <string name="settings_selinux_hide_summary">Ocultar os cambios da política SELinux de KernelSU das sondaxes do lado da aplicación.</string>
     <string name="feature_status_unsupported_summary">O kernel non admite esta función</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Cargar máis rexistros</string>
     <string name="log_viewer_all_logs_loaded">Amosáronse todos os rexistros</string>
     <string name="incompatible_kernel_msg">O xestor actual é incompatible con este kernel! Actualiza o kernel á versión %2$d ou superior (actualmente %1$d)</string>
-    <string name="umount_path_manager">Xestión das rutas de umount</string>
-    <string name="umount_path_restart_notice">É necesario reiniciar para que os cambios teñan efecto. O sistema aplicará a nova configuración no seguinte arranque</string>
-    <string name="add_umount_path">Engadir ruta de umount</string>
-    <string name="mount_path">Ruta de montaxe</string>
-    <string name="umount_flags">Flags de desmontaxe</string>
-    <string name="umount_flags_hint">0=desmontaxe normal, 2=MNT_DETACH</string>
-    <string name="flags">Flags</string>
-    <string name="confirm_delete">Confirmar a eliminación</string>
-    <string name="confirm_delete_umount_path">Seguro que queres eliminar a ruta %s?</string>
-    <string name="umount_path_added">Ruta engadida, terá efecto despois de reiniciar</string>
-    <string name="umount_path_removed">Ruta retirada, terá efecto despois de reiniciar</string>
     <string name="operation_failed">Erro na operación</string>
-    <string name="confirm_action">Confirmar a acción</string>
-    <string name="confirm_clear_custom_paths">Seguro que queres limpar todas as rutas personalizadas? (as rutas predeterminadas conservaranse)</string>
-    <string name="custom_paths_cleared">Rutas personalizadas limpadas</string>
-    <string name="clear_custom_paths">Limpar as personalizadas</string>
-    <string name="apply_config">Aplicar a configuración</string>
-    <string name="config_applied">Configuración aplicada ao kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Contén %d aplicacións</string>
     <string name="settings_disable_sulog">Rexistro de superusuario</string>
     <string name="settings_disable_sulog_summary">Rexistrar os accesos de superusuario de KernelSU</string>

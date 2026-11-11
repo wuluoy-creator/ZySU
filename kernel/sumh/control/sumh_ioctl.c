@@ -54,6 +54,7 @@
 #include "sumh_sop_shadow.h"
 #include "sumh_fake_mountinfo.h"
 #include "sumh_kernel_build.h"
+#include "infra/mount_policy.h"
 
 /* Both legacy commands upsert the same store; a supplied path is the
  * authoritative identity, including after replacement or remount. */
@@ -667,6 +668,58 @@ out:
 	return ret;
 }
 
+static bool sumh_managed_mount_path_valid(const char *path)
+{
+	size_t len = strnlen(path, SUMH_MANAGED_MOUNT_PATH_MAX);
+	size_t start = 1, i;
+
+	if (len <= 1 || len == SUMH_MANAGED_MOUNT_PATH_MAX || path[0] != '/' ||
+	    path[len - 1] == '/')
+		return false;
+	for (i = 1; i <= len; i++) {
+		if (path[i] == '\r' || path[i] == '\n')
+			return false;
+		if (i == len || path[i] == '/') {
+			size_t part_len = i - start;
+
+			if (!part_len ||
+			    (part_len == 1 && path[start] == '.') ||
+			    (part_len == 2 && path[start] == '.' &&
+			     path[start + 1] == '.'))
+				return false;
+			start = i + 1;
+		}
+	}
+	/* Reject hidden suffixes rather than interpreting a truncated key. */
+	for (i = len + 1; i < SUMH_MANAGED_MOUNT_PATH_MAX; i++) {
+		if (path[i])
+			return false;
+	}
+	return true;
+}
+
+static int sumh_update_managed_mount(void __user *user)
+{
+	struct sumh_managed_mount_arg *arg;
+	int ret = -EINVAL;
+
+	/* The path payload is larger than a page; keep it off the kernel stack.
+	 */
+	arg = memdup_user(user, sizeof(*arg));
+	if (IS_ERR(arg))
+		return PTR_ERR(arg);
+	if (arg->size != sizeof(*arg) || arg->reserved[0] || arg->reserved[1] ||
+	    !sumh_managed_mount_path_valid(arg->path))
+		goto out;
+	if (arg->operation == SUMH_MANAGED_MOUNT_REGISTER)
+		ret = ksu_register_managed_mount(arg->path);
+	else if (arg->operation == SUMH_MANAGED_MOUNT_UNREGISTER)
+		ret = ksu_unregister_managed_mount(arg->path);
+out:
+	kfree(arg);
+	return ret;
+}
+
 static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 {
 	struct sumh_syscall_arg req;
@@ -940,6 +993,7 @@ static SUMH_NOCFI int sumh_dispatch_cmd(unsigned int cmd, void __user *arg)
 			features |= SUMH_FEATURE_KERNEL_BUILD_SPOOF;
 		features |= SUMH_FEATURE_KSTAT_SPOOF;
 		features |= SUMH_FEATURE_MANAGED_KSTAT;
+		features |= SUMH_FEATURE_MANAGED_MOUNTS;
 		features |= SUMH_FEATURE_MERGE_DIR;
 		if (sumh_overlay_xattr_available())
 			features |= SUMH_FEATURE_OVERLAY_XATTR_HIDE;
@@ -1599,6 +1653,9 @@ long sumh_handle_ioctl(unsigned int cmd, void __user *arg)
 	mutex_lock(&sumh_mutation_mutex);
 	atomic_long_set(&sumh_ioctl_tgid, (long)task_tgid_vnr(current));
 	switch (cmd) {
+	case SUMH_IOC_UPDATE_MANAGED_MOUNT:
+		ret = sumh_update_managed_mount(arg);
+		break;
 	case SUMH_IOC_USER_HIDE_UPSERT:
 	case SUMH_IOC_USER_HIDE_DELETE:
 	case SUMH_IOC_USER_HIDE_QUERY:

@@ -334,7 +334,6 @@ set(KSUD_OUR_SOURCES
     src/su_args.cpp
     src/init_event.cpp
     src/integrity_monitor.cpp
-    src/umount.cpp
     src/debug.cpp
     src/sulog.cpp
     src/core/hide_bootloader.cpp

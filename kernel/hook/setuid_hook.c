@@ -42,7 +42,7 @@ static const struct ksu_feature_handler enhanced_security_handler = {
  */
 int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
 {
-	// if old process is root, ignore it.
+	/* Keep non-root escalation checks ahead of zygote specialization. */
 	if (old_uid != 0) {
 		// disallow any non-ksu domain escalation from non-root to root!
 		if (unlikely(new_uid == 0)) {
@@ -68,6 +68,16 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
 				return 0;
 			}
 		}
+		/* App/WebView zygotes already have a non-root UID when they
+		 * fork isolated children. Only trusted factories may take this
+		 * path; the unmount worker also requires a private child
+		 * namespace. */
+		if (((is_appuid(old_uid) &&
+		      old_uid / PER_USER_RANGE == new_uid / PER_USER_RANGE) ||
+		     old_uid == WEBVIEW_ZYGOTE_UID) &&
+		    is_isolated_process(new_uid) &&
+		    ksu_is_trusted_zygote(current_cred()))
+			ksu_handle_umount(old_uid, new_uid);
 		return 0;
 	}
 

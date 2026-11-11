@@ -5,6 +5,10 @@ import kotlinx.coroutines.CancellationException
 
 /** Applies authorization changes once per UID while preserving unrelated profile settings. */
 internal object AuthorizationPermissions {
+    // Only installed app UIDs have a configurable module-content policy.
+    // System services and isolated processes follow the kernel's fixed policy.
+    fun canConfigureModuleUnmount(uid: Int): Boolean = uid % 100000 in 10000..19999
+
     data class Target(
         val uid: Int,
         val profileKey: String,
@@ -53,6 +57,9 @@ internal object AuthorizationPermissions {
         val failed = mutableListOf<Failure>()
         targets.distinctBy { it.uid }.forEach { target ->
             try {
+                require(umountModules == null || canConfigureModuleUnmount(target.uid)) {
+                    "Module isolation is not configurable for this UID"
+                }
                 val before = store.read(target)
                 val after = before.copy(
                     allowSu = allowSu,

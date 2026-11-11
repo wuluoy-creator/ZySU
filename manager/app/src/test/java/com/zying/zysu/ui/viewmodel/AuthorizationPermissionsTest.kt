@@ -76,6 +76,24 @@ class AuthorizationPermissionsTest {
         assertEquals(failedRead, store.profiles[10125])
     }
 
+    @Test fun moduleIsolationIsExplicitAndOnlyConfigurableForInstalledAppUids() {
+        val app = original.copy(currentUid = 210123, allowSu = true, umountModules = false)
+        val system = original.copy(currentUid = 1000)
+        val shell = original.copy(currentUid = 2000)
+        val isolated = original.copy(currentUid = 290001)
+        val store = Store(app, system, shell, isolated)
+        val targets = listOf(app, system, shell, isolated).map {
+            AuthorizationPermissions.Target(it.currentUid, it.name)
+        }
+        val result = AuthorizationPermissions.apply(targets, false, true, store)
+        assertEquals(listOf(app.copy(allowSu = false, umountModules = true, nonRootUseDefault = false)), result.updated)
+        assertEquals(listOf(1000, 2000, 290001), result.failed.map { it.target.uid })
+        assertEquals(listOf(210123), store.writes)
+        // System Root controls remain independent of module isolation.
+        val rootResult = AuthorizationPermissions.apply(listOf(targets[1]), true, null, store)
+        assertEquals(listOf(system.copy(allowSu = true)), rootResult.updated)
+    }
+
     @Test fun cancellationIsNeverReportedAsAPermissionFailure() {
         val target = AuthorizationPermissions.Target(original.currentUid, original.name)
         val store = object : AuthorizationPermissions.Store {

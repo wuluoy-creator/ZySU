@@ -164,8 +164,6 @@
     <string name="home_android_version">Bersyon ng Android</string>
     <string name="home_device_model">Modelo ng device</string>
     <string name="su_not_allowed">Hindi pinapayagang magbigay ng superuser sa %s</string>
-    <string name="settings_disable_kernel_umount">I-disable ang kernel umount</string>
-    <string name="settings_disable_kernel_umount_summary">I-disable ang kernel-level na umount behavior na kinokontrol ng KernelSU</string>
     <string name="settings_selinux_hide">I-enable ang SELinux hide</string>
     <string name="settings_selinux_hide_summary">Itago ang mga pagbabago sa SELinux policy ng KernelSU mula sa mga probe na nakaharap sa app</string>
     <string name="feature_status_unsupported_summary">Hindi sinusuportahan ng kernel ang feature na ito</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Mag-load ng Higit Pang Log</string>
     <string name="log_viewer_all_logs_loaded">Naipakita na ang lahat ng log</string>
     <string name="incompatible_kernel_msg">Hindi tugma ang kasalukuyang manager sa kernel na ito! Mangyaring i-upgrade ang kernel sa version %2$d o mas mataas (kasalukuyang %1$d)</string>
-    <string name="umount_path_manager">Pamamahala ng Umount Path</string>
-    <string name="umount_path_restart_notice">Kailangan ng reboot para magkabisa ang mga pagbabago. Ilalapat ng system ang bagong configuration sa susunod na boot</string>
-    <string name="add_umount_path">Magdagdag ng Umount Path</string>
-    <string name="mount_path">Mount Path</string>
-    <string name="umount_flags">Mga Unmount Flag</string>
-    <string name="umount_flags_hint">0=Normal na unmount, 2=MNT_DETACH</string>
-    <string name="flags">Mga Flag</string>
-    <string name="confirm_delete">Kumpirmahin ang Pagtanggal</string>
-    <string name="confirm_delete_umount_path">Sigurado ka bang gusto mong tanggalin ang path na %s?</string>
-    <string name="umount_path_added">Naidagdag ang path, magkakabisa pagkatapos ng reboot</string>
-    <string name="umount_path_removed">Inalis ang path, magkakabisa pagkatapos ng reboot</string>
     <string name="operation_failed">Nabigo ang operasyon</string>
-    <string name="confirm_action">Kumpirmahin ang Aksyon</string>
-    <string name="confirm_clear_custom_paths">Sigurado ka bang gusto mong i-clear ang lahat ng custom path? (mananatili ang mga default na path)</string>
-    <string name="custom_paths_cleared">Na-clear ang mga custom path</string>
-    <string name="clear_custom_paths">I-clear ang mga Custom Path</string>
-    <string name="apply_config">Ilapat ang Configuration</string>
-    <string name="config_applied">Inilapat ang configuration sa kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Naglalaman ng %d app</string>
     <string name="settings_disable_sulog">Superuser logging</string>
     <string name="settings_disable_sulog_summary">I-log ang superuser access ng KernelSU</string>

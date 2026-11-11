@@ -16,7 +16,8 @@
     <string name="auth_app_shared_uid_warning" tools:ignore="MissingTranslation">These apps share a UID. Authorization changes apply to all of them.</string>
     <string name="auth_app_shared_apps" tools:ignore="MissingTranslation">Apps sharing this UID</string>
     <string name="auth_app_umount_modules" tools:ignore="MissingTranslation">Unmount modules</string>
-    <string name="auth_app_umount_summary" tools:ignore="MissingTranslation">Hide module mounts from this app. Restart the app to apply.</string>
+    <string name="auth_app_umount_summary" tools:ignore="MissingTranslation">Prevent this app from using module files and mounts. Restart the app to apply.</string>
+    <string name="auth_app_umount_unavailable" tools:ignore="MissingTranslation">Module isolation cannot be changed for this system UID.</string>
     <string name="auth_app_umount_revokes_root" tools:ignore="MissingTranslation">Changing this setting also revokes Root access for this UID.</string>
     <string name="auth_app_copy_done" tools:ignore="MissingTranslation">Package name copied</string>
     <string name="auth_app_busy" tools:ignore="MissingTranslation">Saving authorization…</string>

@@ -3,10 +3,10 @@
 
 #include "feature.h"
 
-/* Shared by the C kernel parser and C++ boot patcher. Fixed security/SUMH
- * features and read-only status IDs deliberately cannot be forced. */
+/* Shared by the C kernel parser and C++ boot patcher. Fixed
+ * isolation/security/SUMH features and read-only status IDs deliberately cannot
+ * be forced. */
 #define KSU_BOOT_CONFIGURABLE_FEATURES(X)                                      \
-  X(KSU_FEATURE_KERNEL_UMOUNT, "kernel_umount")                                \
   X(KSU_FEATURE_SULOG, "sulog")                                                \
   X(KSU_FEATURE_ADB_ROOT, "adb_root")                                          \
   X(KSU_FEATURE_SELINUX_HIDE, "selinux_hide")                                  \

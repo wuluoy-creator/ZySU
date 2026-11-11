@@ -49,7 +49,7 @@ void expect_hide_rule(std::uint64_t cursor, std::uint64_t id, const char* path) 
 
 void test_protocol_compatibility() {
     namespace sumh = sumhp::sumh;
-    for (const int protocol : {0, 1, SUMH_PROTOCOL_VERSION, SUMH_PROTOCOL_VERSION + 1}) {
+    for (const int protocol : {0, 1, 2, SUMH_PROTOCOL_VERSION, SUMH_PROTOCOL_VERSION + 1}) {
         expect(SUMH_IOC_GET_VERSION, [protocol](void* arg) {
             *static_cast<int*>(arg) = protocol;
             return 0;
@@ -66,6 +66,72 @@ void test_protocol_compatibility() {
     const auto missing = sumh::version_info();
     assert(missing.status == sumh::Status::NotPresent);
     assert(missing.last_errno == ENOTTY);
+    assert(calls.empty());
+}
+
+void test_managed_mounts() {
+    namespace sumh = sumhp::sumh;
+    for (const auto& path : std::vector<std::string>{
+             "",
+             "/",
+             "system/etc",
+             "/system/",
+             "/system//etc",
+             "//system/etc",
+             "/system/./etc",
+             "/system/../etc",
+             "/system/.",
+             "/system/..",
+             "/system/line\nbreak",
+             "/system/line\rbreak",
+             std::string("/system\0/bad", 12),
+         }) {
+        assert(!sumh::register_managed_mount(path) && errno == EINVAL);
+        assert(!sumh::unregister_managed_mount(path) && errno == EINVAL);
+    }
+    const std::string oversized = "/" + std::string(SUMH_MANAGED_MOUNT_PATH_MAX - 1, 'a');
+    assert(!sumh::register_managed_mount(oversized) && errno == ENAMETOOLONG);
+    assert(!sumh::unregister_managed_mount(oversized) && errno == ENAMETOOLONG);
+    assert(calls.empty());  // Invalid input never reaches a transport or old API.
+
+    for (const auto& path : std::vector<std::string>{
+             "/system/etc",
+             "/system/app/Space Name",
+             "/vendor/lib/libmodule.so",
+             "/" + std::string(SUMH_MANAGED_MOUNT_PATH_MAX - 2, 'a'),
+         }) {
+        for (const std::uint32_t operation :
+             {SUMH_MANAGED_MOUNT_REGISTER, SUMH_MANAGED_MOUNT_UNREGISTER}) {
+            expect_features(SUMH_FEATURE_MANAGED_MOUNTS);
+            expect(SUMH_IOC_UPDATE_MANAGED_MOUNT, [path, operation](void* value) {
+                const auto& arg = *static_cast<sumh_managed_mount_arg*>(value);
+                assert(arg.size == sizeof(arg) && arg.operation == operation);
+                assert(arg.reserved[0] == 0 && arg.reserved[1] == 0);
+                assert(std::string(arg.path) == path);
+                for (std::size_t i = path.size(); i < sizeof(arg.path); ++i)
+                    assert(arg.path[i] == '\0');
+                return 0;
+            });
+            assert(operation == SUMH_MANAGED_MOUNT_REGISTER ? sumh::register_managed_mount(path)
+                                                            : sumh::unregister_managed_mount(path));
+        }
+    }
+    expect_features(0);
+    assert(!sumh::register_managed_mount("/system/etc") && errno == EOPNOTSUPP);
+    expect_features(SUMH_FEATURE_MOUNT_HIDE);
+    assert(!sumh::unregister_managed_mount("/system/etc") && errno == EOPNOTSUPP);
+    expect_error(SUMH_IOC_GET_FEATURES, EIO);
+    assert(!sumh::register_managed_mount("/system/etc") && errno == EIO);
+    expect_error(SUMH_IOC_GET_FEATURES, EPERM);
+    assert(!sumh::unregister_managed_mount("/system/etc") && errno == EPERM);
+    expect_features(SUMH_FEATURE_MANAGED_MOUNTS);
+    expect_error(SUMH_IOC_UPDATE_MANAGED_MOUNT, ENOENT);
+    assert(!sumh::register_managed_mount("/system/etc") && errno == ENOENT);
+    expect_features(SUMH_FEATURE_MANAGED_MOUNTS);
+    expect_error(SUMH_IOC_UPDATE_MANAGED_MOUNT, EBUSY);
+    assert(!sumh::unregister_managed_mount("/system/etc") && errno == EBUSY);
+    assert((sumh::feature_names(SUMH_FEATURE_MANAGED_MOUNTS) ==
+            std::vector<std::string>{"managed_mounts"}));
     assert(calls.empty());
 }
 
@@ -566,6 +632,7 @@ extern "C" int ksu_sumh_ioctl(unsigned long command, void* arg) {
 
 int main() {
     test_protocol_compatibility();
+    test_managed_mounts();
     test_text_replies();
     test_feature_errors();
     test_maps_paths();

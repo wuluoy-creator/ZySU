@@ -54,10 +54,6 @@ int get_app_profile(struct app_profile *profile);
 
 void get_hook_type(char *buff);
 
-// Kernel umount
-bool set_kernel_umount_enabled(bool enabled);
-bool is_kernel_umount_enabled();
-
 // Su log
 bool set_sulog_enabled(bool enabled);
 bool is_sulog_enabled();

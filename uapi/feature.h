@@ -8,7 +8,7 @@ extern "C" {
 enum ksu_feature_id {
   // Legacy provider is fixed off; enabling it is rejected.
   KSU_FEATURE_SU_COMPAT = 0,
-  KSU_FEATURE_KERNEL_UMOUNT = 1,
+  // Feature 1 is retired; do not reuse it.
   KSU_FEATURE_SULOG = 2,
   KSU_FEATURE_ADB_ROOT = 3,
   KSU_FEATURE_SELINUX_HIDE = 4,

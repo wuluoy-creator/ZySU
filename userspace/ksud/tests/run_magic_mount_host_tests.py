@@ -42,7 +42,8 @@ def main():
             encoding="utf-8")
         source = (source_dir / "embedded.cpp").read_text(encoding="utf-8")
         (build / "embedded_umount_under_test.inc").write_text(
-            function(source, "bool embedded_register_umount("), encoding="utf-8")
+            function(source, "bool embedded_register_umount(") +
+            function(source, "bool embedded_unregister_umount("), encoding="utf-8")
         for test in ("magic_mount_lifecycle_test", "magic_mount_traversal_test"):
             binary = build / (test + ".exe" if os.name == "nt" else test)
             subprocess.run([*compiler, "-std=c++17", "-Wall", "-Wextra", "-Werror",

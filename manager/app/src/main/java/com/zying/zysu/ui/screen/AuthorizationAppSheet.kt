@@ -66,6 +66,7 @@ import com.zying.zysu.ui.component.SwitchItem
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.viewmodel.SuperUserViewModel
+import com.zying.zysu.ui.viewmodel.AuthorizationPermissions
 
 /**
  * Shows the permission state and app-management actions for one UID group.
@@ -88,6 +89,7 @@ fun AuthorizationAppSheet(
     val scrollState = rememberScrollState()
     val mainApp = group.mainApp
     val isGranted = group.allowSu
+    val canUmountModules = AuthorizationPermissions.canConfigureModuleUnmount(group.uid)
     val umountModules = remember(group.uid, group.profile) {
         Natives.uidShouldUmount(group.uid)
     }
@@ -141,11 +143,12 @@ fun AuthorizationAppSheet(
                         icon = Icons.Filled.Security,
                         title = stringResource(R.string.auth_app_umount_modules),
                         summary = stringResource(
-                            if (isGranted) R.string.auth_app_umount_revokes_root
+                            if (!canUmountModules) R.string.auth_app_umount_unavailable
+                            else if (isGranted) R.string.auth_app_umount_revokes_root
                             else R.string.auth_app_umount_summary,
                         ),
                         checked = umountModules,
-                        enabled = !busy,
+                        enabled = !busy && canUmountModules,
                         onCheckedChange = { checked ->
                             // Module isolation is available to non-root apps.
                             onPermissionChange(false, checked)

@@ -164,8 +164,6 @@
     <string name="home_android_version">Versión de Android</string>
     <string name="home_device_model">Modelo del dispositivo</string>
     <string name="su_not_allowed">No se permite conceder superusuario a %s</string>
-    <string name="settings_disable_kernel_umount">Desactivar el desmontaje del kernel</string>
-    <string name="settings_disable_kernel_umount_summary">Desactivar el comportamiento de desmontaje a nivel de kernel controlado por KernelSU</string>
     <string name="settings_selinux_hide">Activar ocultación de SELinux</string>
     <string name="settings_selinux_hide_summary">Ocultar los cambios de la política SELinux de KernelSU frente a las sondas del lado de la aplicación.</string>
     <string name="feature_status_unsupported_summary">El kernel no admite esta función</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Cargar más registros</string>
     <string name="log_viewer_all_logs_loaded">Todos los registros mostrados</string>
     <string name="incompatible_kernel_msg">¡El administrador actual es incompatible con este kernel! Actualiza el kernel a la versión %2$d o superior (actualmente %1$d)</string>
-    <string name="umount_path_manager">Gestión de rutas de desmontaje</string>
-    <string name="umount_path_restart_notice">Es necesario reiniciar para que los cambios surtan efecto. El sistema aplicará la nueva configuración en el próximo arranque</string>
-    <string name="add_umount_path">Añadir ruta de desmontaje</string>
-    <string name="mount_path">Ruta de montaje</string>
-    <string name="umount_flags">Indicadores de desmontaje</string>
-    <string name="umount_flags_hint">0=desmontaje normal, 2=MNT_DETACH</string>
-    <string name="flags">Indicadores</string>
-    <string name="confirm_delete">Confirmar eliminación</string>
-    <string name="confirm_delete_umount_path">¿Seguro que quieres eliminar la ruta %s?</string>
-    <string name="umount_path_added">Ruta añadida, surtirá efecto tras reiniciar</string>
-    <string name="umount_path_removed">Ruta eliminada, surtirá efecto tras reiniciar</string>
     <string name="operation_failed">Operación fallida</string>
-    <string name="confirm_action">Confirmar acción</string>
-    <string name="confirm_clear_custom_paths">¿Seguro que quieres borrar todas las rutas personalizadas? (las rutas predeterminadas se conservarán)</string>
-    <string name="custom_paths_cleared">Rutas personalizadas borradas</string>
-    <string name="clear_custom_paths">Borrar personalizadas</string>
-    <string name="apply_config">Aplicar configuración</string>
-    <string name="config_applied">Configuración aplicada al kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Contiene %d aplicaciones</string>
     <string name="settings_disable_sulog">Registro de superusuario</string>
     <string name="settings_disable_sulog_summary">Registrar los accesos de superusuario de KernelSU</string>

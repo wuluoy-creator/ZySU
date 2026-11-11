@@ -164,8 +164,6 @@
     <string name="home_android_version">Androidi versioon</string>
     <string name="home_device_model">Seadme mudel</string>
     <string name="su_not_allowed">Superkasutaja õiguste andmine %s-le pole lubatud</string>
-    <string name="settings_disable_kernel_umount">Keela kerneli umount</string>
-    <string name="settings_disable_kernel_umount_summary">Keela KernelSU poolt juhitav kernelitaseme umount-käitumine</string>
     <string name="settings_selinux_hide">Luba SELinuxi peitmine</string>
     <string name="settings_selinux_hide_summary">Peida KernelSU SELinuxi poliitika muudatused rakenduse poolsete kontrollide eest.</string>
     <string name="feature_status_unsupported_summary">Kernel ei toeta seda funktsiooni</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Laadi rohkem logisid</string>
     <string name="log_viewer_all_logs_loaded">Kõik logid kuvatud</string>
     <string name="incompatible_kernel_msg">Praegune haldur ei ühildu selle kerneliga! Palun uuendage kernel versioonile %2$d või uuemale (praegu %1$d)</string>
-    <string name="umount_path_manager">Umount-teede haldus</string>
-    <string name="umount_path_restart_notice">Muudatuste jõustumiseks on vajalik taaskäivitus. Süsteem rakendab uue konfiguratsiooni järgmisel käivitamisel</string>
-    <string name="add_umount_path">Lisa umount-tee</string>
-    <string name="mount_path">Haakimise tee</string>
-    <string name="umount_flags">Lahti haakimise lipud</string>
-    <string name="umount_flags_hint">0=tavaline lahti haakimine, 2=MNT_DETACH</string>
-    <string name="flags">Lipud</string>
-    <string name="confirm_delete">Kinnita kustutamine</string>
-    <string name="confirm_delete_umount_path">Kas olete kindel, et soovite tee %s kustutada?</string>
-    <string name="umount_path_added">Tee lisatud, jõustub pärast taaskäivitust</string>
-    <string name="umount_path_removed">Tee eemaldatud, jõustub pärast taaskäivitust</string>
     <string name="operation_failed">Toiming ebaõnnestus</string>
-    <string name="confirm_action">Kinnita toiming</string>
-    <string name="confirm_clear_custom_paths">Kas olete kindel, et soovite kustutada kõik kohandatud teed? (vaiketeed säilitatakse)</string>
-    <string name="custom_paths_cleared">Kohandatud teed kustutatud</string>
-    <string name="clear_custom_paths">Kustuta kohandatud</string>
-    <string name="apply_config">Rakenda konfiguratsioon</string>
-    <string name="config_applied">Konfiguratsioon rakendatud kernelile</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Sisaldab %d rakendust</string>
     <string name="settings_disable_sulog">Superkasutaja logimine</string>
     <string name="settings_disable_sulog_summary">Logi KernelSU superkasutaja juurdepääs</string>

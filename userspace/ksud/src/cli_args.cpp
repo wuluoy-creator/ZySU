@@ -37,7 +37,6 @@ struct Command {
 constexpr size_t kTrailingArgs = std::numeric_limits<size_t>::max();
 const Option kTemp{"--temp", "-t", "", ""};
 const Option kSlot{"--slot", "", "a|b|_a|_b", ""};
-const Option kFlags{"--flags", "-f", "UINT32", ""};
 const Option kJson{"--json", "", "", ""};
 const Option kOta{"--ota", "-u", "", ""};
 const Option kMagiskboot{"--magiskboot", "", "PATH", ""};
@@ -108,21 +107,9 @@ const std::vector<Command>& commands() {
         {"boot-info slot-suffix", "Read the slot suffix", "", 0, 0, {kOta}},
         {"ramdisk-editor", "Run a ramdisk editor protocol session", "<RAMDISK.CPIO>", 1, 1},
         {"boot-ramdisk-editor", "Edit a boot image's ramdisk", "<SOURCE.IMG> <OUTPUT.IMG>", 2, 2},
-        {"umount", "Manage unmount paths", "<COMMAND>"},
-        {"umount add", "Register an unmount path", "<MOUNT>", 1, 1, {kFlags}},
-        {"umount del", "Delete an unmount path", "<MOUNT>", 1, 1},
-        {"umount remove", "Alias for umount del", "<MOUNT>", 1, 1},
-        {"umount list", "List unmount paths", ""},
-        {"umount save", "Save the kernel unmount list", ""},
-        {"umount apply", "Apply the saved unmount list", ""},
-        {"umount clear-custom", "Clear custom unmount paths", ""},
         {"kernel", "Access kernel interfaces", "<COMMAND>"},
         {"kernel nuke-ext4-sysfs", "Hide ext4 sysfs entries", "<MOUNT>", 1, 1},
         {"kernel notify-module-mounted", "Report completed module mounting", ""},
-        {"kernel umount", "Manage the kernel unmount list", "<COMMAND>"},
-        {"kernel umount add", "Register an unmount path", "<MOUNT>", 1, 1, {kFlags}},
-        {"kernel umount del", "Delete an unmount path", "<MOUNT>", 1, 1},
-        {"kernel umount wipe", "Clear the kernel unmount list", ""},
         {"debug", "Developer tools", "<COMMAND>"},
         {"debug set-manager", "Set the manager package", "[PACKAGE]", 0, 1},
         {"debug insmod", "Alias for insmod", "<KO> [PARAMS...]", 1, kTrailingArgs},

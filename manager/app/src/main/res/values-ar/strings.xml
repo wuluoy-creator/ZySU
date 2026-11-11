@@ -166,8 +166,6 @@
     <string name="home_android_version">‏إصدار Android</string>
     <string name="home_device_model">نوع الجهاز</string>
     <string name="su_not_allowed">لا يسمح بمنح المستخدم المتميز ل %s</string>
-    <string name="settings_disable_kernel_umount">تعطيل umount النواة</string>
-    <string name="settings_disable_kernel_umount_summary">تعطيل سلوك umount على مستوى النواة الذي يتحكم به KernelSU</string>
     <string name="settings_selinux_hide">تفعيل إخفاء SELinux</string>
     <string name="settings_selinux_hide_summary">إخفاء تغييرات سياسة SELinux الخاصة بـ KernelSU عن فحوصات التطبيقات.</string>
     <string name="feature_status_unsupported_summary">النواة لا تدعم هذه الميزة</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">تحميل المزيد من السجلات</string>
     <string name="log_viewer_all_logs_loaded">تم عرض جميع السجلات</string>
     <string name="incompatible_kernel_msg">المدير الحالي غير متوافق مع هذه النواة! يرجى ترقية النواة إلى الإصدار %2$d أو أعلى (الحالي %1$d)</string>
-    <string name="umount_path_manager">إدارة مسارات umount</string>
-    <string name="umount_path_restart_notice">يلزم إعادة التشغيل لتصبح التغييرات سارية. سيطبّق النظام الإعداد الجديد عند الإقلاع التالي</string>
-    <string name="add_umount_path">إضافة مسار umount</string>
-    <string name="mount_path">مسار التركيب</string>
-    <string name="umount_flags">رايات إلغاء التركيب</string>
-    <string name="umount_flags_hint">0=إلغاء تركيب عادي، 2=MNT_DETACH</string>
-    <string name="flags">علامات</string>
-    <string name="confirm_delete">تأكيد الحذف</string>
-    <string name="confirm_delete_umount_path">هل أنت متأكد من أنك تريد حذف المسار %s؟</string>
-    <string name="umount_path_added">تمت إضافة المسار، سيسري بعد إعادة التشغيل</string>
-    <string name="umount_path_removed">تمت إزالة المسار، سيسري بعد إعادة التشغيل</string>
     <string name="operation_failed">فشلت العملية</string>
-    <string name="confirm_action">تأكيد الإجراء</string>
-    <string name="confirm_clear_custom_paths">هل أنت متأكد من أنك تريد مسح جميع المسارات المخصصة؟ (سيتم الاحتفاظ بالمسارات الافتراضية)</string>
-    <string name="custom_paths_cleared">تم مسح المسارات المخصصة</string>
-    <string name="clear_custom_paths">مسح المخصصة</string>
-    <string name="apply_config">تطبيق الإعداد</string>
-    <string name="config_applied">تم تطبيق الإعداد على النواة</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">يحتوي على %d تطبيقات</string>
     <string name="settings_disable_sulog">تسجيل المستخدم الخارق</string>
     <string name="settings_disable_sulog_summary">تسجيل وصول المستخدم الخارق لـ KernelSU</string>

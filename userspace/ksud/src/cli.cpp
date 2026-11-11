@@ -23,7 +23,6 @@
 #include "su.hpp"
 #include "sulog.hpp"
 #include "terminal.hpp"
-#include "umount.hpp"
 #include "utils.hpp"
 
 #include <fcntl.h>
@@ -223,55 +222,11 @@ int cmd_insmod(const std::vector<std::string>& args) {
     return debug_insmod(args[0], std::vector<std::string>(args.begin() + 1, args.end()));
 }
 
-int cmd_umount(const std::vector<std::string>& args, const CliArguments& cli) {
-    const std::string& subcmd = args[0];
-
-    if (subcmd == "add") {
-        const std::string& path = args[1];
-        uint32_t flags = 0;
-        if (cli.has("--flags") && !parse_uint32(cli.value("--flags"), &flags))
-            return terminal::usage_error("invalid flags: expected an unsigned 32-bit integer",
-                                         "ksud umount add <MOUNT> [--flags <UINT32>]");
-        return umount_list_add(path, flags) < 0 ? 1 : 0;
-    } else if ((subcmd == "del" || subcmd == "remove") && args.size() > 1) {
-        return umount_del_entry(args[1]);
-    } else if (subcmd == "list") {
-        auto list = umount_list_list();
-        if (list) {
-            printf("%s", list->c_str());
-        }
-        return 0;
-    } else if (subcmd == "save") {
-        return umount_save_config();
-    } else if (subcmd == "apply") {
-        return umount_apply_config();
-    } else if (subcmd == "clear-custom") {
-        return umount_clear_config();
-    }
-
-    terminal::errorf("Unknown umount subcommand: %s\n", subcmd.c_str());
-    return 1;
-}
-
-int cmd_kernel(const std::vector<std::string>& args, const CliArguments& cli) {
+int cmd_kernel(const std::vector<std::string>& args) {
     const std::string& subcmd = args[0];
 
     if (subcmd == "nuke-ext4-sysfs" && args.size() > 1) {
         return nuke_ext4_sysfs(args[1]);
-    } else if (subcmd == "umount" && args.size() > 1) {
-        const std::string& op = args[1];
-        if (op == "add" && args.size() > 2) {
-            const std::string& path = args[2];
-            uint32_t flags = 0;
-            if (cli.has("--flags") && !parse_uint32(cli.value("--flags"), &flags))
-                return terminal::usage_error("invalid flags: expected an unsigned 32-bit integer",
-                                             "ksud kernel umount add <MOUNT> [--flags <UINT32>]");
-            return umount_list_add(path, flags);
-        } else if (op == "del" && args.size() > 2) {
-            return umount_list_del(args[2]);
-        } else if (op == "wipe") {
-            return umount_list_wipe();
-        }
     } else if (subcmd == "notify-module-mounted") {
         report_module_mounted();
         return 0;
@@ -707,10 +662,8 @@ int cli_run(int argc, char** argv) {
         return cmd_ramdisk_editor(args, false);
     } else if (cmd == "boot-ramdisk-editor") {
         return cmd_ramdisk_editor(args, true);
-    } else if (cmd == "umount") {
-        return cmd_umount(args, cli);
     } else if (cmd == "kernel") {
-        return cmd_kernel(args, cli);
+        return cmd_kernel(args);
     } else if (cmd == "debug") {
         return cmd_debug(args);
     } else if (cmd == "flash") {

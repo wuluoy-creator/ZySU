@@ -29,7 +29,9 @@ bool is_task_ksu_domain(const struct cred *cred);
 
 bool is_ksu_domain(void);
 
-bool is_zygote(const struct cred *cred);
+/* Trusted Android process factories, including app-specific MLS contexts. */
+bool ksu_is_trusted_zygote(const struct cred *cred);
+bool ksu_zygote_cred_changed(const struct cred *old, const struct cred *new);
 
 bool is_init(const struct cred *cred);
 bool is_adbd(const struct cred *cred);

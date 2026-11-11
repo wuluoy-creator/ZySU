@@ -9,6 +9,7 @@
 #define WEBVIEW_ZYGOTE_UID 1053
 #define FIRST_APPLICATION_UID 10000
 #define LAST_APPLICATION_UID 19999
+#define FIRST_APP_ZYGOTE_ISOLATED_UID 90000
 #define FIRST_ISOLATED_UID 99000
 #define LAST_ISOLATED_UID 99999
 
@@ -39,7 +40,9 @@ struct app_profile *ksu_get_app_profile(uid_t uid);
 void ksu_put_app_profile(struct app_profile *profile);
 bool ksu_set_app_profile(struct app_profile *, bool persist);
 
-bool ksu_uid_should_umount(uid_t uid);
+/* Profile preference only. Use sumh_policy_uid_should_umount() for the
+ * effective decision, including UID eligibility and isolated processes. */
+bool ksu_app_profile_should_umount(uid_t uid);
 struct root_profile *ksu_get_root_profile(uid_t uid);
 void ksu_put_root_profile(struct root_profile *profile);
 
@@ -52,7 +55,8 @@ static inline bool is_appuid(uid_t uid)
 static inline bool is_isolated_process(uid_t uid)
 {
 	uid_t appid = uid % PER_USER_RANGE;
-	return appid >= FIRST_ISOLATED_UID && appid <= LAST_ISOLATED_UID;
+	return appid >= FIRST_APP_ZYGOTE_ISOLATED_UID &&
+	       appid <= LAST_ISOLATED_UID;
 }
 
 extern bool allow_shell;

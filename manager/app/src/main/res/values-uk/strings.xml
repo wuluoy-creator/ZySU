@@ -164,8 +164,6 @@
     <string name="home_android_version">Версія Android</string>
     <string name="home_device_model">Модель пристрою</string>
     <string name="su_not_allowed">Надання прав суперкористувача для %s заборонено</string>
-    <string name="settings_disable_kernel_umount">Вимкнути umount ядра</string>
-    <string name="settings_disable_kernel_umount_summary">Вимкнути поведінку umount на рівні ядра, керовану KernelSU</string>
     <string name="settings_selinux_hide">Увімкнути приховування SELinux</string>
     <string name="settings_selinux_hide_summary">Приховувати зміни політики SELinux KernelSU від перевірок з боку застосунків.</string>
     <string name="feature_status_unsupported_summary">Ядро не підтримує цю функцію</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Завантажити більше журналів</string>
     <string name="log_viewer_all_logs_loaded">Показано всі журнали</string>
     <string name="incompatible_kernel_msg">Поточний менеджер несумісний з цим ядром! Оновіть ядро до версії %2$d або вищої (наразі %1$d)</string>
-    <string name="umount_path_manager">Керування шляхами umount</string>
-    <string name="umount_path_restart_notice">Для застосування змін потрібне перезавантаження. Система застосує нову конфігурацію під час наступного завантаження</string>
-    <string name="add_umount_path">Додати шлях umount</string>
-    <string name="mount_path">Шлях монтування</string>
-    <string name="umount_flags">Прапори розмонтування</string>
-    <string name="umount_flags_hint">0=звичайне розмонтування, 2=MNT_DETACH</string>
-    <string name="flags">Прапори</string>
-    <string name="confirm_delete">Підтвердити видалення</string>
-    <string name="confirm_delete_umount_path">Ви впевнені, що хочете видалити шлях %s?</string>
-    <string name="umount_path_added">Шлях додано, набуде чинності після перезавантаження</string>
-    <string name="umount_path_removed">Шлях видалено, набуде чинності після перезавантаження</string>
     <string name="operation_failed">Не вдалося виконати операцію</string>
-    <string name="confirm_action">Підтвердити дію</string>
-    <string name="confirm_clear_custom_paths">Ви впевнені, що хочете очистити всі власні шляхи? (шляхи за замовчуванням буде збережено)</string>
-    <string name="custom_paths_cleared">Власні шляхи очищено</string>
-    <string name="clear_custom_paths">Очистити власні</string>
-    <string name="apply_config">Застосувати конфігурацію</string>
-    <string name="config_applied">Конфігурацію застосовано до ядра</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Містить %d застосунків</string>
     <string name="settings_disable_sulog">Журналювання суперкористувача</string>
     <string name="settings_disable_sulog_summary">Журналювати доступ суперкористувача KernelSU</string>

@@ -35,6 +35,9 @@ enum sumh_policy_scope {
 };
 
 bool sumh_is_privileged_process(void);
+/* Shared module-content decision for authorization queries and namespace
+ * detach. Independent of SUMH hook state and temporary rule resolution. */
+bool sumh_policy_uid_should_umount(uid_t uid);
 bool sumh_policy_current_is_isolated(void);
 enum sumh_policy_scope sumh_policy_current_scope(void);
 bool sumh_policy_current_is_view_target(void);

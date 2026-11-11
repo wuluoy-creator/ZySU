@@ -106,6 +106,9 @@ std::vector<std::string> active_modules_from_rules(const std::string& rules);
 
 bool set_debug(bool enable);
 bool fix_mounts();
+// Backend lifecycle only: SUMH tracks actual mounts with fixed detach semantics.
+bool register_managed_mount(const std::string& path);
+bool unregister_managed_mount(const std::string& path);
 bool hide_overlay_xattrs(const std::string& path);
 bool clear_overlay_xattr_hiding();
 bool set_maps_spoof(bool enable);

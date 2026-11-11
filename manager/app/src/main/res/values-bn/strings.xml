@@ -164,8 +164,6 @@
     <string name="home_android_version">Android সংস্করণ</string>
     <string name="home_device_model">ডিভাইস মডেল</string>
     <string name="su_not_allowed">%s কে সুপারইউজার প্রদান করার অনুমতি নেই</string>
-    <string name="settings_disable_kernel_umount">কার্নেল umount নিষ্ক্রিয় করুন</string>
-    <string name="settings_disable_kernel_umount_summary">KernelSU দ্বারা নিয়ন্ত্রিত কার্নেল-স্তরের umount আচরণ নিষ্ক্রিয় করুন</string>
     <string name="settings_selinux_hide">SELinux লুকানো সক্রিয় করুন</string>
     <string name="settings_selinux_hide_summary">অ্যাপ-মুখী প্রোব থেকে KernelSU SELinux নীতি পরিবর্তন লুকান</string>
     <string name="feature_status_unsupported_summary">কার্নেল এই বৈশিষ্ট্য সমর্থন করে না</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">আরও লগ লোড করুন</string>
     <string name="log_viewer_all_logs_loaded">সব লগ প্রদর্শিত হয়েছে</string>
     <string name="incompatible_kernel_msg">বর্তমান ম্যানেজার এই কার্নেলের সাথে বেমানান! অনুগ্রহ করে কার্নেল সংস্করণ %2$d বা উচ্চতরে আপগ্রেড করুন (বর্তমানে %1$d)</string>
-    <string name="umount_path_manager">Umount পাথ ব্যবস্থাপনা</string>
-    <string name="umount_path_restart_notice">পরিবর্তন কার্যকর হওয়ার জন্য একটি রিবুট প্রয়োজন। সিস্টেম পরবর্তী বুটে নতুন কনফিগারেশন প্রয়োগ করবে</string>
-    <string name="add_umount_path">Umount পাথ যোগ করুন</string>
-    <string name="mount_path">মাউন্ট পাথ</string>
-    <string name="umount_flags">আনমাউন্ট ফ্ল্যাগ</string>
-    <string name="umount_flags_hint">0=সাধারণ আনমাউন্ট, 2=MNT_DETACH</string>
-    <string name="flags">ফ্ল্যাগ</string>
-    <string name="confirm_delete">মুছে ফেলা নিশ্চিত করুন</string>
-    <string name="confirm_delete_umount_path">আপনি কি নিশ্চিত যে আপনি %s পাথটি মুছতে চান?</string>
-    <string name="umount_path_added">পাথ যোগ করা হয়েছে, রিবুটের পরে কার্যকর হবে</string>
-    <string name="umount_path_removed">পাথ সরানো হয়েছে, রিবুটের পরে কার্যকর হবে</string>
     <string name="operation_failed">অপারেশন ব্যর্থ</string>
-    <string name="confirm_action">ক্রিয়া নিশ্চিত করুন</string>
-    <string name="confirm_clear_custom_paths">আপনি কি নিশ্চিত যে আপনি সমস্ত কাস্টম পাথ সাফ করতে চান? (ডিফল্ট পাথ সংরক্ষিত থাকবে)</string>
-    <string name="custom_paths_cleared">কাস্টম পাথ সাফ করা হয়েছে</string>
-    <string name="clear_custom_paths">কাস্টম পাথ সাফ করুন</string>
-    <string name="apply_config">কনফিগারেশন প্রয়োগ করুন</string>
-    <string name="config_applied">কার্নেলে কনফিগারেশন প্রয়োগ করা হয়েছে</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">%d টি অ্যাপ রয়েছে</string>
     <string name="settings_disable_sulog">সুপারইউজার লগিং</string>
     <string name="settings_disable_sulog_summary">KernelSU সুপারইউজার অ্যাক্সেস লগ করুন</string>

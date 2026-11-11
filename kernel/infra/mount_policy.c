@@ -1,14 +1,21 @@
 #include <linux/rculist.h>
 #include <linux/atomic.h>
+#include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/kdev_t.h>
+#include <linux/limits.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <uapi/linux/mount.h>
 #include "feature/kernel_umount.h"
 #include "infra/mount_policy.h"
+
+struct list_head mount_list = LIST_HEAD_INIT(mount_list);
+DECLARE_RWSEM(mount_list_lock);
 
 static atomic64_t mount_policy_generation = ATOMIC64_INIT(2);
 static DECLARE_WAIT_QUEUE_HEAD(mount_policy_wait);
@@ -115,28 +122,39 @@ bool ksu_mount_is_module(const struct ksu_mount_fields *fields)
 	return found;
 }
 
-void ksu_capture_mount_identity(struct mount_entry *entry)
+static int ksu_capture_mount_identity(struct mount_entry *entry)
 {
 	struct path path;
+	struct super_block *sb;
 	char *buffer, *root;
+	int ret;
 
-	if (kern_path(entry->umountable, LOOKUP_FOLLOW, &path))
-		return;
-	if (path.dentry != path.mnt->mnt_root)
+	ret = kern_path(entry->umountable, LOOKUP_FOLLOW, &path);
+	if (ret)
+		return ret;
+	sb = path.mnt->mnt_sb;
+	ret = -EINVAL;
+	if (path.dentry != path.mnt->mnt_root || !sb || !sb->s_type ||
+	    !sb->s_type->name)
 		goto out;
 	buffer = kmalloc(PATH_MAX, GFP_KERNEL);
-	if (!buffer)
+	if (!buffer) {
+		ret = -ENOMEM;
 		goto out;
+	}
 	root = dentry_path_raw(path.mnt->mnt_root, buffer, PATH_MAX);
-	if (!IS_ERR(root)) {
+	if (IS_ERR(root)) {
+		ret = PTR_ERR(root);
+	} else {
 		entry->mount_root = kstrdup(root, GFP_KERNEL);
-		entry->mount_fstype =
-		    kstrdup(path.mnt->mnt_sb->s_type->name, GFP_KERNEL);
-		entry->mount_dev = path.mnt->mnt_sb->s_dev;
+		entry->mount_fstype = kstrdup(sb->s_type->name, GFP_KERNEL);
+		entry->mount_dev = sb->s_dev;
+		ret = entry->mount_root && entry->mount_fstype ? 0 : -ENOMEM;
 	}
 	kfree(buffer);
 out:
 	path_put(&path);
+	return ret;
 }
 
 u64 ksu_mount_policy_generation(void)
@@ -222,4 +240,61 @@ static void ksu_mount_entry_release(struct rcu_head *rcu)
 void ksu_retire_mount_entry(struct mount_entry *entry)
 {
 	call_rcu(&entry->rcu, ksu_mount_entry_release);
+}
+
+int ksu_register_managed_mount(const char *mountpoint)
+{
+	struct mount_entry *entry, *new_entry;
+	int ret;
+
+	new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
+	if (!new_entry)
+		return -ENOMEM;
+	new_entry->umountable = kstrdup(mountpoint, GFP_KERNEL);
+	if (!new_entry->umountable) {
+		ksu_free_mount_entry(new_entry);
+		return -ENOMEM;
+	}
+	new_entry->flags = MNT_DETACH;
+	/* Publish only complete live mount identities. SUMHP rolls the mount
+	 * back if capture fails; a failed refresh preserves the previous entry.
+	 */
+	ret = ksu_capture_mount_identity(new_entry);
+	if (ret) {
+		ksu_free_mount_entry(new_entry);
+		return ret;
+	}
+
+	down_write(&mount_list_lock);
+	ksu_mount_policy_begin_update();
+	list_for_each_entry (entry, &mount_list, list) {
+		if (!strcmp(entry->umountable, mountpoint)) {
+			list_replace_rcu(&entry->list, &new_entry->list);
+			ksu_retire_mount_entry(entry);
+			goto changed;
+		}
+	}
+	list_add_rcu(&new_entry->list, &mount_list);
+changed:
+	ksu_mount_policy_changed();
+	up_write(&mount_list_lock);
+	return 0;
+}
+
+int ksu_unregister_managed_mount(const char *mountpoint)
+{
+	struct mount_entry *entry;
+
+	down_write(&mount_list_lock);
+	list_for_each_entry (entry, &mount_list, list) {
+		if (!strcmp(entry->umountable, mountpoint)) {
+			ksu_mount_policy_begin_update();
+			list_del_rcu(&entry->list);
+			ksu_retire_mount_entry(entry);
+			ksu_mount_policy_changed();
+			break;
+		}
+	}
+	up_write(&mount_list_lock);
+	return 0;
 }

@@ -164,8 +164,6 @@
     <string name="home_android_version">Андроид верзија</string>
     <string name="home_device_model">Модел уређаја</string>
     <string name="su_not_allowed">Додељивање суперкорисника %s није дозвољено</string>
-    <string name="settings_disable_kernel_umount">Онемогући демонтирање на нивоу језгра</string>
-    <string name="settings_disable_kernel_umount_summary">Онемогући демонтирање на нивоу језгра којим управља KernelSU</string>
     <string name="settings_selinux_hide">Омогући сакривање SELinux</string>
     <string name="settings_selinux_hide_summary">Сакриј измене смерница KernelSU SELinux од сонди усмерених на апликацију</string>
     <string name="feature_status_unsupported_summary">Језгро не подржава ову функцију</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Учитај још дневника</string>
     <string name="log_viewer_all_logs_loaded">Сви дневници су приказани</string>
     <string name="incompatible_kernel_msg">Тренутни менаџер је некомпатибилан са овим кернелом! Молимо надоградите кернел на верзију %2$d или новију (тренутно %1$d)</string>
-    <string name="umount_path_manager">Управљање путањама за демонтирање</string>
-    <string name="umount_path_restart_notice">Потребно је поновно покретање да би промене ступиле на снагу. Систем ће применити нову конфигурацију при следећем покретању</string>
-    <string name="add_umount_path">Додај Умоунт путању</string>
-    <string name="mount_path">Путања монтирања</string>
-    <string name="umount_flags">Ознаке демонтирања</string>
-    <string name="umount_flags_hint">0=Нормално демонтажо, 2=MNT_DETACH</string>
-    <string name="flags">Заставе</string>
-    <string name="confirm_delete">Потврдите брисање</string>
-    <string name="confirm_delete_umount_path">Да ли сте сигурни да желите да избришете путању %s?</string>
-    <string name="umount_path_added">Путања је додата, ступиће на снагу након поновног покретања</string>
-    <string name="umount_path_removed">Путања је уклоњена, ступиће на снагу након поновног покретања</string>
     <string name="operation_failed">Операција није успела</string>
-    <string name="confirm_action">Потврдите акцију</string>
-    <string name="confirm_clear_custom_paths">Да ли сте сигурни да желите да обришете све прилагођене путање? (подразумеване путање ће бити сачуване)</string>
-    <string name="custom_paths_cleared">Прилагођене путање су очишћене</string>
-    <string name="clear_custom_paths">Обриши прилагођене путање</string>
-    <string name="apply_config">Примени конфигурацију</string>
-    <string name="config_applied">Конфигурација примењена на кернел</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Садржи %d апликације</string>
     <string name="settings_disable_sulog">Евидентирање суперкорисника</string>
     <string name="settings_disable_sulog_summary">Дневник KernelSU приступа суперкорисника</string>

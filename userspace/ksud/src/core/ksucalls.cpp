@@ -498,34 +498,4 @@ int set_init_pgrp() {
     return ksuctl(KSU_IOCTL_SET_INIT_PGRP, nullptr);
 }
 
-int umount_list_wipe() {
-    AddTryUmountCmd cmd = {0, 0, KSU_UMOUNT_WIPE};
-    return ksuctl(KSU_IOCTL_ADD_TRY_UMOUNT, &cmd);
-}
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-int umount_list_add(const std::string& path, uint32_t flags) {
-    AddTryUmountCmd cmd = {reinterpret_cast<uint64_t>(path.c_str()), flags, KSU_UMOUNT_ADD};
-    return ksuctl(KSU_IOCTL_ADD_TRY_UMOUNT, &cmd);
-}
-
-int umount_list_del(const std::string& path) {
-    AddTryUmountCmd cmd = {reinterpret_cast<uint64_t>(path.c_str()), 0, KSU_UMOUNT_DEL};
-    return ksuctl(KSU_IOCTL_ADD_TRY_UMOUNT, &cmd);
-}
-
-std::optional<std::string> umount_list_list() {
-    constexpr size_t kBufSize = 4096;
-    std::array<char, kBufSize> buffer{};
-
-    ListTryUmountCmd cmd = {reinterpret_cast<uint64_t>(buffer.data()),
-                            static_cast<uint32_t>(buffer.size())};
-    const int ret = ksuctl(KSU_IOCTL_LIST_TRY_UMOUNT, &cmd);
-    if (ret < 0) {
-        return std::nullopt;
-    }
-
-    return std::string(buffer.data());
-}
-
 }  // namespace ksud

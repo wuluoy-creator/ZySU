@@ -166,8 +166,6 @@
     <string name="home_android_version">Android-versie</string>
     <string name="home_device_model">Apparaatmodel</string>
     <string name="su_not_allowed">Supergebruiker verlenen aan %s is niet toegestaan</string>
-    <string name="settings_disable_kernel_umount">Kernel-umount uitschakelen</string>
-    <string name="settings_disable_kernel_umount_summary">Schakel het door KernelSU bestuurde umount-gedrag op kernelniveau uit</string>
     <string name="settings_selinux_hide">SELinux verbergen inschakelen</string>
     <string name="settings_selinux_hide_summary">Verberg wijzigingen in het KernelSU SELinux-beleid voor controles aan de app-zijde.</string>
     <string name="feature_status_unsupported_summary">De kernel ondersteunt deze functie niet</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Meer logboeken laden</string>
     <string name="log_viewer_all_logs_loaded">Alle logboeken weergegeven</string>
     <string name="incompatible_kernel_msg">De huidige beheerder is niet compatibel met deze kernel! Werk de kernel bij naar versie %2$d of hoger (momenteel %1$d)</string>
-    <string name="umount_path_manager">Beheer van umount-paden</string>
-    <string name="umount_path_restart_notice">Een herstart is vereist om de wijzigingen door te voeren. Het systeem past de nieuwe configuratie toe bij de volgende keer opstarten</string>
-    <string name="add_umount_path">Umount-pad toevoegen</string>
-    <string name="mount_path">Koppelpad</string>
-    <string name="umount_flags">Ontkoppelvlaggen</string>
-    <string name="umount_flags_hint">0=normaal ontkoppelen, 2=MNT_DETACH</string>
-    <string name="flags">Vlaggen</string>
-    <string name="confirm_delete">Verwijderen bevestigen</string>
-    <string name="confirm_delete_umount_path">Weet je zeker dat je het pad %s wilt verwijderen?</string>
-    <string name="umount_path_added">Pad toegevoegd, wordt van kracht na herstart</string>
-    <string name="umount_path_removed">Pad verwijderd, wordt van kracht na herstart</string>
     <string name="operation_failed">Bewerking mislukt</string>
-    <string name="confirm_action">Actie bevestigen</string>
-    <string name="confirm_clear_custom_paths">Weet je zeker dat je alle aangepaste paden wilt wissen? (standaardpaden blijven behouden)</string>
-    <string name="custom_paths_cleared">Aangepaste paden gewist</string>
-    <string name="clear_custom_paths">Aangepaste wissen</string>
-    <string name="apply_config">Configuratie toepassen</string>
-    <string name="config_applied">Configuratie toegepast op de kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Bevat %d apps</string>
     <string name="settings_disable_sulog">Supergebruiker-logboekregistratie</string>
     <string name="settings_disable_sulog_summary">Registreer de supergebruiker-toegang van KernelSU</string>

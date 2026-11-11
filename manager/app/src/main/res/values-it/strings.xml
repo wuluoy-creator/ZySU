@@ -166,8 +166,6 @@
     <string name="home_android_version">Versione Android</string>
     <string name="home_device_model">Modello del dispositivo</string>
     <string name="su_not_allowed">Concedere i privilegi di superutente a %s non è consentito</string>
-    <string name="settings_disable_kernel_umount">Disabilita umount del kernel</string>
-    <string name="settings_disable_kernel_umount_summary">Disabilita il comportamento di umount a livello di kernel controllato da KernelSU</string>
     <string name="settings_selinux_hide">Abilita occultamento SELinux</string>
     <string name="settings_selinux_hide_summary">Nascondi le modifiche ai criteri SELinux di KernelSU dalle sonde lato app.</string>
     <string name="feature_status_unsupported_summary">Il kernel non supporta questa funzione</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Carica altri registri</string>
     <string name="log_viewer_all_logs_loaded">Tutti i registri visualizzati</string>
     <string name="incompatible_kernel_msg">Il gestore attuale non è compatibile con questo kernel! Aggiorna il kernel alla versione %2$d o superiore (attualmente %1$d)</string>
-    <string name="umount_path_manager">Gestione percorsi di umount</string>
-    <string name="umount_path_restart_notice">È necessario un riavvio affinché le modifiche abbiano effetto. Il sistema applicherà la nuova configurazione al prossimo avvio</string>
-    <string name="add_umount_path">Aggiungi percorso di umount</string>
-    <string name="mount_path">Percorso di montaggio</string>
-    <string name="umount_flags">Flag di smontaggio</string>
-    <string name="umount_flags_hint">0=smontaggio normale, 2=MNT_DETACH</string>
-    <string name="flags">Flag</string>
-    <string name="confirm_delete">Conferma eliminazione</string>
-    <string name="confirm_delete_umount_path">Vuoi davvero eliminare il percorso %s?</string>
-    <string name="umount_path_added">Percorso aggiunto, avrà effetto dopo il riavvio</string>
-    <string name="umount_path_removed">Percorso rimosso, avrà effetto dopo il riavvio</string>
     <string name="operation_failed">Operazione non riuscita</string>
-    <string name="confirm_action">Conferma azione</string>
-    <string name="confirm_clear_custom_paths">Vuoi davvero cancellare tutti i percorsi personalizzati? (i percorsi predefiniti verranno conservati)</string>
-    <string name="custom_paths_cleared">Percorsi personalizzati cancellati</string>
-    <string name="clear_custom_paths">Cancella personalizzati</string>
-    <string name="apply_config">Applica configurazione</string>
-    <string name="config_applied">Configurazione applicata al kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Contiene %d app</string>
     <string name="settings_disable_sulog">Registrazione superutente</string>
     <string name="settings_disable_sulog_summary">Registra gli accessi del superutente di KernelSU</string>

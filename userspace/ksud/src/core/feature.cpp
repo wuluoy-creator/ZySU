@@ -44,7 +44,6 @@ bool sync_feature_directory() {
 const std::map<std::string, uint32_t>& get_feature_map() {
     static const std::map<std::string, uint32_t> map = {
         {"su_compat", KSU_FEATURE_SU_COMPAT},
-        {"kernel_umount", KSU_FEATURE_KERNEL_UMOUNT},
         {"enhanced_security", KSU_FEATURE_ENHANCED_SECURITY},
         {"adb_root", KSU_FEATURE_ADB_ROOT},
         {"shell_su_adb_only", KSU_FEATURE_SHELL_SU_ADB_ONLY},
@@ -67,8 +66,6 @@ const std::map<uint32_t, const char*>& get_feature_descriptions() {
     static const std::map<uint32_t, const char*> desc = {
         {KSU_FEATURE_SU_COMPAT,
          "Classic SU Compatibility Mode - permanently disabled; SUMH is the fixed provider"},
-        {KSU_FEATURE_KERNEL_UMOUNT,
-         "Kernel Umount - controls whether kernel automatically unmounts modules when not needed"},
         {KSU_FEATURE_ENHANCED_SECURITY,
          "Enhanced Security - always enabled; blocks non-KSU root elevation and unauthorized "
          "UID downgrades"},

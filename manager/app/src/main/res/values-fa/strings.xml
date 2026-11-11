@@ -164,8 +164,6 @@
     <string name="home_android_version">نسخه Android</string>
     <string name="home_device_model">مدل دستگاه</string>
     <string name="su_not_allowed">اعطای دسترسی superuser به %s مجاز نیست</string>
-    <string name="settings_disable_kernel_umount">غیرفعال‌سازی umount کرنل</string>
-    <string name="settings_disable_kernel_umount_summary">رفتار umount در سطح کرنل که توسط KernelSU کنترل می‌شود را غیرفعال کن</string>
     <string name="settings_selinux_hide">فعال‌سازی پنهان‌سازی SELinux</string>
     <string name="settings_selinux_hide_summary">تغییرات خط‌مشی SELinux مربوط به KernelSU را از کاوش‌های سمت برنامه پنهان کن</string>
     <string name="feature_status_unsupported_summary">کرنل از این ویژگی پشتیبانی نمی‌کند</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">بارگذاری لاگ‌های بیشتر</string>
     <string name="log_viewer_all_logs_loaded">همه لاگ‌ها نمایش داده شدند</string>
     <string name="incompatible_kernel_msg">مدیر فعلی با این کرنل ناسازگار است! لطفاً کرنل را به نسخه %2$d یا بالاتر ارتقا دهید (در حال حاضر %1$d)</string>
-    <string name="umount_path_manager">مدیریت مسیر umount</string>
-    <string name="umount_path_restart_notice">برای اعمال تغییرات، راه‌اندازی مجدد لازم است. سیستم پیکربندی جدید را در بوت بعدی اعمال می‌کند</string>
-    <string name="add_umount_path">افزودن مسیر umount</string>
-    <string name="mount_path">مسیر مانت</string>
-    <string name="umount_flags">پرچم‌های آنمانت</string>
-    <string name="umount_flags_hint">‏0=آنمانت معمولی، 2=MNT_DETACH</string>
-    <string name="flags">پرچم‌ها</string>
-    <string name="confirm_delete">تأیید حذف</string>
-    <string name="confirm_delete_umount_path">آیا مطمئنید که می‌خواهید مسیر %s را حذف کنید؟</string>
-    <string name="umount_path_added">مسیر اضافه شد، پس از راه‌اندازی مجدد اعمال می‌شود</string>
-    <string name="umount_path_removed">مسیر حذف شد، پس از راه‌اندازی مجدد اعمال می‌شود</string>
     <string name="operation_failed">عملیات ناموفق بود</string>
-    <string name="confirm_action">تأیید عمل</string>
-    <string name="confirm_clear_custom_paths">آیا مطمئنید که می‌خواهید همه مسیرهای سفارشی را پاک کنید؟ (مسیرهای پیش‌فرض حفظ خواهند شد)</string>
-    <string name="custom_paths_cleared">مسیرهای سفارشی پاک شدند</string>
-    <string name="clear_custom_paths">پاک کردن مسیرهای سفارشی</string>
-    <string name="apply_config">اعمال پیکربندی</string>
-    <string name="config_applied">پیکربندی روی کرنل اعمال شد</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">شامل %d برنامه</string>
     <string name="settings_disable_sulog">ثبت لاگ superuser</string>
     <string name="settings_disable_sulog_summary">دسترسی superuser مربوط به KernelSU را در لاگ ثبت کن</string>

@@ -30,6 +30,7 @@ def main():
     legacy = (src / "boot/boot_patch.cpp").read_text(encoding="utf-8")
     direct = (src / "boot/boot_patch_v2.cpp").read_text(encoding="utf-8")
     features = (src / "core/feature.cpp").read_text(encoding="utf-8")
+    utilities = (src / "utils.cpp").read_text(encoding="utf-8")
     with tempfile.TemporaryDirectory(prefix="ksud-boot-config-") as temporary:
         build = Path(temporary)
         extracts = {
@@ -37,12 +38,14 @@ def main():
             "boot_config_legacy_parser.inc": between(legacy, "struct BootPatchArgs", "enum class DirectLkmRestoreStatus") + "\n}\n",
             "boot_config_direct_parser.inc": between(direct, "struct BootPatchV2Args", "std::optional<std::vector<std::uint8_t>> read_binary"),
             "boot_config_ramdisk_under_test.inc": between(legacy, '    const std::string config_text = parsed.module_params(', '    if (magiskboot_query({"cpio", ramdisk, "exists ksu_allow_shell"})'),
-            "feature_persistence_under_test.inc": '\n'.join(function(features, signature) for signature in (
+            "feature_persistence_under_test.inc": function(utilities, 'bool parse_uint32(') + '\n'.join(function(features, signature) for signature in (
                 'const std::map<std::string, uint32_t>& get_feature_map()',
+                'std::pair<uint32_t, bool> parse_feature_id(',
                 'bool is_fixed_feature_id(', 'bool is_configurable_feature_id(',
                 'bool discard_non_configurable_features(', 'void ensure_forced_sulog_running()',
                 'std::map<uint32_t, uint64_t> get_current_feature_values()',
-                'int feature_set_impl(', 'int apply_config_locked(', 'int feature_load_config()',
+                'bool is_sucompat_feature_id(', 'int feature_set_impl(', 'int feature_set(',
+                'int apply_config_locked(', 'int feature_load_config()',
             )),
         }
         for name, content in extracts.items():

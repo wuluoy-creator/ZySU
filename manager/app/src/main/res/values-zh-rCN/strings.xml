@@ -187,8 +187,6 @@
     <string name="su_not_allowed">不允许授予 %s 超级用户权限</string>
     <string name="settings_unshare_mnt">挂载视图整理</string>
     <string name="settings_unshare_mnt_summary">卸载后重建命名空间并整理可见编号，重启应用后生效。</string>
-    <string name="settings_disable_kernel_umount">关闭内核 umount</string>
-    <string name="settings_disable_kernel_umount_summary">关闭 KernelSU 控制的内核级 umount 行为。</string>
     <string name="settings_webview_zygote_umount">为 WebView 卸载模块</string>
     <string name="settings_webview_zygote_umount_summary">从 WebView zygote 卸载模块以防止挂载信息泄露。这可能导致修改 WebView 资源的模块失效；重启后生效。</string>
     <string name="settings_selinux_hide">启用 SELinux 隐藏</string>
@@ -367,25 +365,7 @@
     <string name="log_viewer_all_logs_loaded">已显示所有日志</string>
     <!-- Umount Path Manager -->
     <string name="incompatible_kernel_msg">    当前管理器与此内核不兼容！请将内核升级至版本 %2$d 或以上（当前 %1$d）</string>
-    <string name="umount_path_manager">Umount 路径管理</string>
-    <string name="umount_path_restart_notice">添加或删除路径后需要重启设备才能生效。系统会在下次启动时应用新的配置。</string>
-    <string name="add_umount_path">添加 Umount 路径</string>
-    <string name="mount_path">挂载路径</string>
-    <string name="umount_flags">卸载标志</string>
-    <string name="umount_flags_hint">0=正常卸载, 2=MNT_DETACH</string>
-    <string name="flags">标志</string>
-    <string name="confirm_delete">确认删除</string>
-    <string name="confirm_delete_umount_path">确定要删除路径 %s 吗？</string>
-    <string name="umount_path_added">路径已添加，重启后生效</string>
-    <string name="umount_path_removed">路径已删除，重启后生效</string>
     <string name="operation_failed">操作失败</string>
-    <string name="confirm_action">确认操作</string>
-    <string name="confirm_clear_custom_paths">确定要清除所有自定义路径吗？（默认路径将保留）</string>
-    <string name="custom_paths_cleared">自定义路径已清除</string>
-    <string name="clear_custom_paths">清除自定义</string>
-    <string name="apply_config">应用配置</string>
-    <string name="config_applied">配置已应用到内核</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">包含 %1$d 个应用</string>
     <string name="settings_disable_sulog">超级用户日志</string>
     <string name="settings_disable_sulog_summary">记录 KernelSU 超级用户访问</string>

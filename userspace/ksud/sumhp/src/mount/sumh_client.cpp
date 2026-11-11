@@ -31,6 +31,8 @@ static_assert(offsetof(sumh_raw_kstat_arg, ino) == 4104);
 static_assert(offsetof(sumh_raw_kstat_arg, blocks) == 4184);
 static_assert(sizeof(sumh_managed_kstat_status_arg) == 24);
 static_assert(offsetof(sumh_managed_kstat_status_arg, generation) == 8);
+static_assert(sizeof(sumh_managed_mount_arg) == 4112);
+static_assert(offsetof(sumh_managed_mount_arg, path) == 16);
 // This native unsigned-long payload is an LP64 ABI; the Android controller is arm64-only.
 #if defined(__ANDROID__)
 static_assert(sizeof(unsigned long) == 8);
@@ -161,6 +163,8 @@ std::vector<std::string> feature_names(int bitmask) {
         names.emplace_back("kstat_spoof");
     if (bitmask & SUMH_FEATURE_MANAGED_KSTAT)
         names.emplace_back("managed_kstat");
+    if (bitmask & SUMH_FEATURE_MANAGED_MOUNTS)
+        names.emplace_back("managed_mounts");
     if (bitmask & SUMH_FEATURE_MERGE_DIR)
         names.emplace_back("merge_dir");
     if (bitmask & SUMH_FEATURE_OVERLAY_XATTR_HIDE)
@@ -318,6 +322,52 @@ bool set_debug(bool enable) {
 
 bool fix_mounts() {
     return execute(SUMH_IOC_REORDER_MNT_ID, nullptr) == 0;
+}
+
+namespace {
+bool update_managed_mount(const std::string& path, std::uint32_t operation) {
+    if (path.size() >= SUMH_MANAGED_MOUNT_PATH_MAX) {
+        errno = ENAMETOOLONG;
+        return false;
+    }
+    if (path.size() < 2 || path.front() != '/' || path.back() == '/' ||
+        path.find('\0') != std::string::npos || path.find_first_of("\r\n") != std::string::npos) {
+        errno = EINVAL;
+        return false;
+    }
+    for (std::size_t start = 1; start < path.size();) {
+        const auto slash = path.find('/', start);
+        const auto end = slash == std::string::npos ? path.size() : slash;
+        const std::string_view component(path.data() + start, end - start);
+        if (component.empty() || component == "." || component == "..") {
+            errno = EINVAL;
+            return false;
+        }
+        start = end + 1;
+    }
+    const auto caps = feature_capabilities();
+    if (!caps.ok) {
+        errno = caps.last_errno;
+        return false;
+    }
+    if (!(caps.bitmask & SUMH_FEATURE_MANAGED_MOUNTS)) {
+        errno = EOPNOTSUPP;
+        return false;
+    }
+    sumh_managed_mount_arg arg = {};
+    arg.size = sizeof(arg);
+    arg.operation = operation;
+    std::memcpy(arg.path, path.c_str(), path.size() + 1);
+    return execute(SUMH_IOC_UPDATE_MANAGED_MOUNT, &arg) == 0;
+}
+}  // namespace
+
+bool register_managed_mount(const std::string& path) {
+    return update_managed_mount(path, SUMH_MANAGED_MOUNT_REGISTER);
+}
+
+bool unregister_managed_mount(const std::string& path) {
+    return update_managed_mount(path, SUMH_MANAGED_MOUNT_UNREGISTER);
 }
 
 bool hide_overlay_xattrs(const std::string& path) {

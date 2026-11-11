@@ -12,8 +12,8 @@
 #include <sys/ioctl.h>
 #endif // #ifdef __KERNEL__
 
-/* Protocol 2 fixes built-in protections on and retires their setters. */
-#define SUMH_PROTOCOL_VERSION 2
+/* Protocol 3 makes SUMHP mount registration part of the SUMH control plane. */
+#define SUMH_PROTOCOL_VERSION 3
 
 #define SUMH_MAX_LEN_PATHNAME 256
 
@@ -142,6 +142,23 @@ struct sumh_managed_kstat_status_arg {
 #define SUMH_FEATURE_KERNEL_BUILD_SPOOF (1 << 15)
 #define SUMH_FEATURE_MANAGED_MAPS (1 << 16)
 #define SUMH_FEATURE_MANAGED_KSTAT (1 << 17)
+#define SUMH_FEATURE_MANAGED_MOUNTS (1 << 18)
+
+#define SUMH_MANAGED_MOUNT_PATH_MAX 4096
+#define SUMH_MANAGED_MOUNT_REGISTER 1
+#define SUMH_MANAGED_MOUNT_UNREGISTER 2
+
+/* Automatic SUMHP mount lifecycle only. No custom flags, list or wipe action.
+ * All fields after the path's NUL terminator and both reserved words must be
+ * zero. Registration requires a complete absolute mountpoint and captures its
+ * live identity; removal also works after the mount has already disappeared.
+ */
+struct sumh_managed_mount_arg {
+  __u32 size;
+  __u32 operation;
+  __u32 reserved[2];
+  char path[SUMH_MANAGED_MOUNT_PATH_MAX];
+};
 
 #define SUMH_KERNEL_BUILD_MAX 65
 
@@ -344,5 +361,7 @@ struct sumh_statfs_spoof_arg {
   _IOWR(SUMH_IOC_MAGIC, 50, struct sumh_raw_kstat_arg)
 #define SUMH_IOC_GET_MANAGED_KSTAT_STATUS                                      \
   _IOWR(SUMH_IOC_MAGIC, 51, struct sumh_managed_kstat_status_arg)
+#define SUMH_IOC_UPDATE_MANAGED_MOUNT                                          \
+  _IOW(SUMH_IOC_MAGIC, 52, struct sumh_managed_mount_arg)
 
 #endif /* _SUMH_UAPI_H */

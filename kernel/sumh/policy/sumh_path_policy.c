@@ -44,6 +44,7 @@
 #include "sumh_hide_rules.h"
 #include "sumh_name_index.h"
 #include "policy/allowlist.h"
+#include "feature/kernel_umount.h"
 
 #define SUMH_MEDIA_RW_GID 1023
 
@@ -56,16 +57,21 @@ bool sumh_is_privileged_process(void)
 	return uid_eq(current_uid(), GLOBAL_ROOT_UID);
 }
 
+bool sumh_policy_uid_should_umount(uid_t uid)
+{
+	if (is_isolated_process(uid))
+		return true;
+	if (uid == WEBVIEW_ZYGOTE_UID)
+		return ksu_is_webview_zygote_umount_enabled();
+	if (!is_appuid(uid))
+		return false;
+	return ksu_app_profile_should_umount(uid);
+}
+
 static enum sumh_policy_scope sumh_policy_scope_for_uid(uid_t uid)
 {
-	if (is_isolated_process(uid) ||
-	    (uid % PER_USER_RANGE >= 90000 &&
-	     uid % PER_USER_RANGE < FIRST_ISOLATED_UID))
-		return SUMH_POLICY_SCOPE_SPOOF;
-	if (!is_appuid(uid))
-		return SUMH_POLICY_SCOPE_VIEW;
-	return ksu_uid_should_umount(uid) ? SUMH_POLICY_SCOPE_SPOOF
-					  : SUMH_POLICY_SCOPE_VIEW;
+	return sumh_policy_uid_should_umount(uid) ? SUMH_POLICY_SCOPE_SPOOF
+						  : SUMH_POLICY_SCOPE_VIEW;
 }
 
 enum sumh_policy_scope sumh_policy_current_scope(void)
@@ -121,9 +127,7 @@ bool sumh_policy_uid_is_spoof_target(uid_t uid)
 
 bool sumh_policy_current_is_isolated(void)
 {
-	uid_t appid = __kuid_val(task_uid(current)) % PER_USER_RANGE;
-
-	return appid >= 90000 && appid <= LAST_ISOLATED_UID;
+	return is_isolated_process(__kuid_val(task_uid(current)));
 }
 
 /* Mount observations are independent of the module-content policy. Apps

@@ -166,8 +166,6 @@
     <string name="home_android_version">Versiune Android</string>
     <string name="home_device_model">Modelul dispozitivului</string>
     <string name="su_not_allowed">Acordarea privilegiilor de superutilizator pentru %s nu este permisă</string>
-    <string name="settings_disable_kernel_umount">Dezactivează umount-ul kernelului</string>
-    <string name="settings_disable_kernel_umount_summary">Dezactivează comportamentul umount la nivel de kernel controlat de KernelSU</string>
     <string name="settings_selinux_hide">Activează ascunderea SELinux</string>
     <string name="settings_selinux_hide_summary">Ascunde modificările politicii SELinux a KernelSU față de verificările din partea aplicațiilor.</string>
     <string name="feature_status_unsupported_summary">Kernelul nu acceptă această funcție</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Încarcă mai multe jurnale</string>
     <string name="log_viewer_all_logs_loaded">Toate jurnalele afișate</string>
     <string name="incompatible_kernel_msg">Administratorul curent este incompatibil cu acest kernel! Vă rugăm să faceți upgrade kernelului la versiunea %2$d sau mai nouă (curent %1$d)</string>
-    <string name="umount_path_manager">Gestionarea căilor umount</string>
-    <string name="umount_path_restart_notice">Este necesară o repornire pentru ca modificările să aibă efect. Sistemul va aplica noua configurație la următoarea pornire</string>
-    <string name="add_umount_path">Adaugă cale umount</string>
-    <string name="mount_path">Cale de montare</string>
-    <string name="umount_flags">Indicatori de demontare</string>
-    <string name="umount_flags_hint">0=demontare normală, 2=MNT_DETACH</string>
-    <string name="flags">Indicatori</string>
-    <string name="confirm_delete">Confirmă ștergerea</string>
-    <string name="confirm_delete_umount_path">Sigur doriți să ștergeți calea %s?</string>
-    <string name="umount_path_added">Cale adăugată, va avea efect după repornire</string>
-    <string name="umount_path_removed">Cale eliminată, va avea efect după repornire</string>
     <string name="operation_failed">Operațiunea a eșuat</string>
-    <string name="confirm_action">Confirmă acțiunea</string>
-    <string name="confirm_clear_custom_paths">Sigur doriți să ștergeți toate căile personalizate? (căile implicite vor fi păstrate)</string>
-    <string name="custom_paths_cleared">Căi personalizate șterse</string>
-    <string name="clear_custom_paths">Șterge cele personalizate</string>
-    <string name="apply_config">Aplică configurația</string>
-    <string name="config_applied">Configurație aplicată kernelului</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Conține %d aplicații</string>
     <string name="settings_disable_sulog">Jurnalizarea superutilizatorului</string>
     <string name="settings_disable_sulog_summary">Jurnalizează accesul superutilizator al KernelSU</string>

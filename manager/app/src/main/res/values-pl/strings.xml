@@ -166,8 +166,6 @@
     <string name="home_android_version">Wersja Androida</string>
     <string name="home_device_model">Model urządzenia</string>
     <string name="su_not_allowed">Przyznanie superużytkownika dla %s jest niedozwolone</string>
-    <string name="settings_disable_kernel_umount">Wyłącz umount jądra</string>
-    <string name="settings_disable_kernel_umount_summary">Wyłącz zachowanie umount na poziomie jądra kontrolowane przez KernelSU</string>
     <string name="settings_selinux_hide">Włącz ukrywanie SELinux</string>
     <string name="settings_selinux_hide_summary">Ukryj zmiany polityki SELinux KernelSU przed sondami po stronie aplikacji.</string>
     <string name="feature_status_unsupported_summary">Jądro nie obsługuje tej funkcji</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Załaduj więcej dzienników</string>
     <string name="log_viewer_all_logs_loaded">Wyświetlono wszystkie dzienniki</string>
     <string name="incompatible_kernel_msg">Bieżący menedżer jest niezgodny z tym jądrem! Zaktualizuj jądro do wersji %2$d lub wyższej (obecnie %1$d)</string>
-    <string name="umount_path_manager">Zarządzanie ścieżkami umount</string>
-    <string name="umount_path_restart_notice">Wymagany jest restart, aby zmiany zaczęły obowiązywać. System zastosuje nową konfigurację przy następnym rozruchu</string>
-    <string name="add_umount_path">Dodaj ścieżkę umount</string>
-    <string name="mount_path">Ścieżka montowania</string>
-    <string name="umount_flags">Flagi odmontowywania</string>
-    <string name="umount_flags_hint">0=normalne odmontowanie, 2=MNT_DETACH</string>
-    <string name="flags">Flagi</string>
-    <string name="confirm_delete">Potwierdź usunięcie</string>
-    <string name="confirm_delete_umount_path">Czy na pewno chcesz usunąć ścieżkę %s?</string>
-    <string name="umount_path_added">Ścieżka dodana, zacznie obowiązywać po restarcie</string>
-    <string name="umount_path_removed">Ścieżka usunięta, zacznie obowiązywać po restarcie</string>
     <string name="operation_failed">Operacja nie powiodła się</string>
-    <string name="confirm_action">Potwierdź akcję</string>
-    <string name="confirm_clear_custom_paths">Czy na pewno chcesz wyczyścić wszystkie niestandardowe ścieżki? (ścieżki domyślne zostaną zachowane)</string>
-    <string name="custom_paths_cleared">Niestandardowe ścieżki wyczyszczone</string>
-    <string name="clear_custom_paths">Wyczyść niestandardowe</string>
-    <string name="apply_config">Zastosuj konfigurację</string>
-    <string name="config_applied">Konfiguracja zastosowana do jądra</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Zawiera %d aplikacji</string>
     <string name="settings_disable_sulog">Rejestrowanie superużytkownika</string>
     <string name="settings_disable_sulog_summary">Rejestruj dostęp superużytkownika KernelSU</string>

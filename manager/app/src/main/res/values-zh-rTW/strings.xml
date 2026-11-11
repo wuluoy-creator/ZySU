@@ -169,8 +169,6 @@
     <string name="su_not_allowed">不允許授予 %s 超級使用者權限</string>
     <string name="settings_unshare_mnt">掛載視圖整理</string>
     <string name="settings_unshare_mnt_summary">卸載後重建命名空間並整理可見編號，重新啟動應用程式後生效。</string>
-    <string name="settings_disable_kernel_umount">停用核心卸載</string>
-    <string name="settings_disable_kernel_umount_summary">停用由 KernelSU 控制的核心等級卸載</string>
     <string name="settings_selinux_hide">啟用 SELinux 隱藏</string>
     <string name="settings_selinux_hide_summary">對應用程式端 SELinux 探測隱藏 KernelSU 策略變更。</string>
     <string name="feature_status_unsupported_summary">核心不支援此功能</string>
@@ -341,25 +339,7 @@
     <string name="log_viewer_all_logs_loaded">已顯示所有日誌</string>
     <string name="incompatible_kernel_msg">    目前管理器與此核心不相容！請升級核心到 %2$d 或是更高版本(：%1$d)
     </string>
-    <string name="umount_path_manager">卸載路徑管理</string>
-    <string name="umount_path_restart_notice">需要重新啟動系統才能套用。系統將會在下次啟動時套用新的配置</string>
-    <string name="add_umount_path">新增卸載路徑</string>
-    <string name="mount_path">掛載路徑</string>
-    <string name="umount_flags">卸載旗標</string>
-    <string name="umount_flags_hint">0=正常卸載，2=MNT_DETACH</string>
-    <string name="flags">旗標</string>
-    <string name="confirm_delete">確認刪除</string>
-    <string name="confirm_delete_umount_path">您確定要刪除路徑：%s?</string>
-    <string name="umount_path_added">已新增路徑，將會在重新啟動系統後套用</string>
-    <string name="umount_path_removed">已移除路徑，將會在重新啟動系統後套用</string>
     <string name="operation_failed">作業失敗</string>
-    <string name="confirm_action">確認動作</string>
-    <string name="confirm_clear_custom_paths">您確定要清除所有自訂路徑？(將保留預設路徑)</string>
-    <string name="custom_paths_cleared">自訂路徑已清除</string>
-    <string name="clear_custom_paths">清除自訂路徑</string>
-    <string name="apply_config">套用配置</string>
-    <string name="config_applied">已套用配置到核心</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">包含 %d 個應用程式</string>
     <string name="settings_disable_sulog">超級使用者紀錄</string>
     <string name="settings_disable_sulog_summary">記錄 KernelSU 超級使用者存取</string>

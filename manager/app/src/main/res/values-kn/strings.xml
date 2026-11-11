@@ -164,8 +164,6 @@
     <string name="home_android_version">Android ಆವೃತ್ತಿ</string>
     <string name="home_device_model">ಸಾಧನ ಮಾದರಿ</string>
     <string name="su_not_allowed">%s ಗೆ ಸೂಪರ್‌ಯೂಸರ್ ನೀಡಲು ಅನುಮತಿಯಿಲ್ಲ</string>
-    <string name="settings_disable_kernel_umount">ಕರ್ನಲ್ umount ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ</string>
-    <string name="settings_disable_kernel_umount_summary">KernelSU ನಿಂದ ನಿಯಂತ್ರಿತ ಕರ್ನಲ್-ಮಟ್ಟದ umount ವರ್ತನೆಯನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ</string>
     <string name="settings_selinux_hide">SELinux ಮರೆಮಾಡುವಿಕೆ ಸಕ್ರಿಯಗೊಳಿಸಿ</string>
     <string name="settings_selinux_hide_summary">ಆ್ಯಪ್-ಮುಖಿ ತನಿಖೆಗಳಿಂದ KernelSU SELinux ನೀತಿ ಬದಲಾವಣೆಗಳನ್ನು ಮರೆಮಾಡಿ</string>
     <string name="feature_status_unsupported_summary">ಕರ್ನಲ್ ಈ ವೈಶಿಷ್ಟ್ಯವನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">ಹೆಚ್ಚಿನ ಲಾಗ್‌ಗಳನ್ನು ಲೋಡ್ ಮಾಡಿ</string>
     <string name="log_viewer_all_logs_loaded">ಎಲ್ಲಾ ಲಾಗ್‌ಗಳನ್ನು ಪ್ರದರ್ಶಿಸಲಾಗಿದೆ</string>
     <string name="incompatible_kernel_msg">ಪ್ರಸ್ತುತ ನಿರ್ವಾಹಕ ಈ ಕರ್ನಲ್‌ನೊಂದಿಗೆ ಹೊಂದಿಕೆಯಾಗುವುದಿಲ್ಲ! ದಯವಿಟ್ಟು ಕರ್ನಲ್ ಅನ್ನು ಆವೃತ್ತಿ %2$d ಅಥವಾ ಹೆಚ್ಚಿನದಕ್ಕೆ ಅಪ್‌ಗ್ರೇಡ್ ಮಾಡಿ (ಪ್ರಸ್ತುತ %1$d)</string>
-    <string name="umount_path_manager">Umount ಪಥ ನಿರ್ವಹಣೆ</string>
-    <string name="umount_path_restart_notice">ಬದಲಾವಣೆಗಳು ಜಾರಿಗೆ ಬರಲು ರೀಬೂಟ್ ಅಗತ್ಯವಿದೆ. ಸಿಸ್ಟಂ ಮುಂದಿನ ಬೂಟ್‌ನಲ್ಲಿ ಹೊಸ ಕಾನ್ಫಿಗರೇಶನ್ ಅನ್ನು ಅನ್ವಯಿಸುತ್ತದೆ</string>
-    <string name="add_umount_path">Umount ಪಥ ಸೇರಿಸಿ</string>
-    <string name="mount_path">ಮೌಂಟ್ ಪಥ</string>
-    <string name="umount_flags">ಅನ್‌ಮೌಂಟ್ ಫ್ಲ್ಯಾಗ್‌ಗಳು</string>
-    <string name="umount_flags_hint">0=ಸಾಮಾನ್ಯ ಅನ್‌ಮೌಂಟ್, 2=MNT_DETACH</string>
-    <string name="flags">ಫ್ಲ್ಯಾಗ್‌ಗಳು</string>
-    <string name="confirm_delete">ಅಳಿಸುವಿಕೆ ಖಚಿತಪಡಿಸಿ</string>
-    <string name="confirm_delete_umount_path">ನೀವು %s ಪಥವನ್ನು ಅಳಿಸಲು ಬಯಸುತ್ತೀರಿ ಎಂದು ಖಚಿತವೇ?</string>
-    <string name="umount_path_added">ಪಥ ಸೇರಿಸಲಾಗಿದೆ, ರೀಬೂಟ್ ನಂತರ ಜಾರಿಗೆ ಬರುತ್ತದೆ</string>
-    <string name="umount_path_removed">ಪಥ ತೆಗೆದುಹಾಕಲಾಗಿದೆ, ರೀಬೂಟ್ ನಂತರ ಜಾರಿಗೆ ಬರುತ್ತದೆ</string>
     <string name="operation_failed">ಕಾರ್ಯಾಚರಣೆ ವಿಫಲವಾಗಿದೆ</string>
-    <string name="confirm_action">ಕ್ರಿಯೆ ಖಚಿತಪಡಿಸಿ</string>
-    <string name="confirm_clear_custom_paths">ನೀವು ಎಲ್ಲಾ ಕಸ್ಟಮ್ ಪಥಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಬಯಸುತ್ತೀರಿ ಎಂದು ಖಚಿತವೇ? (ಡೀಫಾಲ್ಟ್ ಪಥಗಳನ್ನು ಉಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತದೆ)</string>
-    <string name="custom_paths_cleared">ಕಸ್ಟಮ್ ಪಥಗಳನ್ನು ತೆರವುಗೊಳಿಸಲಾಗಿದೆ</string>
-    <string name="clear_custom_paths">ಕಸ್ಟಮ್ ಪಥಗಳನ್ನು ತೆರವುಗೊಳಿಸಿ</string>
-    <string name="apply_config">ಕಾನ್ಫಿಗರೇಶನ್ ಅನ್ವಯಿಸಿ</string>
-    <string name="config_applied">ಕರ್ನಲ್‌ಗೆ ಕಾನ್ಫಿಗರೇಶನ್ ಅನ್ವಯಿಸಲಾಗಿದೆ</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">%d ಆ್ಯಪ್‌ಗಳನ್ನು ಒಳಗೊಂಡಿದೆ</string>
     <string name="settings_disable_sulog">ಸೂಪರ್‌ಯೂಸರ್ ಲಾಗಿಂಗ್</string>
     <string name="settings_disable_sulog_summary">KernelSU ಸೂಪರ್‌ಯೂಸರ್ ಪ್ರವೇಶವನ್ನು ಲಾಗ್ ಮಾಡಿ</string>

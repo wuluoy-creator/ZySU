@@ -72,7 +72,8 @@ struct ksu_become_daemon_cmd {
 // 4: bundled LKM provenance and UAPI-based version matching.
 // 5: EVENT_SERVICES with a start/skip result.
 // 6: preinit support and batch kernel symbol lookup.
-#define KERNEL_SU_UAPI_VERSION 6
+// 7: retire manual unmount-path ioctls; SUMHP registers mounts through SUMH.
+#define KERNEL_SU_UAPI_VERSION 7
 
 #define KSU_GET_INFO_FLAG_LKM (1U << 0)
 #define KSU_GET_INFO_FLAG_MANAGER (1U << 1)
@@ -212,21 +213,6 @@ struct ksu_nuke_ext4_sysfs_cmd {
   __aligned_u64 arg;
 };
 
-struct ksu_add_try_umount_cmd {
-  __aligned_u64 arg;
-  __u32 flags;
-  __u8 mode;
-};
-
-struct ksu_list_try_umount_cmd {
-  __aligned_u64 arg;
-  __u32 buf_size;
-};
-
-#define KSU_UMOUNT_WIPE 0
-#define KSU_UMOUNT_ADD 1
-#define KSU_UMOUNT_DEL 2
-
 #ifndef KSU_FULL_VERSION_STRING
 #define KSU_FULL_VERSION_STRING 255
 #endif // #ifndef KSU_FULL_VERSION_STRING
@@ -273,7 +259,7 @@ struct ksu_superkey_status_cmd {
 #define KSU_IOCTL_GET_WRAPPER_FD _IOC(_IOC_WRITE, 'K', 15, 0)
 #define KSU_IOCTL_MANAGE_MARK _IOC(_IOC_READ | _IOC_WRITE, 'K', 16, 0)
 #define KSU_IOCTL_NUKE_EXT4_SYSFS _IOC(_IOC_WRITE, 'K', 17, 0)
-#define KSU_IOCTL_ADD_TRY_UMOUNT _IOC(_IOC_WRITE, 'K', 18, 0)
+/* Command 18 is retired; do not reuse it. */
 #define KSU_IOCTL_SET_INIT_PGRP _IO('K', 19)
 #define KSU_IOCTL_GET_SULOG_FD _IOC(_IOC_WRITE, 'K', 20, 0)
 #define KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT _IO('K', 21)
@@ -282,7 +268,7 @@ struct ksu_superkey_status_cmd {
 /* Commands 50-64 are retired; do not reuse them. */
 #define KSU_IOCTL_GET_FULL_VERSION _IOC(_IOC_READ, 'K', 100, 0)
 #define KSU_IOCTL_HOOK_TYPE _IOC(_IOC_READ, 'K', 101, 0)
-#define KSU_IOCTL_LIST_TRY_UMOUNT _IOC(_IOC_READ | _IOC_WRITE, 'K', 200, 0)
+/* Command 200 is retired; do not reuse it. */
 #define KSU_IOCTL_GET_MANAGER_UID _IOC(_IOC_READ, 'K', 201, 0)
 
 /* ZySU private ioctl range */

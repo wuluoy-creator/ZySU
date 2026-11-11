@@ -164,8 +164,6 @@
     <string name="home_android_version">Android verzió</string>
     <string name="home_device_model">Eszköz modellje</string>
     <string name="su_not_allowed">A rendszergazdai jogosultság megadása nem engedélyezett ennek: %s</string>
-    <string name="settings_disable_kernel_umount">Kernel umount letiltása</string>
-    <string name="settings_disable_kernel_umount_summary">A KernelSU által vezérelt kernelszintű umount viselkedés letiltása</string>
     <string name="settings_selinux_hide">SELinux elrejtés engedélyezése</string>
     <string name="settings_selinux_hide_summary">A KernelSU SELinux szabályzatmódosításainak elrejtése az alkalmazásoldali vizsgálatok elől.</string>
     <string name="feature_status_unsupported_summary">A kernel nem támogatja ezt a funkciót</string>
@@ -330,25 +328,7 @@ A</string>
     <string name="log_viewer_load_more">További naplók betöltése</string>
     <string name="log_viewer_all_logs_loaded">Minden napló megjelenítve</string>
     <string name="incompatible_kernel_msg">A jelenlegi kezelő nem kompatibilis ezzel a kernellel! Kérjük, frissítse a kernelt a(z) %2$d vagy újabb verzióra (jelenleg %1$d)</string>
-    <string name="umount_path_manager">Umount útvonalak kezelése</string>
-    <string name="umount_path_restart_notice">Az újraindítás szükséges a módosítások érvénybe lépéséhez. A rendszer a következő indításkor alkalmazza az új konfigurációt</string>
-    <string name="add_umount_path">Umount útvonal hozzáadása</string>
-    <string name="mount_path">Csatolási útvonal</string>
-    <string name="umount_flags">Leválasztási jelzők</string>
-    <string name="umount_flags_hint">0=normál leválasztás, 2=MNT_DETACH</string>
-    <string name="flags">Jelzők</string>
-    <string name="confirm_delete">Törlés megerősítése</string>
-    <string name="confirm_delete_umount_path">Biztosan törli a(z) %s útvonalat?</string>
-    <string name="umount_path_added">Útvonal hozzáadva, újraindítás után lép életbe</string>
-    <string name="umount_path_removed">Útvonal eltávolítva, újraindítás után lép életbe</string>
     <string name="operation_failed">A művelet sikertelen</string>
-    <string name="confirm_action">Művelet megerősítése</string>
-    <string name="confirm_clear_custom_paths">Biztosan törli az összes egyéni útvonalat? (az alapértelmezett útvonalak megmaradnak)</string>
-    <string name="custom_paths_cleared">Egyéni útvonalak törölve</string>
-    <string name="clear_custom_paths">Egyéniek törlése</string>
-    <string name="apply_config">Konfiguráció alkalmazása</string>
-    <string name="config_applied">Konfiguráció alkalmazva a kernelre</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">%d alkalmazást tartalmaz</string>
     <string name="settings_disable_sulog">Rendszergazdai naplózás</string>
     <string name="settings_disable_sulog_summary">A KernelSU rendszergazdai hozzáférésének naplózása</string>

@@ -208,6 +208,7 @@ def tracepoint_source():
 typedef unsigned int uid_t;
 #define CONFIG_KSU_SUPERKEY 1
 #define PER_USER_RANGE 100000
+#define WEBVIEW_ZYGOTE_UID 1053
 #define KSU_INVALID_UID ((uid_t)-1)
 #define READ_ONCE(value) (value)
 #define unlikely(value) (value)
@@ -235,6 +236,9 @@ static bool ksu_is_uid_manager(uid_t uid) {
     return authenticated && uid % PER_USER_RANGE == ksu_manager_package_appid;
 }
 static bool is_appuid(uid_t uid) { return uid % PER_USER_RANGE >= 10000; }
+static bool is_isolated_process(uid_t uid) { return uid % PER_USER_RANGE >= 90000; }
+static const void *current_cred(void) { return NULL; }
+static bool ksu_is_trusted_zygote(const void *cred) { (void)cred; return false; }
 static bool is_ksu_domain(void) { return false; }
 static bool ksu_is_allow_uid_for_current(uid_t uid) { (void)uid; return allowed; }
 static void force_sig(int signal) { (void)signal; kills++; }

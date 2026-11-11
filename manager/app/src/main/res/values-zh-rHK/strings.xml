@@ -167,8 +167,6 @@
     <string name="home_android_version">Android 版本</string>
     <string name="home_device_model">裝置型號</string>
     <string name="su_not_allowed">唔允許授予 %s 超級用戶權限</string>
-    <string name="settings_disable_kernel_umount">關閉核心 umount</string>
-    <string name="settings_disable_kernel_umount_summary">關閉 KernelSU 控制的核心級 umount 行為。</string>
     <string name="settings_selinux_hide">啟用 SELinux 隱藏</string>
     <string name="settings_selinux_hide_summary">對應用端 SELinux 探測隱藏 KernelSU 策略變更。</string>
     <string name="feature_status_unsupported_summary">核心不支援此功能。</string>
@@ -338,25 +336,7 @@
     <string name="log_viewer_load_more">載入更多日誌</string>
     <string name="log_viewer_all_logs_loaded">已顯示所有日誌</string>
     <string name="incompatible_kernel_msg">目前管理器與此核心不相容！請將核心升級至版本 %2$d 或以上（目前 %1$d）</string>
-    <string name="umount_path_manager">Umount 路徑管理</string>
-    <string name="umount_path_restart_notice">新增或刪除路徑後需要重新啟動裝置才能生效。系統會喺下次啟動時套用新的配置。</string>
-    <string name="add_umount_path">新增 Umount 路徑</string>
-    <string name="mount_path">掛載路徑</string>
-    <string name="umount_flags">卸載標誌</string>
-    <string name="umount_flags_hint">0=正常卸載, 2=MNT_DETACH</string>
-    <string name="flags">標誌</string>
-    <string name="confirm_delete">確認刪除</string>
-    <string name="confirm_delete_umount_path">確定要刪除路徑 %s 嗎？</string>
-    <string name="umount_path_added">路徑已新增，重新啟動後生效</string>
-    <string name="umount_path_removed">路徑已刪除，重新啟動後生效</string>
     <string name="operation_failed">操作失敗</string>
-    <string name="confirm_action">確認操作</string>
-    <string name="confirm_clear_custom_paths">確定要清除所有自訂路徑嗎？（默認路徑將保留）</string>
-    <string name="custom_paths_cleared">自訂路徑已清除</string>
-    <string name="clear_custom_paths">清除自訂</string>
-    <string name="apply_config">套用配置</string>
-    <string name="config_applied">配置已套用到核心</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">包含 %1$d 個應用</string>
     <string name="settings_disable_sulog">超級使用者日誌</string>
     <string name="settings_disable_sulog_summary">記錄 KernelSU 超級使用者存取</string>

@@ -166,8 +166,6 @@
     <string name="home_android_version">Androidversion</string>
     <string name="home_device_model">Geräteausführung</string>
     <string name="su_not_allowed">Superuser %s zu erlauben ist nicht erlaubt</string>
-    <string name="settings_disable_kernel_umount">Kernel-Aushängen deaktivieren</string>
-    <string name="settings_disable_kernel_umount_summary">Das von KernelSU gesteuerte Aushängen auf Kernel-Ebene deaktivieren</string>
     <string name="settings_selinux_hide">SELinux-Verbergung aktivieren</string>
     <string name="settings_selinux_hide_summary">Änderungen an der KernelSU-SELinux-Richtlinie vor App-seitigen Prüfungen verbergen.</string>
     <string name="feature_status_unsupported_summary">Der Kernel unterstützt diese Funktion nicht</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Mehr Protokolle laden</string>
     <string name="log_viewer_all_logs_loaded">Alle Protokolle angezeigt</string>
     <string name="incompatible_kernel_msg">Der aktuelle Manager ist mit diesem Kernel nicht kompatibel! Bitte aktualisiere den Kernel auf Version %2$d oder höher (aktuell %1$d)</string>
-    <string name="umount_path_manager">Verwaltung der Aushängepfade</string>
-    <string name="umount_path_restart_notice">Damit die Änderungen wirksam werden, ist ein Neustart erforderlich. Das System wendet die neue Konfiguration beim nächsten Start an</string>
-    <string name="add_umount_path">Aushängepfad hinzufügen</string>
-    <string name="mount_path">Einhängepfad</string>
-    <string name="umount_flags">Aushänge-Flags</string>
-    <string name="umount_flags_hint">0=Normales Unmounten, 2=MNT_DETACH</string>
-    <string name="flags">Flags</string>
-    <string name="confirm_delete">Löschen bestätigen</string>
-    <string name="confirm_delete_umount_path">Möchtest du den Pfad %s wirklich löschen?</string>
-    <string name="umount_path_added">Pfad hinzugefügt, wird nach dem Neustart wirksam</string>
-    <string name="umount_path_removed">Pfad entfernt, wird nach dem Neustart wirksam</string>
     <string name="operation_failed">Vorgang fehlgeschlagen</string>
-    <string name="confirm_action">Aktion bestätigen</string>
-    <string name="confirm_clear_custom_paths">Möchtest du wirklich alle benutzerdefinierten Pfade löschen? (Standardpfade bleiben erhalten)</string>
-    <string name="custom_paths_cleared">Benutzerdefinierte Pfade gelöscht</string>
-    <string name="clear_custom_paths">Benutzerdefinierte löschen</string>
-    <string name="apply_config">Konfiguration anwenden</string>
-    <string name="config_applied">Konfiguration auf den Kernel angewendet</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Enthält %d Apps</string>
     <string name="settings_disable_sulog">Superuser-Protokollierung</string>
     <string name="settings_disable_sulog_summary">KernelSU-Superuser-Zugriffe protokollieren</string>

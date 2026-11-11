@@ -164,8 +164,6 @@
     <string name="home_android_version">Verzija Androida</string>
     <string name="home_device_model">Model uređaja</string>
     <string name="su_not_allowed">Dodjela ovlasti superkorisnika za %s nije dopuštena</string>
-    <string name="settings_disable_kernel_umount">Onemogući umount jezgre</string>
-    <string name="settings_disable_kernel_umount_summary">Onemogući ponašanje umount na razini jezgre koje kontrolira KernelSU</string>
     <string name="settings_selinux_hide">Omogući skrivanje SELinux</string>
     <string name="settings_selinux_hide_summary">Sakrij promjene SELinux politike KernelSU od provjera na strani aplikacija.</string>
     <string name="feature_status_unsupported_summary">Jezgra ne podržava ovu značajku</string>
@@ -329,25 +327,7 @@
     <string name="log_viewer_load_more">Učitaj više zapisnika</string>
     <string name="log_viewer_all_logs_loaded">Prikazani svi zapisnici</string>
     <string name="incompatible_kernel_msg">Trenutni upravitelj nije kompatibilan s ovom jezgrom! Nadogradite jezgru na verziju %2$d ili noviju (trenutno %1$d)</string>
-    <string name="umount_path_manager">Upravljanje umount putanjama</string>
-    <string name="umount_path_restart_notice">Za primjenu promjena potrebno je ponovno pokretanje. Sustav će primijeniti novu konfiguraciju pri sljedećem pokretanju</string>
-    <string name="add_umount_path">Dodaj umount putanju</string>
-    <string name="mount_path">Putanja montiranja</string>
-    <string name="umount_flags">Zastavice odmontiranja</string>
-    <string name="umount_flags_hint">0=normalno odmontiranje, 2=MNT_DETACH</string>
-    <string name="flags">Zastavice</string>
-    <string name="confirm_delete">Potvrdi brisanje</string>
-    <string name="confirm_delete_umount_path">Jeste li sigurni da želite izbrisati putanju %s?</string>
-    <string name="umount_path_added">Putanja dodana, primjenjuje se nakon ponovnog pokretanja</string>
-    <string name="umount_path_removed">Putanja uklonjena, primjenjuje se nakon ponovnog pokretanja</string>
     <string name="operation_failed">Operacija nije uspjela</string>
-    <string name="confirm_action">Potvrdi radnju</string>
-    <string name="confirm_clear_custom_paths">Jeste li sigurni da želite očistiti sve prilagođene putanje? (zadane putanje bit će zadržane)</string>
-    <string name="custom_paths_cleared">Prilagođene putanje očišćene</string>
-    <string name="clear_custom_paths">Očisti prilagođene</string>
-    <string name="apply_config">Primijeni konfiguraciju</string>
-    <string name="config_applied">Konfiguracija primijenjena na jezgru</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Sadrži %d aplikacija</string>
     <string name="settings_disable_sulog">Bilježenje superkorisnika</string>
     <string name="settings_disable_sulog_summary">Bilježi pristup superkorisnika KernelSU</string>

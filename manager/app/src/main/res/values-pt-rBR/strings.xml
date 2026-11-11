@@ -166,8 +166,6 @@
     <string name="home_android_version">Versão do Android</string>
     <string name="home_device_model">Modelo do dispositivo</string>
     <string name="su_not_allowed">Não é permitido conceder superusuário a %s</string>
-    <string name="settings_disable_kernel_umount">Desativar umount do kernel</string>
-    <string name="settings_disable_kernel_umount_summary">Desativar o comportamento de umount em nível de kernel controlado pelo KernelSU</string>
     <string name="settings_selinux_hide">Ativar ocultação do SELinux</string>
     <string name="settings_selinux_hide_summary">Ocultar as alterações da política SELinux do KernelSU das sondagens do lado do aplicativo.</string>
     <string name="feature_status_unsupported_summary">O kernel não oferece suporte a este recurso</string>
@@ -331,25 +329,7 @@
     <string name="log_viewer_load_more">Carregar mais registros</string>
     <string name="log_viewer_all_logs_loaded">Todos os registros exibidos</string>
     <string name="incompatible_kernel_msg">O gerenciador atual é incompatível com este kernel! Atualize o kernel para a versão %2$d ou superior (atualmente %1$d)</string>
-    <string name="umount_path_manager">Gerenciamento de caminhos de umount</string>
-    <string name="umount_path_restart_notice">É necessário reiniciar para que as alterações tenham efeito. O sistema aplicará a nova configuração na próxima inicialização</string>
-    <string name="add_umount_path">Adicionar caminho de umount</string>
-    <string name="mount_path">Caminho de montagem</string>
-    <string name="umount_flags">Flags de desmontagem</string>
-    <string name="umount_flags_hint">0=desmontagem normal, 2=MNT_DETACH</string>
-    <string name="flags">Flags</string>
-    <string name="confirm_delete">Confirmar exclusão</string>
-    <string name="confirm_delete_umount_path">Tem certeza de que deseja excluir o caminho %s?</string>
-    <string name="umount_path_added">Caminho adicionado, terá efeito após reiniciar</string>
-    <string name="umount_path_removed">Caminho removido, terá efeito após reiniciar</string>
     <string name="operation_failed">Falha na operação</string>
-    <string name="confirm_action">Confirmar ação</string>
-    <string name="confirm_clear_custom_paths">Tem certeza de que deseja limpar todos os caminhos personalizados? (os caminhos padrão serão mantidos)</string>
-    <string name="custom_paths_cleared">Caminhos personalizados limpos</string>
-    <string name="clear_custom_paths">Limpar personalizados</string>
-    <string name="apply_config">Aplicar configuração</string>
-    <string name="config_applied">Configuração aplicada ao kernel</string>
-    <string name="mnt_detach">MNT_DETACH</string>
     <string name="group_contains_apps">Contém %d aplicativos</string>
     <string name="settings_disable_sulog">Registro de superusuário</string>
     <string name="settings_disable_sulog_summary">Registrar os acessos de superusuário do KernelSU</string>

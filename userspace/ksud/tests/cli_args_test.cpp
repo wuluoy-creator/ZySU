@@ -52,9 +52,33 @@ int main() {
         assert(ksud::parse_cli(command, parsed) == 2);
     }
 
+    // Manual unmount commands must never reach the SUMHP-owned mount registry.
+    for (const auto& command :
+         std::vector<std::vector<std::string>>{{"umount"},
+                                               {"umount", "--help"},
+                                               {"umount", "add", "/system/app", "--flags", "2"},
+                                               {"umount", "del", "/system/app"},
+                                               {"umount", "remove", "/system/app"},
+                                               {"umount", "list"},
+                                               {"umount", "save"},
+                                               {"umount", "apply"},
+                                               {"umount", "clear-custom"},
+                                               {"kernel", "umount", "--help"},
+                                               {"kernel", "umount", "add", "/system/app"},
+                                               {"kernel", "umount", "del", "/system/app"},
+                                               {"kernel", "umount", "wipe"}}) {
+        ksud::CliArguments parsed;
+        assert(ksud::parse_cli(command, parsed) == 2);
+    }
+
     // Existing daemon and module commands still reach their normal dispatch.
-    for (const auto& command : std::vector<std::vector<std::string>>{
-             {"post-fs-data"}, {"services"}, {"boot-completed"}, {"module", "list"}}) {
+    for (const auto& command :
+         std::vector<std::vector<std::string>>{{"post-fs-data"},
+                                               {"services"},
+                                               {"boot-completed"},
+                                               {"module", "list"},
+                                               {"sumhp", "module", "unmount"},
+                                               {"kernel", "notify-module-mounted"}}) {
         ksud::CliArguments parsed;
         assert(ksud::parse_cli(command, parsed) == -1);
         assert(parsed.command == command.front());

@@ -11,8 +11,6 @@ void ksu_kernel_umount_exit(void);
 bool ksu_is_webview_zygote_umount_enabled(void);
 bool ksu_is_unshare_mnt_enabled(void);
 
-void try_umount(const char *mnt, int flags);
-
 // Handler function to be called from setresuid hook
 int ksu_handle_umount(uid_t old_uid, uid_t new_uid);
 

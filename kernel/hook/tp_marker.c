@@ -27,6 +27,52 @@
 static int tracepoint_reg_count = 0;
 static DEFINE_SPINLOCK(tracepoint_reg_lock);
 
+static void ksu_refresh_task_tracepoint_flag(struct task_struct *task,
+					     const struct cred *cred)
+{
+	uid_t uid = cred->uid.val;
+
+	if ((uid == 0 && is_task_ksu_domain(cred)) ||
+	    ksu_is_trusted_zygote(cred) || uid == 2000 || task->pid == 1 ||
+	    ksu_is_allow_uid(uid) || ksu_is_manager_auth_candidate(uid))
+		ksu_set_task_tracepoint_flag(task);
+	else
+		ksu_clear_task_tracepoint_flag(task);
+}
+
+/* setresuid precedes SELinux specialization: the app-zygote may initially
+ * lose its inherited marker while still in zygote's domain. Observe the
+ * credential commit to restore it for trusted factories, and clear it when
+ * an isolated child enters its ordinary app domain. No authorization is
+ * granted here. commit_creds() always publishes its supplied credential. */
+static int ksu_zygote_cred_pre(struct kprobe *probe, struct pt_regs *regs)
+{
+	const struct cred *cred;
+	unsigned long flags;
+
+	(void)probe;
+#if defined(CONFIG_ARM64)
+	cred = (const struct cred *)regs->regs[0];
+#elif defined(CONFIG_X86_64)
+	cred = (const struct cred *)regs->di;
+#else
+	return 0;
+#endif
+	if (!ksu_zygote_cred_changed(current_cred(), cred))
+		return 0;
+	spin_lock_irqsave(&tracepoint_reg_lock, flags);
+	if (tracepoint_reg_count <= 1)
+		ksu_refresh_task_tracepoint_flag(current, cred);
+	spin_unlock_irqrestore(&tracepoint_reg_lock, flags);
+	return 0;
+}
+
+static struct kprobe zygote_cred_probe = {
+    .symbol_name = "commit_creds",
+    .pre_handler = ksu_zygote_cred_pre,
+};
+static bool zygote_cred_probe_registered;
+
 void ksu_clear_task_tracepoint_flag_if_needed(struct task_struct *t)
 {
 	unsigned long flags;
@@ -77,20 +123,8 @@ static void ksu_mark_running_process_locked(void)
 			 */
 			continue;
 		}
-		int uid = task_uid(t).val;
 		const struct cred *cred = get_task_cred(t);
-		bool ksu_root_process = uid == 0 && is_task_ksu_domain(cred);
-		bool is_zygote_process = is_zygote(cred);
-		bool is_shell = uid == 2000;
-		// before boot completed, we shall mark init for marking zygote
-		bool is_init = t->pid == 1;
-		if (ksu_root_process || is_zygote_process || is_shell ||
-		    is_init || ksu_is_allow_uid(uid) ||
-		    ksu_is_manager_auth_candidate(uid)) {
-			ksu_set_task_tracepoint_flag(t);
-		} else {
-			ksu_clear_task_tracepoint_flag(t);
-		}
+		ksu_refresh_task_tracepoint_flag(t, cred);
 		put_cred(cred);
 	}
 	read_unlock(&tasklist_lock);
@@ -228,6 +262,13 @@ static struct kretprobe *syscall_unregfunc_rp = NULL;
 
 void ksu_tp_marker_init(void)
 {
+	int ret = register_kprobe(&zygote_cred_probe);
+
+	zygote_cred_probe_registered = !ret;
+	if (ret)
+		pr_err(
+		    "tp_marker: cannot track zygote credential changes: %d\n",
+		    ret);
 #ifdef CONFIG_KRETPROBES
 	syscall_regfunc_rp =
 	    init_kretprobe("syscall_regfunc", syscall_regfunc_handler);
@@ -242,6 +283,10 @@ void ksu_tp_marker_init(void)
 
 void ksu_tp_marker_exit(void)
 {
+	if (zygote_cred_probe_registered) {
+		unregister_kprobe(&zygote_cred_probe);
+		zygote_cred_probe_registered = false;
+	}
 #ifdef CONFIG_KRETPROBES
 	destroy_kretprobe(&syscall_regfunc_rp);
 	destroy_kretprobe(&syscall_unregfunc_rp);
