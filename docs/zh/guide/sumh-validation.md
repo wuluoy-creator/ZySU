@@ -40,6 +40,9 @@ python3 scripts/ci/test_sumh_app_umount.py --cc clang
 python3 scripts/ci/test_sumh_zygote_umount.py --cc clang
 python3 scripts/ci/test_sumh_native_namespace.py --cc clang
 python3 scripts/ci/test_selinux_hide_status.py --cc clang
+python3 scripts/ci/test_selinux_hide_access.py --cc clang
+python3 scripts/ci/test_selinux_hide_context.py --cc clang
+python3 scripts/ci/test_selinux_hide_setprocattr.py --cc clang
 python3 scripts/ci/test_sumh_guards.py --cc clang
 python3 scripts/ci/test_sumh_kernel_build.py --cc clang
 python3 scripts/ci/test_sumh_rules.py --cc clang
@@ -58,7 +61,10 @@ python3 scripts/ci/test_sumh_kstat.py --cc clang
 | `test_sumh_app_umount.py` | 应用配置、有效 UID 策略、授权查询及延迟卸载复查 |
 | `test_sumh_zygote_umount.py` | 可信 zygote 类型、非 root 隔离进程路径及父进程命名空间保护 |
 | `test_sumh_native_namespace.py` | 保留原生命名空间身份，以及旧启停/模式修改请求被拒绝 |
-| `test_selinux_hide_status.py` | 配置意图与实际 SELinux 运行状态、初始化失败 |
+| `test_selinux_hide_status.py` | 配置意图与运行状态、首次打开时的状态页初始化、失败恢复与无锁快速路径 |
+| `test_selinux_hide_access.py` | access 原地分词、请求边界、权限拒绝与上下文转换错误 |
+| `test_selinux_hide_context.py` | 上下文解析、策略本地 ID、MLS 清理及策略重载重试 |
+| `test_selinux_hide_setprocattr.py` | 凭据切换权限顺序、ptrace 拒绝及失败清理 |
 | `test_sumh_guards.py` | 递归保护、哈希冲突、嵌套任务标记和空桶锁获取 |
 | `test_sumh_kernel_build.py` | 内核构建字段校验、状态更新和恢复语义 |
 | `test_sumh_rules.py` | 规则导出的分配与清理失败分支 |

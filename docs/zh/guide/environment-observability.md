@@ -34,6 +34,10 @@
 
 前一条命令同时显示配置和运行状态。运行状态不参与保存、恢复，也不能通过 `feature set` 设置。`active` 只代表上述初始化条件满足，不代表 SELinux 的所有可观察接口或第三方应用验证均已通过。
 
+状态页在完整初始化后通过 release/acquire 发布给无锁读取路径；如果首次打开才创建源状态页，该次打开也会使用刚生成的快照。初始化失败时保留原有回退行为，底层打开失败时保留错误返回。已准备好的状态页读取不增加互斥锁或内存分配。
+
+`access` 查询直接在事务缓冲区内拆分两个上下文，省去原先两次 `size + 1` 字节的临时分配及对应复制，随后仍执行上下文转换、权限计算和原有整数解析。此处减少的是单次请求的分配与复制开销；实际设备延迟需要另行测量。
+
 ## 挂载、namespace 与文件系统视图
 
 当前管理器的“挂载隐藏”只有开关，保存配置时使用 `normal` 模式。内核保留原生 mount namespace 身份，不再提供只改写 namespace 链接文本的 `aggressive` 能力；直接向内核请求该模式返回 `EOPNOTSUPP`。
@@ -62,6 +66,9 @@
 
 ```sh
 python3 scripts/ci/test_selinux_hide_status.py --cc clang
+python3 scripts/ci/test_selinux_hide_access.py --cc clang
+python3 scripts/ci/test_selinux_hide_context.py --cc clang
+python3 scripts/ci/test_selinux_hide_setprocattr.py --cc clang
 python3 scripts/ci/test_sumh_native_namespace.py --cc clang
 python3 scripts/ci/test_sumh_mount_views.py --cc clang
 python3 userspace/ksud/tests/run_hide_bootloader_host_tests.py --cxx clang++
@@ -79,5 +86,7 @@ python3 userspace/ksud/tests/run_sumh_host_tests.py --cxx g++
 5. 测试旧 `aggressive` 配置恢复，检查日志中的回退及实际模式；确认 namespace 文本与 inode 身份一致。
 
 root shell 适合读取诊断状态，但它的文件视图不能代替普通应用的结果。权限拒绝也应作为观测结果记录，不能当作功能已隐藏该接口。
+
+SELinux 专项复验还应覆盖：启动时首次打开状态页、多个应用同时打开、开关切换后重新打开、状态页分配失败后的恢复，以及不同长度和空白分隔的 `access` 请求。分别记录首次与后续请求的延迟及分配次数；主机测试的调用计数不能换算为真机性能提升比例。
 
 实现入口：[`init_event.cpp`](../../../userspace/ksud/src/init_event.cpp)、[`selinux_hide.c`](../../../kernel/feature/selinux_hide.c)、[`sumh_ioctl.c`](../../../kernel/sumh/control/sumh_ioctl.c)、[`sumh_proc_read_hooks.c`](../../../kernel/sumh/hooks/sumh_proc_read_hooks.c)。相关回归范围见 [SUMH 验证指南](sumh-validation.md)。

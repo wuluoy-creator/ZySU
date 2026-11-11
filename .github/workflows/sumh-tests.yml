@@ -106,6 +106,7 @@ jobs:
           python3 scripts/ci/test_selinux_btf.py --cc clang
           python3 scripts/ci/test_selinux_policy_updates.py --cc clang
           python3 scripts/ci/test_selinux_hide_status.py --cc clang
+          python3 scripts/ci/test_selinux_hide_access.py --cc clang
           python3 scripts/ci/test_selinux_hide_context.py --cc clang
           python3 scripts/ci/test_selinux_hide_setprocattr.py --cc clang
           python3 scripts/ci/test_sumh_guards.py --cc clang

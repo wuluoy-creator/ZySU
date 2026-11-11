@@ -7,6 +7,7 @@
 #include "ksu.h"
 #include "selinux/sepolicy.h"
 #include <linux/cred.h>
+#include <linux/ctype.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -152,13 +153,32 @@ out:
 	return length;
 }
 
+/* Each context must be followed by whitespace and another request field. */
+static char *selinux_access_context(char **cursor, char *end, u32 *len)
+{
+	char *p = *cursor, *context;
+
+	while (p < end && isspace(*p))
+		p++;
+	context = p;
+	while (p < end && *p && !isspace(*p))
+		p++;
+	if (p == context || p == end || !*p)
+		return NULL;
+
+	*len = p - context;
+	*p++ = '\0';
+	*cursor = p;
+	return context;
+}
+
 static ssize_t my_write_access(struct file *file, char *buf, size_t size)
 {
 	// apply to all app uids
 	if (likely(current_uid().val < 10000)) {
 		return orig_access_write(file, buf, size);
 	}
-	char *scon = NULL, *tcon = NULL;
+	char *scon, *tcon, *cursor = buf, *end = buf + size;
 	u32 ssid, tsid, sconlen, tconlen;
 	u16 tclass;
 	struct av_decision avd;
@@ -170,22 +190,14 @@ static ssize_t my_write_access(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = -ENOMEM;
-	scon = kzalloc(size + 1, GFP_KERNEL);
+	length = -EINVAL;
+	scon = selinux_access_context(&cursor, end, &sconlen);
 	if (!scon)
 		goto out;
-
-	length = -ENOMEM;
-	tcon = kzalloc(size + 1, GFP_KERNEL);
-	if (!tcon)
+	tcon = selinux_access_context(&cursor, end, &tconlen);
+	/* simple_transaction_get() supplies the trailing NUL for sscanf(). */
+	if (!tcon || cursor == end || sscanf(cursor, "%hu", &tclass) != 1)
 		goto out;
-
-	length = -EINVAL;
-	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
-		goto out;
-
-	sconlen = strlen(scon);
-	tconlen = strlen(tcon);
 
 	length = security_context_to_sid_with_policy(
 	    backup_sepolicy, scon, sconlen, &ssid, SECSID_NULL, GFP_KERNEL,
@@ -211,8 +223,6 @@ static ssize_t my_write_access(struct file *file, char *buf, size_t size)
 			   avd.allowed, 0xffffffff, avd.auditallow,
 			   avd.auditdeny, avd.seqno, avd.flags);
 out:
-	kfree(tcon);
-	kfree(scon);
 	return length;
 }
 
@@ -370,7 +380,8 @@ static void initialize_fake_status(void)
 			new_status->enforcing = 1;
 	}
 
-	fake_status = new_page;
+	/* Publish the fully initialized page to the lockless open path. */
+	smp_store_release(&fake_status, new_page);
 	pr_info("initialize_fake_status initialized: sequence=%d, "
 		"policyload=%d, enforcing=%d\n",
 		new_status->sequence, new_status->policyload,
@@ -387,11 +398,13 @@ static sel_open_handle_status_fn *sel_open_handle_status_slot;
 
 static int my_sel_open_handle_status(struct inode *inode, struct file *filp)
 {
-	void *data;
+	struct page *data;
+	bool hide =
+	    current_uid().val >= 10000 && READ_ONCE(ksu_selinux_hide_enabled);
 	int ret;
 
-	if (likely(current_uid().val >= 10000 && ksu_selinux_hide_enabled)) {
-		data = READ_ONCE(fake_status);
+	if (likely(hide)) {
+		data = smp_load_acquire(&fake_status);
 		if (data) {
 			filp->private_data = data;
 			return 0;
@@ -399,11 +412,20 @@ static int my_sel_open_handle_status(struct inode *inode, struct file *filp)
 	}
 
 	ret = orig_sel_open_handle_status(inode, filp);
-	if (static_branch_unlikely(&fake_status_initialize_key) && !ret &&
-	    !fake_status)
+	if (ret)
+		return ret;
+	if (static_branch_unlikely(&fake_status_initialize_key) &&
+	    !smp_load_acquire(&fake_status))
 		initialize_fake_status();
 
-	return ret;
+	/* The original open may have created the source status page. Use the
+	 * snapshot on this same open if late initialization just succeeded. */
+	if (hide) {
+		data = smp_load_acquire(&fake_status);
+		if (data)
+			filp->private_data = data;
+	}
+	return 0;
 }
 
 static void hook_selinux_status_open(void);
@@ -558,7 +580,7 @@ static int selinux_hide_feature_set(u64 value)
 	bool enable = value != 0;
 	pr_info("selinux_hide: set to %d\n", enable);
 	mutex_lock(&selinux_hide_mutex);
-	ksu_selinux_hide_enabled = enable;
+	WRITE_ONCE(ksu_selinux_hide_enabled, enable);
 	if (enable) {
 		if (!ksu_selinux_hide_running) {
 			int ret = ksu_selinux_hide_enable();
