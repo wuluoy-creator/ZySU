@@ -46,7 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1225,7 +1225,7 @@ fun ModuleItem(
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
         elevation = getCardElevation(),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(20.dp),
         border = getCardBorder(),
     ) {
         val textDecoration = if (!module.remove) null else TextDecoration.LineThrough
@@ -1239,27 +1239,74 @@ fun ModuleItem(
         }
 
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
             ) {
-                HomeCardIcon(
-                    icon = Icons.Outlined.Extension,
-                    containerColor = if (localEnabled) MaterialTheme.colorScheme.secondaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    tint = if (localEnabled) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = module.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    textDecoration = textDecoration,
-                    modifier = Modifier.weight(1f),
-                )
+                Column(Modifier.weight(1f)) {
+                    val showMountStrategy = mountInfo != null && mountConfigEnabled && !module.metamodule
+                    val showStatus = module.remove || module.update || updateUrl.isNotEmpty()
+                    if (showStatus || (!isHideTagRow && (module.metamodule || showMountStrategy))) {
+                        FlowRow(
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            when {
+                                module.remove -> ModuleTag(
+                                    text = stringResource(R.string.module_pending_removal),
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                                module.update -> ModuleTag(
+                                    text = stringResource(R.string.module_pending_restart),
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                )
+                                updateUrl.isNotEmpty() -> ModuleTag(
+                                    text = stringResource(R.string.repository_update_available),
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                            if (!isHideTagRow) {
+                                if (module.metamodule) ModuleTag("META")
+                                if (showMountStrategy) {
+                                    val strategy = if (mountInfo.mode == "none") "none" else mountInfo.strategy
+                                    ModuleTag(stringResource(when (strategy) {
+                                        "sumh" -> R.string.sumh_mount_mode_sumh
+                                        "overlay" -> R.string.sumh_mount_mode_overlay
+                                        "magic" -> R.string.sumh_strategy_magic_mount
+                                        else -> R.string.sumh_strategy_not_mounted
+                                    }))
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        text = module.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = textDecoration,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "${stringResource(R.string.module_version)}: ${module.version}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textDecoration = textDecoration,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "${stringResource(R.string.module_author)}: ${module.author}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textDecoration = textDecoration,
+                    )
+                }
                 YukiSwitch(
                     modifier = Modifier.semantics { contentDescription = module.name },
                     enabled = !module.update,
@@ -1271,25 +1318,6 @@ fun ModuleItem(
                             if (!success) localEnabled = !newChecked
                         }
                     },
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = "${stringResource(R.string.module_version)}: ${module.version}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textDecoration = textDecoration,
-                )
-                Text(
-                    text = "${stringResource(R.string.module_author)}: ${module.author}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textDecoration = textDecoration,
                 )
             }
 
@@ -1318,15 +1346,17 @@ fun ModuleItem(
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = module.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = moduleDescriptionMaxLines,
-                textDecoration = textDecoration,
-            )
+            if (module.description.isNotBlank()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = module.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = moduleDescriptionMaxLines,
+                    textDecoration = textDecoration,
+                )
+            }
 
             module.preinitWarning()?.let { warning ->
                 Spacer(Modifier.height(8.dp))
@@ -1338,105 +1368,89 @@ fun ModuleItem(
             }
 
             if (!isHideTagRow) {
-                val showMountStrategy = mountInfo != null && mountConfigEnabled && !module.metamodule
                 Spacer(Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (module.metamodule || showMountStrategy) {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            if (module.metamodule) ModuleTag("META")
-                            if (showMountStrategy) {
-                                val strategy = if (mountInfo.mode == "none") "none" else mountInfo.strategy
-                                ModuleTag(stringResource(when (strategy) {
-                                    "sumh" -> R.string.sumh_mount_mode_sumh
-                                    "overlay" -> R.string.sumh_mount_mode_overlay
-                                    "magic" -> R.string.sumh_strategy_magic_mount
-                                    else -> R.string.sumh_strategy_not_mounted
-                                }))
-                            }
-                        }
-                    }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(module.dirId, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(sizeStr, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(module.dirId, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(sizeStr, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FlowRow(
+            Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth()
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                if (mountInfo != null && mountConfigEnabled && !module.metamodule) {
-                    ModuleActionButton(
-                        enabled = !module.remove && localEnabled,
-                        onClick = onMountConfig,
-                        imageVector = Icons.Outlined.Folder,
-                        contentDescription = stringResource(R.string.sumh_mount_config)
-                    )
-                }
-                if (module.hasActionScript) {
-                    ModuleActionButton(
-                        enabled = !module.remove && localEnabled,
-                        onClick = {
-                            navigator.navigate(ExecuteModuleActionScreenDestination(module.dirId))
-                            viewModel.markNeedRefresh()
-                        },
-                        imageVector = Icons.Outlined.PlayArrow,
-                        contentDescription = stringResource(R.string.action)
-                    )
-                }
+                FlowRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (module.hasActionScript) {
+                        ModuleActionButton(
+                            enabled = !module.remove && localEnabled,
+                            onClick = {
+                                navigator.navigate(ExecuteModuleActionScreenDestination(module.dirId))
+                                viewModel.markNeedRefresh()
+                            },
+                            imageVector = Icons.Outlined.PlayArrow,
+                            contentDescription = stringResource(R.string.action),
+                        )
+                    }
 
-                if (module.hasWebUi) {
-                    ModuleActionButton(
-                        enabled = !module.remove && localEnabled,
-                        onClick = { onClick(module) },
-                        imageVector = Icons.AutoMirrored.Outlined.Wysiwyg,
-                        contentDescription = "WebUI"
-                    )
-                }
+                    if (module.hasWebUi) {
+                        ModuleActionButton(
+                            enabled = !module.remove && localEnabled,
+                            onClick = { onClick(module) },
+                            imageVector = Icons.AutoMirrored.Outlined.Wysiwyg,
+                            contentDescription = "WebUI",
+                        )
+                    }
 
-                if (module.hasActionScript || module.hasWebUi) {
-                    ModuleActionButton(
-                        enabled = !module.remove,
-                        onClick = onAddShortcut,
-                        imageVector = Icons.Outlined.AddCircle,
-                        contentDescription = stringResource(R.string.module_shortcut_add),
-                        label = stringResource(R.string.ui_module_shortcut_action),
-                    )
-                }
+                    if (updateUrl.isNotEmpty()) {
+                        ModuleActionButton(
+                            enabled = !module.remove,
+                            onClick = { onUpdate(module) },
+                            imageVector = Icons.Outlined.Download,
+                            contentDescription = stringResource(R.string.module_update),
+                            prominent = true,
+                        )
+                    }
 
-                if (updateUrl.isNotEmpty()) {
-                    ModuleActionButton(
-                        enabled = !module.remove,
-                        onClick = { onUpdate(module) },
-                        imageVector = Icons.Outlined.Download,
-                        contentDescription = stringResource(R.string.module_update),
-                        prominent = true
-                    )
+                    if (mountInfo != null && mountConfigEnabled && !module.metamodule) {
+                        ModuleActionButton(
+                            enabled = !module.remove && localEnabled,
+                            onClick = onMountConfig,
+                            imageVector = Icons.Outlined.Folder,
+                            contentDescription = stringResource(R.string.sumh_mount_config),
+                            iconOnly = true,
+                        )
+                    }
+
+                    if (module.hasActionScript || module.hasWebUi) {
+                        ModuleActionButton(
+                            enabled = !module.remove,
+                            onClick = onAddShortcut,
+                            imageVector = Icons.Outlined.AddCircle,
+                            contentDescription = stringResource(R.string.module_shortcut_add),
+                            iconOnly = true,
+                        )
+                    }
                 }
 
                 ModuleActionButton(
                     onClick = { onUninstallClicked(module) },
-                    imageVector = if (!module.remove) Icons.Outlined.Delete else Icons.Outlined.Refresh,
-                    modifier = if (!module.remove) Modifier else Modifier.rotate(180f),
+                    imageVector = if (!module.remove) Icons.Outlined.Delete else Icons.AutoMirrored.Filled.Undo,
                     contentDescription = stringResource(if (!module.remove) R.string.uninstall else R.string.cancel),
                     destructive = !module.remove,
+                    restoring = module.remove,
+                    iconOnly = true,
                 )
             }
         }
@@ -1444,78 +1458,127 @@ fun ModuleItem(
 }
 
 @Composable
-private fun ModuleTag(text: String, emphasized: Boolean = false) {
+private fun ModuleTag(
+    text: String,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
     Surface(
-        shape = MaterialTheme.shapes.extraSmall,
-        color = if (emphasized) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = if (emphasized) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = RoundedCornerShape(8.dp),
+        color = containerColor,
+        contentColor = contentColor,
     ) {
         Text(text, style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModuleActionButton(
     imageVector: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     prominent: Boolean = false,
     destructive: Boolean = false,
-    label: String = contentDescription,
+    restoring: Boolean = false,
+    iconOnly: Boolean = false,
 ) {
-    val content: @Composable RowScope.() -> Unit = {
-        YukiIcon(
-            modifier = modifier.size(20.dp),
-            imageVector = imageVector,
-            contentDescription = null,
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(label, modifier = Modifier.weight(1f, fill = false).clearAndSetSemantics {})
+    val colors = MaterialTheme.colorScheme
+    val containerColor = when {
+        destructive -> colors.errorContainer
+        restoring -> colors.tertiaryContainer
+        prominent -> colors.primaryContainer
+        else -> colors.secondaryContainer
     }
-    val buttonModifier = Modifier.heightIn(min = 48.dp)
-        .semantics { this.contentDescription = contentDescription }
-
-    if (prominent) {
+    val contentColor = when {
+        destructive -> colors.onErrorContainer
+        restoring -> colors.onTertiaryContainer
+        prominent -> colors.onPrimaryContainer
+        else -> colors.onSecondaryContainer
+    }
+    val button: @Composable () -> Unit = {
         FilledTonalButton(
-            modifier = buttonModifier,
+            modifier = (if (iconOnly) Modifier.size(48.dp) else Modifier.heightIn(min = 48.dp))
+                .semantics { this.contentDescription = contentDescription },
             enabled = enabled,
             onClick = onClick,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            content = content,
+            shape = CircleShape,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = containerColor,
+                contentColor = contentColor,
+            ),
+            contentPadding = if (iconOnly) PaddingValues(0.dp)
+                else PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            YukiIcon(
+                modifier = Modifier.size(20.dp),
+                imageVector = imageVector,
+                contentDescription = null,
+            )
+            if (!iconOnly) {
+                Spacer(Modifier.width(8.dp))
+                Text(contentDescription, modifier = Modifier.weight(1f, fill = false).clearAndSetSemantics {})
+            }
+        }
+    }
+    if (iconOnly) {
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+            tooltip = { PlainTooltip { Text(contentDescription) } },
+            state = rememberTooltipState(),
+            content = button,
         )
     } else {
-        TextButton(
-            modifier = buttonModifier,
-            enabled = enabled,
-            onClick = onClick,
-            colors = ButtonDefaults.textButtonColors(
-                contentColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-            ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            content = content,
-        )
+        button()
     }
 }
 
 @Preview(name = "Module · light", widthDp = 390)
 @Preview(name = "Module · dark", widthDp = 390, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "Module · compact", widthDp = 375, locale = "zh-rCN")
 @Preview(name = "Module · large text", widthDp = 320, fontScale = 2f)
 @Preview(name = "Module · landscape", widthDp = 800)
 @Composable
 fun ModuleItemPreview() {
+    ModuleCardPreviewContent()
+}
+
+@Preview(name = "Module · disabled", widthDp = 390)
+@Composable
+private fun DisabledModuleItemPreview() {
+    ModuleCardPreviewContent(enabled = false)
+}
+
+@Preview(name = "Module · pending restart", widthDp = 390, locale = "zh-rCN")
+@Composable
+private fun UpdatedModuleItemPreview() {
+    ModuleCardPreviewContent(update = true)
+}
+
+@Preview(name = "Module · pending removal", widthDp = 390, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun RemovedModuleItemPreview() {
+    ModuleCardPreviewContent(remove = true)
+}
+
+@Composable
+private fun ModuleCardPreviewContent(
+    enabled: Boolean = true,
+    update: Boolean = false,
+    remove: Boolean = false,
+) {
     val module = ModuleViewModel.ModuleInfo(
         id = "zygisk_lsposed",
-        name = "LSPosed",
+        name = "LSPosed Xposed Framework",
         version = "v2.2.0 (7854)",
         versionCode = 1,
         author = "LSPosed Developers",
         description = "Another enhanced implementation of Xposed Framework. Supports Android 9 ~ 17. Requires Zygisk enabled.",
-        enabled = true,
-        update = false,
-        remove = false,
+        enabled = enabled,
+        update = update,
+        remove = remove,
         updateJson = "",
         hasWebUi = true,
         hasActionScript = true,
@@ -1525,11 +1588,18 @@ fun ModuleItemPreview() {
     )
     UtilityPreviewTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                 ModuleItem(
                     navigator = EmptyDestinationsNavigator,
                     module = module,
-                    updateUrl = "",
+                    updateUrl = if (update || remove) "" else "https://example.com/module.zip",
+                    mountInfo = SUMHManager.ModuleInfo(
+                        id = module.dirId,
+                        mode = "sumh",
+                        rules = emptyList(),
+                        strategy = "sumh",
+                    ),
+                    mountConfigEnabled = true,
                     onUninstallClicked = {},
                     onCheckChanged = { true },
                     onUpdate = {},

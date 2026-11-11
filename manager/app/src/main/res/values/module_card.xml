@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="module_pending_removal" tools:ignore="MissingTranslation">Pending removal</string>
+    <string name="module_pending_restart" tools:ignore="MissingTranslation">Restart to apply</string>
+</resources>
