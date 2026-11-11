@@ -33,7 +33,6 @@ struct BootPatchV2Args : KsuConfigArgs {
     std::string boot;
     std::string module;
     std::string output;
-    std::string magiskboot;
     std::string superkey;
     bool force = false;
     bool flash = false;
@@ -61,10 +60,8 @@ BootPatchV2Args parse_args(const std::vector<std::string>& args) {
             take_value(result.boot);
         } else if (argument == "-m" || argument == "--module") {
             take_value(result.module);
-        } else if (argument == "-o" || argument == "--output" || argument == "--out") {
+        } else if (argument == "-o" || argument == "--output") {
             take_value(result.output);
-        } else if (argument == "--magiskboot") {
-            take_value(result.magiskboot);
         } else if (argument == "--superkey") {
             take_value(result.superkey);
         } else if (argument == "--force") {
@@ -653,7 +650,7 @@ int boot_patch_v2(const std::vector<std::string>& args) {
         }
     }
 
-    const std::string magiskboot = find_magiskboot(parsed.magiskboot, work.string());
+    const std::string magiskboot = find_magiskboot();
     if (magiskboot.empty()) {
         cleanup();
         return 1;

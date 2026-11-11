@@ -37,6 +37,7 @@ def main():
             "imgpatch_config_under_test.inc": between(legacy, "bool inject_imgpatch_config_to_lkm(", "// Execute magiskboot"),
             "boot_config_legacy_parser.inc": between(legacy, "struct BootPatchArgs", "enum class DirectLkmRestoreStatus") + "\n}\n",
             "boot_config_direct_parser.inc": between(direct, "struct BootPatchV2Args", "std::optional<std::vector<std::uint8_t>> read_binary"),
+            "boot_config_restore_parser.inc": between(legacy, "struct BootRestoreArgs", "std::string make_restore_output_name("),
             "boot_config_ramdisk_under_test.inc": between(legacy, '    const std::string config_text = parsed.module_params(', '    if (magiskboot_query({"cpio", ramdisk, "exists ksu_allow_shell"})'),
             "feature_persistence_under_test.inc": function(utilities, 'bool parse_uint32(') + '\n'.join(function(features, signature) for signature in (
                 'const std::map<std::string, uint32_t>& get_feature_map()',

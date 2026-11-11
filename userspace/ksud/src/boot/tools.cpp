@@ -17,10 +17,7 @@
 namespace ksud {
 
 // Find magiskboot binary: always use current process (multi-call ksud embeds magiskboot).
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters) - keep API for callers
-std::string find_magiskboot(const std::string& specified_path, const std::string& workdir) {
-    (void)specified_path;
-    (void)workdir;
+std::string find_magiskboot() {
     std::array<char, PATH_MAX> self_path{};
     const ssize_t self_len = readlink("/proc/self/exe", self_path.data(), self_path.size() - 1);
     if (self_len <= 0 || static_cast<size_t>(self_len) >= self_path.size()) {

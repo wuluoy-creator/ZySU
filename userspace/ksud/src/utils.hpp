@@ -47,7 +47,7 @@ bool has_magisk();
 // Install/Uninstall
 int install(const std::optional<std::string>& magiskboot_path,
             const std::optional<std::string>& libadbroot_path = std::nullopt);
-int uninstall(const std::optional<std::string>& magiskboot_path);
+int uninstall();
 
 // String utilities
 std::string trim(const std::string& str);

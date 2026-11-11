@@ -32,6 +32,60 @@ int main() {
         assert(ksud::parse_cli({command, "--allow-shell", "--allow-shell"}, parsed) == 2);
     }
 
+    // Embedded boot tools no longer accept an ignored external-tool path.
+    for (const auto* command : {"boot-patch", "boot-patch-v2", "boot-restore", "uninstall"}) {
+        ksud::CliArguments parsed;
+        assert(ksud::parse_cli({command, "--magiskboot", "/tmp/magiskboot"}, parsed) == 2);
+        assert(ksud::parse_cli({command, "--magiskboot=/tmp/magiskboot"}, parsed) == 2);
+        assert(ksud::parse_cli({command, "--magiskboot"}, parsed) == 2);
+    }
+
+    // Retired aliases must fail before dispatch, including nested daemon requests.
+    for (const auto& command : std::vector<std::vector<std::string>>{
+             {"debug", "insmod", "module.ko"},
+             {"debug", "insmod", "--help"},
+             {"boot-patch-v2", "--boot", "boot.img", "--out", "patched.img"},
+             {"boot-patch-v2", "--out=patched.img"},
+             {"sumhp", "module", "add", "example.module"},
+             {"sumhp", "module", "delete", "example.module"},
+             {"sumhp", "module", "add", "--help"},
+             {"sumhp", "module", "delete", "--help"},
+             {"sumhp", "daemon", "call", "module", "add", "example.module"},
+             {"sumhp", "daemon", "call", "module", "delete", "example.module"},
+             {"sumhp", "daemon", "call", "daemon", "call", "module", "add", "example.module"}}) {
+        ksud::CliArguments parsed;
+        assert(ksud::parse_cli(command, parsed) == 2);
+    }
+
+    // Keep the supported spellings, short options, and the installer's real copy option.
+    {
+        ksud::CliArguments parsed;
+        assert(ksud::parse_cli({"install", "--magiskboot", "/tmp/magiskboot"}, parsed) == -1);
+        assert(parsed.value("--magiskboot") == "/tmp/magiskboot");
+        assert(ksud::parse_cli({"boot-patch", "--out", "/tmp/output"}, parsed) == -1);
+        assert(parsed.value("--out") == "/tmp/output");
+        for (const auto* option : {"--output", "-o"}) {
+            assert(ksud::parse_cli({"boot-patch-v2", "-b", "boot.img", option, "patched.img"},
+                                   parsed) == -1);
+            assert(parsed.value("--output") == "patched.img");
+            assert(parsed.value("--boot") == "boot.img");
+        }
+        assert(ksud::parse_cli({"insmod", "module.ko", "key=value", "--module-param"}, parsed) ==
+               -1);
+        assert(
+            (parsed.args == std::vector<std::string>{"module.ko", "key=value", "--module-param"}));
+        for (const auto* operation : {"hot-mount", "hot-unmount"}) {
+            assert(ksud::parse_cli({"sumhp", "module", operation, "example.module"}, parsed) == -1);
+            assert(
+                (parsed.args == std::vector<std::string>{"module", operation, "example.module"}));
+            assert(
+                ksud::parse_cli({"sumhp", "daemon", "call", "module", operation, "example.module"},
+                                parsed) == -1);
+            assert((parsed.args == std::vector<std::string>{"daemon", "call", "module", operation,
+                                                            "example.module"}));
+        }
+    }
+
     // All former signature-registration entry points must fail during parsing,
     // before command dispatch can touch persisted trust or kernel state.
     const std::string digest(64, 'a');

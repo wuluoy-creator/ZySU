@@ -30,6 +30,9 @@ namespace legacy {
 namespace direct {
 #include "boot_config_direct_parser.inc"
 }  // namespace direct
+namespace restore {
+#include "boot_config_restore_parser.inc"
+}  // namespace restore
 
 bool ramdisk_has_config, fail_config_removal;
 std::string ramdisk_config;
@@ -120,6 +123,25 @@ int main() {
     const auto ramdisk = legacy::parse_boot_patch_args(args);
     const auto image = direct::parse_args(args);
     assert(ramdisk.valid && image.valid);
+    // Retired CLI options must fail in the underlying parsers too, before any
+    // file or partition operation can begin.
+    for (const auto& retired : std::vector<std::vector<std::string>>{
+             {"--magiskboot", "/old/magiskboot"}, {"--magiskboot=/old/magiskboot"}}) {
+        assert(!legacy::parse_boot_patch_args(retired).valid);
+        assert(!direct::parse_args(retired).valid);
+        assert(!restore::parse_boot_restore_args(retired).valid);
+    }
+    assert(!direct::parse_args({"--boot", "boot.img", "--out", "patched.img"}).valid);
+    for (const auto* output : {"--output", "-o"}) {
+        const auto parsed = direct::parse_args({"--boot", "boot.img", output, "patched.img"});
+        assert(parsed.valid && parsed.boot == "boot.img" && parsed.output == "patched.img");
+    }
+    const auto directory_output = legacy::parse_boot_patch_args({"--out", "output-dir"});
+    assert(directory_output.valid && directory_output.out == "output-dir");
+    const auto restore_args =
+        restore::parse_boot_restore_args({"--boot", "boot.img", "--out-name", "restored.img"});
+    assert(restore_args.valid && restore_args.boot_image == "boot.img" &&
+           restore_args.out_name == "restored.img" && !restore_args.flash);
     assert(ramdisk.module_params() == image.module_params());
     assert(ramdisk.module_params() ==
            "allow_shell=1 norc=1 preinit=0 force_feature=2:1,6:1 block_modules=mkp,vr");

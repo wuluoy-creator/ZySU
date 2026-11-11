@@ -1,6 +1,8 @@
 // Execute the real hot-mount marker transaction with filesystem fault injection.
+#include "core/json.hpp"
 #include "sumhp/config.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cerrno>
 #include <chrono>
@@ -9,6 +11,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace realfs = std::filesystem;
 namespace {
@@ -30,6 +33,7 @@ bool config_ok = true;
 
 namespace fixture {
 using realfs::exists;
+using realfs::is_directory;
 using realfs::is_regular_file;
 using realfs::path;
 realfs::file_status symlink_status(const path& value, std::error_code& ec) {
@@ -82,7 +86,22 @@ bool read_config_file(Config& config, std::string& error) {
 fs::path data_dir() {
     return fixture_dir;
 }
+fs::path modules_dir() {
+    return fixture_dir / "modules";
+}
+std::string arg_or_default(const std::vector<std::string>& args, std::size_t index,
+                           const std::string& fallback) {
+    return index < args.size() ? args[index] : fallback;
+}
 namespace mount {
+bool valid_module_id(const std::string& id) {
+    return id == "example";
+}
+namespace sumh {
+std::vector<std::string> replayable_module_ids() {
+    return {"example"};
+}
+}  // namespace sumh
 bool refresh_sumh_modules(const Config&, bool* applied) {
     ++refresh_calls;
     *applied = mappings_applied || refresh_ok;
@@ -93,6 +112,13 @@ bool refresh_sumh_modules(const Config&, bool* applied) {
 }
 }  // namespace mount
 #include "sumh_hot_mount_under_test.inc"
+
+// This is the production backend dispatch also reached by daemon requests.
+int run_module_hot_command(const std::vector<std::string>& args) {
+    const auto& sub = args.at(1);
+#include "sumh_hot_mount_command_under_test.inc"
+    return 1;
+}
 }  // namespace sumhp
 
 int main() {
@@ -174,6 +200,32 @@ int main() {
     const int previous_refreshes = refresh_calls;
     assert(!change_module_mount_state("example", false, config, error));
     assert(refresh_calls == previous_refreshes && realfs::is_directory(marker));
+    realfs::remove(marker);
+
+    // Retired aliases must not trigger a replay even without the shared CLI parser.
+    // Exercise both marker states to catch either mount or unmount side effects.
+    config_ok = true;
+    refresh_ok = true;
+    realfs::create_directories(modules_dir() / "example");
+    std::ofstream(modules_dir() / "example" / "module.prop") << "id=example\n";
+    for (const bool unmounted : {false, true}) {
+        if (unmounted)
+            assert(ksud::write_file_atomic(marker, "previous\n"));
+        expected_unmounted = unmounted;
+        const int before_refreshes = refresh_calls;
+        const int before_writes = write_calls;
+        for (const auto* alias : {"add", "delete"}) {
+            assert(run_module_hot_command({"module", alias, "example"}) != 0);
+            assert(refresh_calls == before_refreshes && write_calls == before_writes);
+            assert(realfs::exists(marker) == unmounted);
+        }
+    }
+    expected_unmounted = false;
+    assert(run_module_hot_command({"module", "hot-mount", "example"}) == 0);
+    assert(!realfs::exists(marker));
+    expected_unmounted = true;
+    assert(run_module_hot_command({"module", "hot-unmount", "example"}) == 0);
+    assert(realfs::is_regular_file(marker));
     realfs::remove_all(fixture_dir);
     std::cout << "sumh_hot_mount_test: all checks passed\n";
 }

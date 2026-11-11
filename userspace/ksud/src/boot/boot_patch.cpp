@@ -532,7 +532,6 @@ struct BootPatchArgs : KsuConfigArgs {
     bool flash = false;             // -f, --flash
     bool backup = false;            // --backup
     std::string out;                // -o, --out
-    std::string magiskboot;         // --magiskboot
     std::string kmi;                // --kmi
     std::string partition;          // --partition
     std::string out_name;           // --out-name
@@ -576,7 +575,6 @@ void print_boot_patch_usage() {
            "      --block-module NAME[,NAME...]  block kernel modules (repeatable; default none)\n"
            "      --enable-adbd      run adbd as root\n"
            "      --adb-debug-prop <file>  adb debug properties to embed\n"
-           "      --magiskboot <path>      accepted for compatibility; ignored\n"
            "  -h, --help             show this message\n");
 }
 
@@ -629,8 +627,6 @@ BootPatchArgs parse_boot_patch_args(const std::vector<std::string>& args) {
             result.backup = true;
         } else if (arg == "-o" || arg == "--out") {
             take_value(result.out);
-        } else if (arg == "--magiskboot") {
-            take_value(result.magiskboot);
         } else if (arg == "--kmi") {
             take_value(result.kmi);
         } else if (arg == "--partition") {
@@ -908,7 +904,7 @@ int boot_patch_impl(const std::vector<std::string>& args) {
     };
 
     // Find magiskboot
-    const std::string magiskboot = find_magiskboot(parsed.magiskboot, workdir);
+    const std::string magiskboot = find_magiskboot();
     if (magiskboot.empty()) {
         cleanup();
         return 1;
@@ -1490,7 +1486,6 @@ int boot_patch_impl(const std::vector<std::string>& args) {
 struct BootRestoreArgs {
     std::string boot_image;  // -b, --boot
     bool flash = false;      // -f, --flash
-    std::string magiskboot;  // --magiskboot
     std::string out_name;    // --out-name
     bool help = false;       // -h, --help
     bool valid = true;
@@ -1509,7 +1504,6 @@ void print_boot_restore_usage() {
            "  -b, --boot <img>       restore from this image instead of the partition\n"
            "  -f, --flash            write the restored image back to the partition\n"
            "      --out-name <name>  filename for the restored image\n"
-           "      --magiskboot <path>  accepted for compatibility; ignored\n"
            "  -h, --help             show this message\n");
 }
 
@@ -1542,8 +1536,6 @@ BootRestoreArgs parse_boot_restore_args(const std::vector<std::string>& args) {
             take_value(result.boot_image);
         } else if (arg == "-f" || arg == "--flash") {
             result.flash = true;
-        } else if (arg == "--magiskboot") {
-            take_value(result.magiskboot);
         } else if (arg == "--out-name") {
             take_value(result.out_name);
         } else {
@@ -1609,7 +1601,7 @@ int boot_restore(const std::vector<std::string>& args) {
     };
 
     // Find magiskboot
-    const std::string magiskboot = find_magiskboot(parsed.magiskboot, workdir);
+    const std::string magiskboot = find_magiskboot();
     if (magiskboot.empty()) {
         cleanup();
         return 1;
@@ -1986,7 +1978,7 @@ int boot_info_target_kmi(bool ota, const std::string& boot_image) {
     }
 
     const std::string workdir = temporary->string();
-    const std::string magiskboot = find_magiskboot("", workdir);
+    const std::string magiskboot = find_magiskboot();
     std::string kmi;
     if (!magiskboot.empty()) {
         kmi = parse_kmi_from_boot(magiskboot, workdir, target_boot);

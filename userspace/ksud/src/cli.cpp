@@ -73,9 +73,8 @@ int check_input_files(const CliArguments& cli) {
         }
     }
     const bool module = path == "module install";
-    if (module || path == "insmod" || path == "debug insmod" || path == "flash image" ||
-        path == "flash ak3" || path == "flash ak3-info" || path == "sepolicy apply" ||
-        path == "dynamic set-apk" || (path == "dynamic get-sign" && !cli.has("--uid"))) {
+    if (module || path == "insmod" || path == "flash image" || path == "flash ak3" ||
+        path == "flash ak3-info" || path == "sepolicy apply") {
         const size_t offset = path == "insmod" ? 0 : 1;
         const int result = check_input_file(cli.args[offset], path == "flash image");
         if (result != 0)
@@ -191,8 +190,6 @@ int cmd_debug(const std::vector<std::string>& args) {
     if (subcmd == "set-manager") {
         const std::string pkg = args.size() > 1 ? args[1] : "com.zying.zysu";
         return debug_set_manager(pkg);
-    } else if (subcmd == "insmod" && args.size() > 1) {
-        return debug_insmod(args[1], std::vector<std::string>(args.begin() + 2, args.end()));
     } else if (subcmd == "info") {
         printf("version: %d\n", get_version());
         printf("uapi_version: %u\n", get_uapi_version());
@@ -595,14 +592,6 @@ int cli_run(int argc, char** argv) {
         args.emplace_back("-g");
     if (cmd == "su-path" && cli.has("--json"))
         args.insert(args.begin() + 1, "--json");
-    if (cli.path == "dynamic get-sign") {
-        const std::string target = cli.has("--uid") ? cli.value("--uid") : args[1];
-        args = {"get-sign"};
-        if (cli.has("--json"))
-            args.emplace_back("--json");
-        args.emplace_back(cli.has("--uid") ? "--uid" : "--");
-        args.push_back(target);
-    }
     if (cli.forward_options || cmd == "boot-patch-v2")
         args.insert(args.end(), cli.option_args.begin(), cli.option_args.end());
     LOGD("command: %s", cmd.c_str());
@@ -632,10 +621,7 @@ int cli_run(int argc, char** argv) {
                                     : std::nullopt;
         return install(magiskboot, libadbroot);
     } else if (cmd == "uninstall") {
-        const auto magiskboot = cli.has("--magiskboot")
-                                    ? std::optional<std::string>(cli.value("--magiskboot"))
-                                    : std::nullopt;
-        return uninstall(magiskboot);
+        return uninstall();
     } else if (cmd == "sepolicy") {
         return cmd_sepolicy(args);
     } else if (cmd == "profile") {

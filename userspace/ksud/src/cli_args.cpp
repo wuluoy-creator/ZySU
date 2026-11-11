@@ -75,7 +75,7 @@ const std::vector<Command>& commands() {
          0,
          0,
          {kMagiskboot, {"--libadbroot", "", "PATH", ""}}},
-        {"uninstall", "Uninstall ZySU", "", 0, 0, {kMagiskboot}},
+        {"uninstall", "Uninstall ZySU", ""},
         {"insmod", "Load a kernel module with kallsyms access", "<KO> [PARAMS...]", 1,
          kTrailingArgs},
         {"post-fs-data", "Trigger post-fs-data", ""},
@@ -112,7 +112,6 @@ const std::vector<Command>& commands() {
         {"kernel notify-module-mounted", "Report completed module mounting", ""},
         {"debug", "Developer tools", "<COMMAND>"},
         {"debug set-manager", "Set the manager package", "[PACKAGE]", 0, 1},
-        {"debug insmod", "Alias for insmod", "<KO> [PARAMS...]", 1, kTrailingArgs},
         {"debug su", "Open a root shell", "", 0, 0, {{"-g", "--global-mnt", "", ""}}},
         {"debug version", "Read the kernel version", ""},
         {"debug info", "Read kernel compatibility and load information", ""},
@@ -175,8 +174,7 @@ const std::vector<Command>& commands() {
           {"--block-module", "", "NAME[,NAME...]", "",
            "Block kernel modules (repeatable; default none)"},
           {"--enable-adbd", "", "", "", "Run adbd as root"},
-          {"--adb-debug-prop", "", "FILE", "", "Embed adb debug properties from this file"},
-          kMagiskboot},
+          {"--adb-debug-prop", "", "FILE", "", "Embed adb debug properties from this file"}},
          true},
         {"boot-restore",
          "Restore a boot image",
@@ -185,8 +183,7 @@ const std::vector<Command>& commands() {
          0,
          {{"--boot", "-b", "IMAGE", "", "Read this image instead of the detected boot partition"},
           {"--flash", "-f", "", "", "Write the restored result back to the partition"},
-          {"--out-name", "", "NAME", "", "Name of the restored output image"},
-          kMagiskboot},
+          {"--out-name", "", "NAME", "", "Name of the restored output image"}},
          true},
         {"boot-patch-v2",
          "Patch a boot image with direct LKM injection",
@@ -196,8 +193,6 @@ const std::vector<Command>& commands() {
          {{"--boot", "-b", "IMAGE", ""},
           {"--module", "-m", "KO", ""},
           {"--output", "-o", "IMAGE", ""},
-          {"--out", "", "IMAGE", ""},
-          kMagiskboot,
           {"--superkey", "", "KEY", ""},
           {"--force", "", "", ""},
           {"--flash", "", "", ""},
@@ -254,8 +249,6 @@ const std::vector<Command>& commands() {
          "<ID> <MODE> <RULES-JSON>", 3, 3},
         {"sumhp module add-rule", "Add a module path rule", "<ID> <ABSOLUTE-PATH> <MODE>", 3, 3},
         {"sumhp module remove-rule", "Remove a module path rule", "<ID> <ABSOLUTE-PATH>", 2, 2},
-        {"sumhp module add", "Hot-mount a SUMH module", "<ID>", 1, 1},
-        {"sumhp module delete", "Hot-unmount a SUMH module", "<ID>", 1, 1},
         {"sumhp module hot-mount", "Hot-mount a SUMH module", "<ID>", 1, 1},
         {"sumhp module hot-unmount", "Hot-unmount a SUMH module", "<ID>", 1, 1},
         {"sumhp module check-conflicts", "Find conflicting module paths", ""},
@@ -355,24 +348,19 @@ std::vector<const Command*> children(std::string_view path) {
     return result;
 }
 
-std::string_view option_description(const Option& option, std::string_view path) {
+std::string_view option_description(const Option& option) {
     if (!option.description.empty())
         return option.description;
     if (option.name == "--temp")
         return "Use temporary configuration, cleared on reboot";
     if (option.name == "--slot")
         return "Target an A/B slot (default: current slot)";
-    if (option.name == "--flags")
-        return "Unmount flags as an unsigned 32-bit integer (default: 0)";
     if (option.name == "--json")
         return "Write a machine-readable JSON result to stdout";
     if (option.name == "--ota")
         return "Target the inactive A/B slot";
     if (option.name == "--magiskboot")
-        return path == "boot-patch" || path == "boot-restore" || path == "boot-patch-v2" ||
-                       path == "uninstall"
-                   ? "Accepted for compatibility; the embedded tool is used"
-                   : "Use this magiskboot path";
+        return "Install this magiskboot executable";
     if (option.name == "--libadbroot")
         return "Install this adb root library";
     if (option.name == "--allow-shell")
@@ -403,8 +391,6 @@ std::string_view option_description(const Option& option, std::string_view path)
         return "Include all partitions";
     if (option.name == "--verbose")
         return "Include diagnostic logs";
-    if (option.name == "--uid")
-        return "Resolve an APK from this Android UID";
     if (option.name == "-g")
         return "Use the global mount namespace";
     return "";
@@ -463,7 +449,7 @@ void help(const Command& command) {
         if (!option->value.empty())
             label += (option->default_value.empty() ? " <" : " [") + std::string(option->value) +
                      (option->default_value.empty() ? ">" : "]");
-        const auto description = option_description(*option, command.path);
+        const auto description = option_description(*option);
         (void)printf("  %-32s %.*s", label.c_str(), static_cast<int>(description.size()),
                      description.data());
         if (!option->default_value.empty())
@@ -613,15 +599,6 @@ int read_option(const Command& command, const std::vector<std::string>& input, s
     if (option->value.find('|') != std::string_view::npos && !one_of(value, option->value))
         return fail(command, "invalid value '" + value + "' for " + name + "; expected " +
                                  std::string(option->value));
-    if (option->value == "UINT32" && !unsigned_value(value, UINT32_MAX))
-        return fail(command, "invalid value '" + value + "' for " + name +
-                                 "; expected an unsigned 32-bit integer");
-    if (option->value == "FD" && !unsigned_value(value, INT32_MAX))
-        return fail(command,
-                    "invalid file descriptor '" + value + "'; expected 0 through 2147483647");
-    if (option->value == "PORT" &&
-        (!unsigned_value(value, 65535) || value.find_first_not_of('0') == std::string::npos))
-        return fail(command, "invalid port '" + value + "'; expected 1 through 65535");
     if (option->name == "--color") {
         (void)terminal::set_color(value);
     } else if (option->name == "--verbose") {
@@ -667,24 +644,6 @@ int validate(const Command& command, const std::vector<std::string>& operands,
         return bad("unknown AVB operation '" + operands[0] + "'; expected disable");
     if (path == "boot-info target-kmi" && parsed.has("--ota") && parsed.has("--boot"))
         return bad("--ota and --boot cannot be used together");
-    if (path == "boot-patch-v2" && parsed.has("--out") && parsed.has("--output"))
-        return bad("--out and --output are aliases; specify only one");
-    if (path == "dynamic get-sign") {
-        if ((!operands.empty()) == parsed.has("--uid"))
-            return bad("specify exactly one APK path or --uid <UID>");
-        if (parsed.has("--uid") && !unsigned_value(parsed.value("--uid"), UINT32_MAX, true))
-            return bad("invalid UID; expected an unsigned 32-bit integer");
-    }
-    if (path == "dynamic set-uid" && !numeric(0, UINT32_MAX, true))
-        return bad("invalid UID; expected an unsigned 32-bit integer");
-    if (path == "dynamic set-hash" || path == "dynamic del") {
-        if (!numeric(0, UINT32_MAX, true))
-            return bad("invalid signature size; expected an unsigned 32-bit integer");
-        if (operands[1].size() != 64 ||
-            !std::all_of(operands[1].begin(), operands[1].end(),
-                         [](unsigned char ch) { return std::isxdigit(ch); }))
-            return bad("invalid signature hash; expected exactly 64 hexadecimal digits");
-    }
     if (path.rfind("sumhp ", 0) == 0) {
         if (path == "sumhp config merge-json") {
             json::Value object;

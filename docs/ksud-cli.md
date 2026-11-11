@@ -48,7 +48,7 @@ Module commands enter init's mount namespace. `module config` requires `KSU_MODU
 
 ## Userspace installation and boot images
 
-`install [--magiskboot <PATH>] [--libadbroot <PATH>]` installs userspace components; it does not itself patch a boot image. `uninstall [--magiskboot <PATH>]` runs the uninstall flow. Boot patchers use embedded magiskboot; their `--magiskboot` argument and the uninstaller's equivalent are retained for compatibility.
+`install [--magiskboot <PATH>] [--libadbroot <PATH>]` installs userspace components; it does not itself patch a boot image. Its `--magiskboot` option copies the supplied executable to the installed tool path. `uninstall` runs the uninstall flow. Boot patchers, restoration and uninstallation use embedded magiskboot and do not accept `--magiskboot`.
 
 `uninstall` removes userspace and modules, attempts boot restoration, uninstalls Manager and requests a reboot after about five seconds. It currently continues removal and reboot even if restoration fails. Use `boot-restore` for image restoration alone, and keep matching original images available before uninstalling.
 
@@ -88,7 +88,6 @@ Other queries are `boot-info is-ab-device`, `boot-info slot-suffix [--ota]` and 
 | `--block-module <NAME[,NAME...]>` | Block kernel modules at boot; repeatable; default none |
 | `--enable-adbd` | Enable the adbd root setup |
 | `--adb-debug-prop <FILE>` | Embed adb debug properties |
-| `--magiskboot <PATH>` | Compatibility argument; embedded tool is used |
 
 For file patching, KMI is detected from the selected boot image, or from the
 replacement kernel when `--kernel` is supplied. An `init_boot` image has no kernel;
@@ -140,13 +139,13 @@ ksud boot-patch-v2 --boot /path/to/boot.img --output /path/to/patched.img
 ksud boot-patch-v2 --flash --ota
 ```
 
-File mode requires `--boot` (`-b`) and `--output` (`-o`, or `--out`); here the output is a **file**. Device mode uses `--flash`, optionally `--ota`, and rejects explicit input/output paths. `--ota` requires `--flash`. This path needs a supported AOSP **boot image containing a kernel** and rejects `init_boot` and `vendor_boot` as patch targets.
+File mode requires `--boot` (`-b`) and `--output` (`-o`); here the output is a **file**. Device mode uses `--flash`, optionally `--ota`, and rejects explicit input/output paths. `--ota` requires `--flash`. This path needs a supported AOSP **boot image containing a kernel** and rejects `init_boot` and `vendor_boot` as patch targets.
 
-Additional options are `--module` / `-m`, `--superkey`, `--signature-bypass`, `--allow-shell`, `--enable-adbd`, `--no-custom-rc`, `--no-preinit`, `--force-feature`, `--block-module`, `--magiskboot`, `--force` and `--no-reuse`. `--force` permits replacing an existing output, never an input. `--no-reuse` forces full kernel analysis instead of reusing compatible injection metadata. In both patch paths, `--signature-bypass` selects SuperKey-only authentication for the configured Manager package, normally `com.zying.zysu`; without `--superkey`, it emits a warning and is ignored. It does not bypass the package restriction or Linux module-signature verification.
+Additional options are `--module` / `-m`, `--superkey`, `--signature-bypass`, `--allow-shell`, `--enable-adbd`, `--no-custom-rc`, `--no-preinit`, `--force-feature`, `--block-module`, `--force` and `--no-reuse`. `--force` permits replacing an existing output, never an input. `--no-reuse` forces full kernel analysis instead of reusing compatible injection metadata. In both patch paths, `--signature-bypass` selects SuperKey-only authentication for the configured Manager package, normally `com.zying.zysu`; without `--superkey`, it emits a warning and is ignored. It does not bypass the package restriction or Linux module-signature verification.
 
 When a nonempty SuperKey is requested, a module without a complete SuperKey configuration block causes patching to fail before output or flashing. Keys use 1–64 UTF-8 bytes without NUL characters; whitespace is preserved. Omitting the key writes signature-only configuration and overrides any compile-time key in a module that supports SuperKey.
 
-`boot-restore` accepts `--boot` / `-b`, `--flash` / `-f`, `--out-name` and `--magiskboot`. It uses available restore data; retain the original firmware image for recovery.
+`boot-restore` accepts `--boot` / `-b`, `--flash` / `-f` and `--out-name`. It uses available restore data; retain the original firmware image for recovery.
 
 `ramdisk-editor <CPIO>` and `boot-ramdisk-editor <SOURCE> <OUTPUT>` are binary protocol sessions, not shell editors. See [Ramdisk editor protocol](ramdisk-editor-protocol.md) for image and wire-format limits.
 
@@ -168,7 +167,7 @@ ksud sumhp module set-mode example.module magic
 | `sumhp api` | `system`, `storage`, `sumh`, `features`, `hooks`, `mounts`, `backends`, `meta [--control-only]` |
 | `sumhp daemon` | `status`, `start`, `serve`, `ping`, `stop`, `call <COMMAND> [ARGS...]` |
 | `sumhp module` | `list [--all]`, `configure <ID> <MODE> <RULES-JSON>`, `set-mode <ID> <MODE>`, `add-rule <ID> <ABSOLUTE-PATH> <MODE>`, `remove-rule <ID> <ABSOLUTE-PATH>`, `check-conflicts`, `normalize <PATH>` |
-| `sumhp module` runtime operations | `add` / `hot-mount <ID>`, `delete` / `hot-unmount <ID>`, `mount-all`, `unmount` |
+| `sumhp module` runtime operations | `hot-mount <ID>`, `hot-unmount <ID>`, `mount-all`, `unmount` |
 | `sumhp sumh` | `version`, `list`, `features`, `clear`, `hide-path <ABSOLUTE-PATH>`, `delete-rule <ABSOLUTE-PATH>`, `fix-mounts` |
 | `sumhp sumh` feature controls | `maps-spoof off\|on` |
 | `sumhp sumh maps` | `clear`, `add <TARGET-INO> <TARGET-DEV> <SPOOF-INO> <SPOOF-DEV> <PATH>` |
@@ -211,7 +210,7 @@ Legacy state migration runs before daemon startup or kernel-build restoration. M
 | `flash slots`, `flash boot-info` | Query slot information |
 | `flash map <SLOT>` | Map logical partitions |
 | `flash avb [disable]` | Query AVB; `disable` modifies verification configuration |
-| `insmod <KO> [PARAMS...]` | Load an LKM with kallsyms support; also `debug insmod` |
+| `insmod <KO> [PARAMS...]` | Load an LKM with kallsyms support |
 | `kernel nuke-ext4-sysfs <MOUNT>`, `kernel notify-module-mounted` | Low-level integration |
 
 `SLOT` accepts `a`, `b`, `_a`, `_b`; omission selects the current slot. `flash image` and `flash ak3` do not require an additional `--flash` flag.

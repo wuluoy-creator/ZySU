@@ -56,32 +56,31 @@ fs::path config_file() {
 }
 
 void print_usage() {
-    std::cout
-        << "SUMHP " << ksud::VERSION_NAME << "\n"
-        << "usage:\n"
-        << "  ksud sumhp version\n"
-        << "  ksud sumhp config show\n"
-        << "  ksud sumhp config gen\n"
-        << "  ksud sumhp config merge-json JSON\n"
-        << "  ksud sumhp config apply\n"
-        << "  ksud sumhp daemon status|serve|call|ping|stop\n"
-        << "  ksud sumhp api system|storage|sumh|features|hooks|backends|meta\n"
-        << "  ksud sumhp module "
-           "list|add|delete|configure|set-mode|add-rule|remove-rule|hot-mount|hot-unmount|check-"
-           "conflicts|mount-all|unmount|normalize\n"
-        << "  ksud sumhp recovery status|reset\n"
-        << "  ksud sumhp hide list|apply|add|remove\n"
-        << "  ksud sumhp sumh "
-           "version|list|clear|fix-mounts|maps|kstat\n"
-        << "  ksud sumhp sumh kernel-build show|set <release> <version>|reset\n"
-        << "  ksud sumhp sumh maps list-paths|apply\n"
-        << "  ksud sumhp sumh maps add-path <target-path> <replacement-path>\n"
-        << "  ksud sumhp sumh maps remove-path <target-path>\n"
-        << "  ksud sumhp sumh kstat list-paths|apply\n"
-        << "  ksud sumhp sumh kstat status\n"
-        << "  ksud sumhp sumh kstat add-path <target-path> <source-path> identity|full\n"
-        << "  ksud sumhp sumh kstat add-custom <target-path> <fields-json-object>\n"
-        << "  ksud sumhp sumh kstat remove-path <target-path>\n";
+    std::cout << "SUMHP " << ksud::VERSION_NAME << "\n"
+              << "usage:\n"
+              << "  ksud sumhp version\n"
+              << "  ksud sumhp config show\n"
+              << "  ksud sumhp config gen\n"
+              << "  ksud sumhp config merge-json JSON\n"
+              << "  ksud sumhp config apply\n"
+              << "  ksud sumhp daemon status|serve|call|ping|stop\n"
+              << "  ksud sumhp api system|storage|sumh|features|hooks|backends|meta\n"
+              << "  ksud sumhp module "
+                 "list|configure|set-mode|add-rule|remove-rule|hot-mount|hot-unmount|check-"
+                 "conflicts|mount-all|unmount|normalize\n"
+              << "  ksud sumhp recovery status|reset\n"
+              << "  ksud sumhp hide list|apply|add|remove\n"
+              << "  ksud sumhp sumh "
+                 "version|list|clear|fix-mounts|maps|kstat\n"
+              << "  ksud sumhp sumh kernel-build show|set <release> <version>|reset\n"
+              << "  ksud sumhp sumh maps list-paths|apply\n"
+              << "  ksud sumhp sumh maps add-path <target-path> <replacement-path>\n"
+              << "  ksud sumhp sumh maps remove-path <target-path>\n"
+              << "  ksud sumhp sumh kstat list-paths|apply\n"
+              << "  ksud sumhp sumh kstat status\n"
+              << "  ksud sumhp sumh kstat add-path <target-path> <source-path> identity|full\n"
+              << "  ksud sumhp sumh kstat add-custom <target-path> <fields-json-object>\n"
+              << "  ksud sumhp sumh kstat remove-path <target-path>\n";
 }
 
 std::string arg_or_default(const std::vector<std::string>& args, std::size_t index,
@@ -921,7 +920,7 @@ int handle_module(const std::vector<std::string>& args) {
         }
         return 0;
     }
-    if (sub == "hot-mount" || sub == "hot-unmount" || sub == "add" || sub == "delete") {
+    if (sub == "hot-mount" || sub == "hot-unmount") {
         const std::string id = arg_or_default(args, 2, "");
         if (!mount::valid_module_id(id)) {
             std::cerr << "usage: ksud sumhp module " << sub << " <id>\n";
@@ -945,7 +944,7 @@ int handle_module(const std::vector<std::string>& args) {
                 << "module was not assigned to SUMH this boot; reboot to change its backend\n";
             return 1;
         }
-        const bool unmounting = sub == "hot-unmount" || sub == "delete";
+        const bool unmounting = sub == "hot-unmount";
         if (!change_module_mount_state(id, unmounting, cfg, error)) {
             std::cerr << error << "\n";
             return 1;

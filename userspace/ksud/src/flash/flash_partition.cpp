@@ -857,8 +857,8 @@ std::string get_kernel_version(const std::string& slot_suffix) {
     }
     const std::string workdir = tmp_dir_template.data();
 
-    // Find magiskboot with workdir to ensure it's available there
-    const std::string magiskboot = find_magiskboot("", workdir);
+    // Resolve the embedded magiskboot applet.
+    const std::string magiskboot = find_magiskboot();
     if (magiskboot.empty()) {
         LOGE("magiskboot not found");
         exec_command_sync({"rm", "-rf", workdir});

@@ -122,6 +122,9 @@ def main():
         begin = source.index('    if (sub == "configure") {', source.index("int handle_module("))
         end = source.index('    if (sub == "hot-mount"', begin)
         (build / "sumh_module_commands_under_test.inc").write_text(source[begin:end])
+        begin = end
+        end = source.index('    if (sub == "check-conflicts") {', begin)
+        (build / "sumh_hot_mount_command_under_test.inc").write_text(source[begin:end])
         begin = source.index("int apply_config_file() {")
         end = source.index("\nvoid print_backend_statuses_json()", begin)
         (build / "sumh_config_apply_under_test.inc").write_text(source[begin:end])

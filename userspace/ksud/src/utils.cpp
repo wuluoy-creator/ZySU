@@ -1262,7 +1262,7 @@ int install(const std::optional<std::string>& magiskboot_path,
     return 0;
 }
 
-int uninstall(const std::optional<std::string>& magiskboot_path) {
+int uninstall() {
     // Uninstall modules
     std::error_code fs_error;
     if (std::filesystem::exists(MODULE_DIR, fs_error) && !fs_error) {
@@ -1303,14 +1303,7 @@ int uninstall(const std::optional<std::string>& magiskboot_path) {
         LOGW("Failed to remove %s: %s", MODULE_DIR, fs_error.message().c_str());
 
     printf("- Restore boot image..\n");
-    std::vector<std::string> restore_args;
-    if (magiskboot_path) {
-        restore_args.push_back("--magiskboot");
-        restore_args.push_back(*magiskboot_path);
-    }
-    restore_args.push_back("--flash");
-
-    const int ret = boot_restore(restore_args);
+    const int ret = boot_restore({"--flash"});
     if (ret != 0) {
         LOGE("Boot image restoration failed");
         printf("Warning: Failed to restore boot image, you may need to manually restore\n");

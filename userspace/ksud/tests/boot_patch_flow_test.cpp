@@ -210,13 +210,13 @@ std::string get_slot_suffix(bool ota) {
     assert(ota);
     return target_slot;
 }
-std::string find_magiskboot(const std::string&, const std::string& workdir) {
-    observed_workdir = workdir;
-    assert(observed_workdir.is_absolute() && fs::is_directory(observed_workdir));
+std::string find_magiskboot() {
     return tool_available ? "magiskboot" : "";
 }
 std::string parse_kmi_from_boot(const std::string&, const std::string& workdir,
                                 const std::string& target) {
+    observed_workdir = workdir;
+    assert(observed_workdir.is_absolute() && fs::is_directory(observed_workdir));
     observed_target = target;
     std::ofstream(fs::path(workdir) / "unpacked-kernel").put('x');
     return kmi_available ? "android15-6.6" : "";
@@ -263,7 +263,7 @@ void test_target_kmi_temporary_directories(const fs::path& base) {
     kmi_available = true;
     tool_available = false;
     assert(boot_info_target_kmi(false, "/selected/boot.img") != 0);
-    assert(!fs::exists(observed_workdir));
+    assert(fs::is_empty(cwd));
     tool_available = true;
     fs::current_path(old_cwd);
     set_tmpdir(old_tmpdir);
