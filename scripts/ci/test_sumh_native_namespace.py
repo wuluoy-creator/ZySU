@@ -40,6 +40,7 @@ def namespace_source():
 #define SUMH_FEATURE_STATFS_SPOOF (1 << 9)
 #define SUMH_FEATURE_MANAGED_MAPS (1 << 10)
 #define SUMH_FEATURE_MANAGED_KSTAT (1 << 11)
+#define SUMH_FEATURE_MANAGED_MOUNTS (1 << 12)
 #define WRITE_ONCE(value, new_value) ((value) = (new_value))
 #define sumh_log(...) ((void)0)
 static int copy_fault, ready;
@@ -91,6 +92,7 @@ int main(void) {
         CHECK(!!(features & SUMH_FEATURE_MANAGED_MAPS) == !!ready);
         CHECK(!!(features & SUMH_FEATURE_STATFS_SPOOF) == !!ready);
         CHECK(features & SUMH_FEATURE_MANAGED_KSTAT);
+        CHECK(features & SUMH_FEATURE_MANAGED_MOUNTS);
     }
     copy_fault = 1;
     CHECK(control(SUMH_IOC_GET_FEATURES, &features) == -EFAULT);
