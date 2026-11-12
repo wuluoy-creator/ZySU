@@ -9,6 +9,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -34,18 +36,35 @@ internal fun NavigationStyleSetting() {
         Column(Modifier.selectableGroup()) {
             NavigationBarStyle.entries.forEach { style ->
                 val active = selected == style
+                val title = when (style) {
+                    NavigationBarStyle.Glass -> R.string.nav_style_glass
+                    NavigationBarStyle.Material -> R.string.nav_style_material
+                    NavigationBarStyle.FloatingStandard -> R.string.nav_style_floating_standard
+                    NavigationBarStyle.FloatingDrawer -> R.string.nav_style_floating_drawer
+                }
+                val summary = when (style) {
+                    NavigationBarStyle.Glass -> R.string.nav_style_glass_summary
+                    NavigationBarStyle.Material -> R.string.nav_style_material_summary
+                    NavigationBarStyle.FloatingStandard -> R.string.nav_style_floating_standard_summary
+                    NavigationBarStyle.FloatingDrawer -> R.string.nav_style_floating_drawer_summary
+                }
+                val icon = when (style) {
+                    NavigationBarStyle.Glass -> Icons.Default.Home
+                    NavigationBarStyle.Material -> Icons.Default.ViewAgenda
+                    NavigationBarStyle.FloatingStandard -> Icons.Default.MoreHoriz
+                    NavigationBarStyle.FloatingDrawer -> Icons.Default.ViewCarousel
+                }
                 Row(Modifier.fillMaxWidth()
                     .selectable(active, role = Role.RadioButton,
                         onClick = { NavigationBarStylePreferences.set(context, style) })
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    SettingsIconBadge(if (style == NavigationBarStyle.Glass) Icons.Default.Home else Icons.Default.ViewAgenda,
-                        selected = active)
+                    SettingsIconBadge(icon, selected = active)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(if (style == NavigationBarStyle.Glass) R.string.nav_style_glass else R.string.nav_style_material),
+                        Text(stringResource(title),
                             style = MaterialTheme.typography.bodyLarge)
-                        Text(stringResource(if (style == NavigationBarStyle.Glass) R.string.nav_style_glass_summary else R.string.nav_style_material_summary),
+                        Text(stringResource(summary),
                             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     RadioButton(selected = active, onClick = null)

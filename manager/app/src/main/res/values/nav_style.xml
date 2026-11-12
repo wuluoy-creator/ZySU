@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="nav_style_title">Bottom navigation style</string>
-    <string name="nav_style_summary">Choose the existing floating capsule or a Material bar that blends with the page.</string>
+    <string name="nav_style_summary">Choose the original glass capsule, a docked Material bar, or either FinaSU-inspired floating form. Floating forms share the floating page header.</string>
     <string name="nav_style_glass">Glass capsule</string>
     <string name="nav_style_glass_summary">Floating glass with a selection highlight around the icon and label.</string>
     <string name="nav_style_material">Material bar</string>
     <string name="nav_style_material_summary">A full-width bar and matching header, with a compact icon indicator and the current theme colors.</string>
+    <string name="nav_style_floating_standard">Floating · Standard</string>
+    <string name="nav_style_floating_standard_summary">Compact icon-only capsule with a selection indicator that slides between destinations.</string>
+    <string name="nav_style_floating_drawer">Floating · Drawer</string>
+    <string name="nav_style_floating_drawer_summary">The selected destination expands to show its label; other destinations remain icon-only.</string>
 </resources>

@@ -37,6 +37,7 @@ internal fun HomeLayoutSetting() {
             if (key == "home_layout" || key == null) selected = HomeLayoutStyle.fromValue(preferences.getString("home_layout", null))
         }
         preferences.registerOnSharedPreferenceChangeListener(listener)
+        selected = HomeLayoutStyle.fromValue(preferences.getString("home_layout", null))
         onDispose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
     SettingItem(
@@ -119,8 +120,9 @@ private fun HomeLayoutThumbnail(style: HomeLayoutStyle, modifier: Modifier = Mod
         }
         when (style) {
             HomeLayoutStyle.Circle -> {
-                drawCircle(primary, size.width * 0.23f, Offset(size.width * 0.5f, size.height * 0.23f))
-                tile(0f, .49f, 1f, .2f); tile(0f, .76f, 1f, .2f)
+                tile(0f, .08f, 1f, .22f, true)
+                tile(0f, .4f, .46f, .22f); tile(.55f, .4f, .45f, .22f)
+                tile(0f, .74f, 1f, .22f)
             }
             HomeLayoutStyle.Grid -> {
                 tile(0f, 0f, .46f, .5f, true); tile(.55f, 0f, .45f, .22f)

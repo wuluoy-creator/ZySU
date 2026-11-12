@@ -28,7 +28,7 @@
     <string name="appearance_home_details">Expand device details</string>
     <string name="appearance_home_details_summary">Expand device summaries on Home. Open a value to read and copy its full details.</string>
     <string name="appearance_home_layout">Home layout</string>
-    <string name="appearance_home_layout_summary">Choose how status, shortcuts and device information are arranged.</string>
+    <string name="appearance_home_layout_summary">Choose the upper status and overview layout. KSUD and SUMH stay above the shared core information card.</string>
     <string name="appearance_background_blur">Background blur</string>
     <string name="appearance_background_blur_summary">Soften the wallpaper behind cards while keeping text sharp.</string>
 </resources>

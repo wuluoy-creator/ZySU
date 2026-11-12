@@ -20,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -42,7 +43,7 @@ import com.zying.zysu.ui.viewmodel.HomeCapacity
 import com.zying.zysu.ui.viewmodel.HomeDeviceMetrics
 import java.text.NumberFormat
 
-/** Five structural layouts. All facts are supplied once, and each branch assigns them one owner. */
+/** Only the upper board changes layout. Services and the complete facts card have one owner. */
 @Composable
 internal fun HomeLayoutContent(
     style: HomeLayoutStyle,
@@ -61,83 +62,59 @@ internal fun HomeLayoutContent(
         val wide = maxWidth >= 640.dp && effectiveFont < 1.5f
         val pair = maxWidth >= 320.dp && effectiveFont < 1.3f
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            when (style) {
-                HomeLayoutStyle.Circle -> {
-                    StatusPanel(state.status, style, onInstall, onAuthenticate, showDetail)
-                    warnings()
-                    if (state.showCounts) CountPair(state, onSuperuser, onModules, horizontal = pair)
-                    FactsPanel(state.facts, state.buildFacts, state.showBuildDetails, showDetail)
-                }
-                HomeLayoutStyle.Grid -> {
-                    if (pair && state.showCounts) {
-                        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            StatusPanel(state.status, style, onInstall, onAuthenticate, showDetail,
-                                Modifier.weight(1.1f).fillMaxHeight())
-                            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                CountTile(stringResource(R.string.home_authorized_apps), state.superuserCount, onSuperuser, Modifier.weight(1f))
-                                CountTile(stringResource(R.string.home_installed_modules), state.moduleCount, onModules, Modifier.weight(1f))
-                            }
-                        }
-                    } else {
-                        StatusPanel(state.status, style, onInstall, onAuthenticate, showDetail)
-                        if (state.showCounts) CountPair(state, onSuperuser, onModules, horizontal = false)
+            Column(Modifier.fillMaxWidth().testTag("home-upper-${style.id}"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                when (style) {
+                    HomeLayoutStyle.Circle -> {
+                        CircleStatusCard(state.status, onInstall, onAuthenticate, showDetail)
+                        if (state.showCounts) CountPair(state, onSuperuser, onModules, horizontal = pair)
                     }
-                    warnings()
-                    FactsPanel(state.facts, state.buildFacts, state.showBuildDetails, showDetail)
-                }
-                HomeLayoutStyle.Focus -> {
-                    AdaptiveBoardRow(wide, first = { modifier ->
-                        Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            StatusPanel(state.status, style, onInstall, onAuthenticate, showDetail)
-                            if (state.showCounts) CountPair(state, onSuperuser, onModules, horizontal = pair)
-                        }
-                    }, second = { modifier ->
-                        FactsPanel(state.facts, state.buildFacts, state.showBuildDetails, showDetail, modifier)
-                    })
-                    warnings()
-                    if (state.showMetrics) AdaptiveBoardRow(wide,
-                        first = { DevicePanel(state.metrics, it) },
-                        second = { StoragePanel(state.metrics, it) })
-                }
-                HomeLayoutStyle.Dashboard -> {
-                    BoardCard {
-                        StatusBody(state.status, style, onInstall, onAuthenticate, showDetail)
-                        if (state.facts.isNotEmpty()) {
-                            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                            if (pair) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    state.facts.take(3).forEach { FactCell(it, showDetail, Modifier.weight(1f)) }
-                                }
-                            } else state.facts.take(3).forEach { FactRow(it, showDetail) }
-                        }
-                    }
-                    warnings()
-                    if (state.showCounts) CountPair(state, onSuperuser, onModules, horizontal = pair)
-                    FactsPanel(state.facts.drop(3), state.buildFacts, state.showBuildDetails, showDetail)
-                }
-                HomeLayoutStyle.Stats -> {
-                    StatusPanel(state.status, style, onInstall, onAuthenticate, showDetail)
-                    warnings()
-                    if (!state.showCounts && !state.showMetrics) {
-                        FactsPanel(state.facts, state.buildFacts, state.showBuildDetails, showDetail)
-                    } else AdaptiveBoardRow(wide, first = { modifier ->
-                        Column(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            if (state.showCounts) {
-                                BoardCard {
-                                    PanelHeading(stringResource(R.string.home_layout_activity))
-                                    AdaptiveBoardRow(pair,
-                                        first = { CountFigure(stringResource(R.string.home_authorized_apps), state.superuserCount, onSuperuser, it) },
-                                        second = { CountFigure(stringResource(R.string.home_installed_modules), state.moduleCount, onModules, it) })
+                    HomeLayoutStyle.Grid -> {
+                        if (pair && state.showCounts) {
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                GridStatusCard(state.status, onInstall, onAuthenticate, showDetail, Modifier.weight(1f).fillMaxHeight())
+                                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    CountTile(Icons.Outlined.Person, stringResource(R.string.home_authorized_apps), state.superuserCount, onSuperuser,
+                                        Modifier.weight(1f).testTag("home-count-superuser"), valueEmphasis = true)
+                                    CountTile(Icons.Outlined.Extension, stringResource(R.string.home_installed_modules), state.moduleCount, onModules,
+                                        Modifier.weight(1f).testTag("home-count-modules"), valueEmphasis = true)
                                 }
                             }
+                        } else {
+                            GridStatusCard(state.status, onInstall, onAuthenticate, showDetail)
+                            if (state.showCounts) CountPair(state, onSuperuser, onModules, horizontal = false, valueEmphasis = true)
+                        }
+                    }
+                    HomeLayoutStyle.Focus -> {
+                        if (wide && state.showCounts) AdaptiveBoardRow(true,
+                            first = { FocusStatusCard(state.status, onInstall, onAuthenticate, showDetail, it) },
+                            second = { CountSummaryPanel(state, onSuperuser, onModules, it) })
+                        else {
+                            FocusStatusCard(state.status, onInstall, onAuthenticate, showDetail)
+                            if (state.showCounts) CountSummaryPanel(state, onSuperuser, onModules)
+                        }
+                        if (state.showMetrics) AdaptiveBoardRow(wide,
+                            first = { DevicePanel(state.metrics, pair, it) },
+                            second = { StoragePanel(state.metrics, it) })
+                    }
+                    HomeLayoutStyle.Dashboard -> {
+                        DashboardStatusCard(state.status, onInstall, onAuthenticate, showDetail)
+                        if (state.showCounts) CountPair(state, onSuperuser, onModules, horizontal = pair, valueEmphasis = true)
+                    }
+                    HomeLayoutStyle.Stats -> {
+                        StatsStatusCard(state.status, onInstall, onAuthenticate, showDetail, pair)
+                        if (wide && state.showMetrics && state.showCounts) AdaptiveBoardRow(true,
+                            first = { StatsMonitor(state.metrics, it) },
+                            second = { StatsCounts(state, onSuperuser, onModules, pair, it) })
+                        else {
                             if (state.showMetrics) StatsMonitor(state.metrics)
+                            if (state.showCounts) StatsCounts(state, onSuperuser, onModules, pair)
                         }
-                    }, second = { modifier ->
-                        FactsPanel(state.facts, state.buildFacts, state.showBuildDetails, showDetail, modifier)
-                    })
+                    }
                 }
             }
-            services()
+            warnings()
+            Box(Modifier.fillMaxWidth().testTag("home-services")) { services() }
+            FactsPanel(state.facts, state.buildFacts, state.showBuildDetails, showDetail, Modifier.testTag("home-core-facts"))
         }
     }
     detail?.let { fact ->
@@ -175,45 +152,125 @@ private fun AdaptiveBoardRow(wide: Boolean, first: @Composable (Modifier) -> Uni
 }
 
 @Composable
-private fun StatusPanel(status: HomeStatusPresentation, style: HomeLayoutStyle, install: () -> Unit,
+private fun StatusGlyph(status: HomeStatusPresentation, modifier: Modifier = Modifier) {
+    val tint = if (!status.installed || status.safeMode) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+    val icon = when { !status.installed -> Icons.Outlined.Download; status.safeMode -> Icons.Outlined.Shield; else -> Icons.Outlined.CheckCircle }
+    YukiIcon(icon, null, modifier, tint = tint)
+}
+
+/** FinaSU's Circle layout uses a compact icon-and-summary row, not a giant status medallion. */
+@Composable
+private fun CircleStatusCard(status: HomeStatusPresentation, install: () -> Unit,
+    authenticate: () -> Unit, detail: (HomeFact) -> Unit) {
+    BoardCard(Modifier.testTag("home-status-card")) {
+        Row(Modifier.fillMaxWidth().testTag("home-status-circle"), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            StatusGlyph(status, Modifier.size(28.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(status.title, style = MaterialTheme.typography.titleLarge)
+                StatusVersion(status, detail)
+                StatusBadges(status.badges)
+            }
+        }
+        StatusActions(status, install, authenticate)
+    }
+}
+
+/** The corner icon and bottom-aligned summary retain the tile geometry when counters are hidden. */
+@Composable
+private fun GridStatusCard(status: HomeStatusPresentation, install: () -> Unit,
     authenticate: () -> Unit, detail: (HomeFact) -> Unit, modifier: Modifier = Modifier) {
-    BoardCard(modifier) { StatusBody(status, style, install, authenticate, detail) }
+    ElevatedCard(modifier = modifier.fillMaxWidth().testTag("home-status-card").border(getCardBorder(), getCardShape()),
+        shape = getCardShape(), colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow), elevation = getCardElevation()) {
+        Box(Modifier.fillMaxWidth().heightIn(min = 220.dp).fillMaxHeight().padding(20.dp).testTag("home-status-grid")) {
+            StatusGlyph(status, Modifier.align(Alignment.TopEnd).size(48.dp))
+            Column(Modifier.fillMaxWidth().align(Alignment.BottomStart).padding(top = 64.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(status.title, style = MaterialTheme.typography.headlineSmall)
+                StatusVersion(status, detail)
+                StatusBadges(status.badges)
+                StatusActions(status, install, authenticate)
+            }
+        }
+    }
+}
+
+/** Focus follows the reference's titled tile and labelled status/version rows. */
+@Composable
+private fun FocusStatusCard(status: HomeStatusPresentation, install: () -> Unit,
+    authenticate: () -> Unit, detail: (HomeFact) -> Unit, modifier: Modifier = Modifier) {
+    BoardCard(modifier.testTag("home-status-card")) {
+        Column(Modifier.fillMaxWidth().testTag("home-status-focus"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            TileHeading(stringResource(R.string.home_layout_status), Icons.Outlined.AdminPanelSettings)
+            LabeledStatusValue(stringResource(R.string.home_layout_running_status), status.title)
+            status.version?.let { fact ->
+                LabeledStatusValue(fact.label, fact.summary, Modifier.clickable(
+                    onClickLabel = stringResource(R.string.home_layout_detail_action, fact.label)) { detail(fact) })
+            }
+            StatusBadges(status.badges)
+            StatusActions(status, install, authenticate)
+        }
+    }
 }
 
 @Composable
-private fun StatusBody(status: HomeStatusPresentation, style: HomeLayoutStyle, install: () -> Unit,
+private fun LabeledStatusValue(label: String, value: String, modifier: Modifier = Modifier) {
+    val stack = LocalDensity.current.fontScale * AppearancePreferences.fontScale >= 1.3f
+    if (stack) Column(modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyLarge)
+    } else Row(modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End)
+    }
+}
+
+/** A wide hero with a dedicated module-version band; kernel/device/policy facts remain below services. */
+@Composable
+private fun DashboardStatusCard(status: HomeStatusPresentation, install: () -> Unit,
     authenticate: () -> Unit, detail: (HomeFact) -> Unit) {
-    val tint = if (!status.installed || status.safeMode) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-    val icon = when { !status.installed -> Icons.Outlined.Download; status.safeMode -> Icons.Outlined.Shield; else -> Icons.Outlined.CheckCircle }
-    if (style == HomeLayoutStyle.Circle) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(Modifier.size(104.dp).border(2.dp, tint.copy(alpha = 0.35f), CircleShape), CircleShape,
-                color = tint.copy(alpha = 0.08f)) {
-                Box(contentAlignment = Alignment.Center) { YukiIcon(icon, null, Modifier.size(48.dp), tint = tint) }
+    BoardCard(Modifier.testTag("home-status-card")) {
+        Column(Modifier.fillMaxWidth().testTag("home-status-dashboard_ui").padding(vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                StatusGlyph(status, Modifier.size(36.dp))
+                Text(status.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
             }
-            Text(status.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-            StatusVersion(status, detail)
             StatusBadges(status.badges)
+            status.version?.let { fact ->
+                HorizontalDivider()
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(fact.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    StatusVersion(status, detail)
+                }
+            }
             StatusActions(status, install, authenticate)
         }
-    } else if (style == HomeLayoutStyle.Grid) {
-        Column(Modifier.fillMaxWidth().heightIn(min = 240.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            YukiIcon(icon, null, Modifier.size(40.dp), tint = tint)
-            Spacer(Modifier.height(12.dp))
-            Text(status.title, style = MaterialTheme.typography.headlineSmall)
-            StatusVersion(status, detail)
-            StatusBadges(status.badges)
-            StatusActions(status, install, authenticate)
-        }
-    } else {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+    }
+}
+
+/** A dense monitoring strip, followed by live waveforms and the count distribution. */
+@Composable
+private fun StatsStatusCard(status: HomeStatusPresentation, install: () -> Unit,
+    authenticate: () -> Unit, detail: (HomeFact) -> Unit, horizontal: Boolean) {
+    BoardCard(Modifier.testTag("home-status-card")) {
+        Row(Modifier.fillMaxWidth().testTag("home-status-stats"), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            YukiIcon(icon, null, Modifier.size(if (style == HomeLayoutStyle.Dashboard) 48.dp else 28.dp), tint = tint)
-            Text(status.title, style = if (style == HomeLayoutStyle.Stats) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.home_layout_running_status), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(status.title, style = MaterialTheme.typography.titleLarge)
+            }
+            StatusGlyph(status, Modifier.size(24.dp))
         }
-        StatusVersion(status, detail)
+        status.version?.let { fact ->
+            HorizontalDivider()
+            if (horizontal) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(fact.label, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(Modifier.weight(1f)) { StatusVersion(status, detail) }
+            } else StatusVersion(status, detail)
+        }
         StatusBadges(status.badges)
         StatusActions(status, install, authenticate)
     }
@@ -243,38 +300,60 @@ private fun StatusBadges(badges: List<String>) {
 
 @Composable
 private fun StatusActions(status: HomeStatusPresentation, install: () -> Unit, authenticate: () -> Unit) {
+    if (status.installed && !status.needsAuthentication) return
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick = install) {
-            Text(stringResource(if (status.installed) R.string.home_layout_manage_installation else R.string.install))
+        if (!status.installed) FilledTonalButton(onClick = install, modifier = Modifier.testTag("home-install-action")) {
+            Text(stringResource(R.string.install))
         }
-        if (status.needsAuthentication) FilledTonalButton(onClick = authenticate) {
+        if (status.needsAuthentication) FilledTonalButton(onClick = authenticate, modifier = Modifier.testTag("home-authenticate-action")) {
             Text(stringResource(R.string.superkey_auth_title))
         }
     }
 }
 
 @Composable
-private fun CountPair(state: HomeLayoutState, superuser: () -> Unit, modules: () -> Unit, horizontal: Boolean) {
+private fun CountPair(state: HomeLayoutState, superuser: () -> Unit, modules: () -> Unit, horizontal: Boolean, valueEmphasis: Boolean = false) {
     AdaptiveBoardRow(horizontal,
-        first = { CountTile(stringResource(R.string.home_authorized_apps), state.superuserCount, superuser, it) },
-        second = { CountTile(stringResource(R.string.home_installed_modules), state.moduleCount, modules, it) })
+        first = { CountTile(Icons.Outlined.Person, stringResource(R.string.home_authorized_apps), state.superuserCount, superuser, it.testTag("home-count-superuser"), valueEmphasis) },
+        second = { CountTile(Icons.Outlined.Extension, stringResource(R.string.home_installed_modules), state.moduleCount, modules, it.testTag("home-count-modules"), valueEmphasis) })
 }
 
 @Composable
-private fun CountTile(label: String, count: Int?, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    BoardCard(modifier) { CountFigure(label, count, onClick) }
-}
-
-@Composable
-private fun CountFigure(label: String, count: Int?, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(onClick = onClick).padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(count?.let { NumberFormat.getIntegerInstance().format(it) } ?: "—", style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold)
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (count == null) Text(stringResource(R.string.home_reading_unavailable), style = MaterialTheme.typography.labelSmall)
+private fun CountTile(icon: ImageVector, label: String, count: Int?, onClick: () -> Unit, modifier: Modifier = Modifier, valueEmphasis: Boolean = false) {
+    BoardCard(modifier.clickable(onClick = onClick)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 72.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            YukiIcon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(label, style = if (valueEmphasis) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodyMedium,
+                    color = if (valueEmphasis) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+                Text(countText(count), style = if (valueEmphasis) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                    color = if (valueEmphasis) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                if (count == null) Text(stringResource(R.string.home_reading_unavailable), style = MaterialTheme.typography.labelSmall)
+            }
+        }
     }
 }
+
+@Composable
+private fun CountSummaryPanel(state: HomeLayoutState, superuser: () -> Unit, modules: () -> Unit, modifier: Modifier = Modifier) {
+    BoardCard(modifier) {
+        TileHeading(stringResource(R.string.home_layout_activity), Icons.Outlined.Extension)
+        LabeledStatusValue(stringResource(R.string.home_authorized_apps), countText(state.superuserCount),
+            Modifier.testTag("home-count-superuser").clickable(onClick = superuser))
+        LabeledStatusValue(stringResource(R.string.home_installed_modules), countText(state.moduleCount),
+            Modifier.testTag("home-count-modules").clickable(onClick = modules))
+    }
+}
+
+@Composable
+private fun TileHeading(title: String, icon: ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        YukiIcon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        PanelHeading(title)
+    }
+}
+
+private fun countText(value: Int?): String = value?.let { NumberFormat.getIntegerInstance().format(it) } ?: "—"
 
 @Composable
 private fun FactsPanel(facts: List<HomeFact>, buildFacts: List<HomeFact>, showBuild: Boolean,
@@ -296,7 +375,7 @@ private fun FactsPanel(facts: List<HomeFact>, buildFacts: List<HomeFact>, showBu
 
 @Composable
 private fun FactRow(fact: HomeFact, detail: (HomeFact) -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClickLabel = stringResource(R.string.home_layout_detail_action, fact.label)) {
+    Row(Modifier.fillMaxWidth().testTag("home-fact-${fact.id}").heightIn(min = 48.dp).clickable(onClickLabel = stringResource(R.string.home_layout_detail_action, fact.label)) {
         detail(fact)
     }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -308,34 +387,57 @@ private fun FactRow(fact: HomeFact, detail: (HomeFact) -> Unit) {
 }
 
 @Composable
-private fun FactCell(fact: HomeFact, detail: (HomeFact) -> Unit, modifier: Modifier) {
-    Column(modifier.heightIn(min = 56.dp).clickable(onClickLabel = stringResource(R.string.home_layout_detail_action, fact.label)) { detail(fact) },
-        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(fact.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(fact.summary, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+private fun DevicePanel(metrics: HomeDeviceMetrics?, horizontal: Boolean, modifier: Modifier = Modifier) {
+    BoardCard(modifier.testTag("home-focus-device")) {
+        TileHeading(stringResource(R.string.home_layout_device), Icons.Outlined.Memory)
+        val colors = MaterialTheme.colorScheme
+        val readings: @Composable (Modifier) -> Unit = { itemModifier ->
+            MetricCircle(metrics?.batteryTemperatureC?.let(::temperature), stringResource(R.string.home_layout_battery_temperature),
+                metrics?.batteryTemperatureC?.div(50f), colors.primary, horizontal, itemModifier)
+            MetricCircle(metrics?.cpuTemperatureC?.let(::temperature), stringResource(R.string.home_cpu_temperature),
+                metrics?.cpuTemperatureC?.div(80f), colors.secondary, horizontal, itemModifier)
+            MetricCircle(metrics?.batteryPercent?.let { NumberFormat.getPercentInstance().format(it / 100.0) }, stringResource(R.string.home_battery),
+                metrics?.batteryPercent?.div(100f), colors.tertiary, horizontal, itemModifier)
+        }
+        if (horizontal) Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            readings(Modifier.weight(1f))
+        } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) { readings(Modifier.fillMaxWidth()) }
+        metrics?.charging?.let { Text(stringResource(if (it) R.string.home_charging else R.string.home_on_battery),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        metrics?.cpuFrequencyKHz?.let { Text(stringResource(R.string.home_cpu_frequency, number(it / 1000)), style = MaterialTheme.typography.bodySmall) }
+        Uptime(metrics)
     }
 }
 
+/** Temperature rings use FinaSU's 50°C/80°C display ranges; these are scales, not health thresholds. */
 @Composable
-private fun DevicePanel(metrics: HomeDeviceMetrics?, modifier: Modifier = Modifier) {
-    BoardCard(modifier) {
-        PanelHeading(stringResource(R.string.home_layout_device))
-        MetricReading(stringResource(R.string.home_battery), metrics?.batteryPercent?.let { NumberFormat.getPercentInstance().format(it / 100.0) },
-            listOfNotNull(metrics?.batteryTemperatureC?.let(::temperature), metrics?.charging?.let {
-                stringResource(if (it) R.string.home_charging else R.string.home_on_battery)
-            }).joinToString(" · "))
-        MetricReading(stringResource(R.string.home_cpu_temperature), metrics?.cpuTemperatureC?.let(::temperature),
-            metrics?.cpuFrequencyKHz?.let { stringResource(R.string.home_cpu_frequency, number(it / 1000)) }.orEmpty())
-        Uptime(metrics)
+private fun MetricCircle(value: String?, label: String, progress: Float?, color: Color, compact: Boolean, modifier: Modifier) {
+    val ring: @Composable () -> Unit = {
+        Box(Modifier.size(if (compact) 80.dp else 96.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(progress = { (progress ?: 0f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxSize(),
+                color = color, trackColor = color.copy(alpha = 0.16f), strokeWidth = 4.dp)
+            if (compact) Text(value ?: "—", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        }
+    }
+    if (compact) Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ring()
+        Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (value == null) Text(stringResource(R.string.home_reading_unavailable), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+    } else Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        ring()
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value ?: stringResource(R.string.home_reading_unavailable), style = MaterialTheme.typography.titleLarge)
+        }
     }
 }
 
 @Composable
 private fun StoragePanel(metrics: HomeDeviceMetrics?, modifier: Modifier = Modifier) {
-    BoardCard(modifier) {
-        PanelHeading(stringResource(R.string.home_layout_storage))
-        CapacityReading(stringResource(R.string.home_memory_usage), metrics?.memory)
+    BoardCard(modifier.testTag("home-focus-storage")) {
+        TileHeading(stringResource(R.string.home_layout_storage), Icons.Outlined.SdStorage)
         CapacityReading(stringResource(R.string.home_storage_usage), metrics?.storage)
+        CapacityReading(stringResource(R.string.home_memory_usage), metrics?.memory)
     }
 }
 
@@ -367,9 +469,9 @@ private fun Uptime(metrics: HomeDeviceMetrics?) {
 }
 
 @Composable
-private fun StatsMonitor(metrics: HomeDeviceMetrics?) {
-    BoardCard {
-        PanelHeading(stringResource(R.string.home_layout_monitor))
+private fun StatsMonitor(metrics: HomeDeviceMetrics?, modifier: Modifier = Modifier) {
+    BoardCard(modifier.testTag("home-stats-monitor")) {
+        TileHeading(stringResource(R.string.home_layout_monitor), Icons.Outlined.Speed)
         MetricReading(stringResource(R.string.home_cpu_temperature), metrics?.cpuTemperatureC?.let(::temperature))
         TrendLine(metrics?.cpuTemperatureHistory.orEmpty(), MaterialTheme.colorScheme.tertiary)
         CapacityReading(stringResource(R.string.home_memory_usage), metrics?.memory)
@@ -380,9 +482,62 @@ private fun StatsMonitor(metrics: HomeDeviceMetrics?) {
         HorizontalDivider()
         MetricReading(stringResource(R.string.home_battery), metrics?.batteryPercent?.let { NumberFormat.getPercentInstance().format(it / 100.0) },
             metrics?.batteryTemperatureC?.let(::temperature).orEmpty())
+        metrics?.batteryPercent?.let { LinearProgressIndicator(progress = { it / 100f }, modifier = Modifier.fillMaxWidth()) }
         CapacityReading(stringResource(R.string.home_storage_usage), metrics?.storage)
         metrics?.cpuFrequencyKHz?.let { Text(stringResource(R.string.home_cpu_frequency, number(it / 1000)), style = MaterialTheme.typography.bodySmall) }
         Uptime(metrics)
+    }
+}
+
+/** FinaSU's donut/legend geometry, using only the two real record categories available in ZySU. */
+@Composable
+private fun StatsCounts(state: HomeLayoutState, superuser: () -> Unit, modules: () -> Unit, horizontal: Boolean, modifier: Modifier = Modifier) {
+    val distribution = HomeCountDistribution.fromCounts(state.superuserCount, state.moduleCount)
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    val chart: @Composable () -> Unit = {
+        Box(Modifier.size(128.dp).testTag("home-count-chart"), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize().padding(8.dp)) {
+                val stroke = Stroke(18.dp.toPx())
+                drawArc(track, -90f, 360f, false, style = stroke)
+                if (distribution != null && distribution.total > 0) {
+                    val modulesSweep = distribution.moduleFraction * 360f
+                    drawArc(primary, -90f, modulesSweep, false, style = stroke)
+                    drawArc(tertiary, -90f + modulesSweep, 360f - modulesSweep, false, style = stroke)
+                }
+            }
+            YukiIcon(Icons.Outlined.PieChart, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    val legend: @Composable (Modifier) -> Unit = { legendModifier ->
+        Column(legendModifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            CountLegend(stringResource(R.string.home_installed_modules), state.moduleCount, primary, modules, "home-count-modules")
+            CountLegend(stringResource(R.string.home_authorized_apps), state.superuserCount, tertiary, superuser, "home-count-superuser")
+        }
+    }
+    BoardCard(modifier.testTag("home-stats-counts")) {
+        TileHeading(stringResource(R.string.home_layout_activity), Icons.Outlined.PieChart)
+        if (horizontal) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            chart()
+            legend(Modifier.weight(1f))
+        } else Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            chart()
+            legend(Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun CountLegend(label: String, count: Int?, color: Color, onClick: () -> Unit, tag: String) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag).clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(Modifier.size(10.dp), shape = CircleShape, color = color) {}
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(countText(count), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
+            if (count == null) Text(stringResource(R.string.home_reading_unavailable), style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 

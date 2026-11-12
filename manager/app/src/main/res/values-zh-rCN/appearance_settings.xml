@@ -28,7 +28,7 @@
     <string name="appearance_home_details">展开设备详情</string>
     <string name="appearance_home_details_summary">默认展开设备信息摘要，点按数值可查看和复制完整内容。</string>
     <string name="appearance_home_layout">主页布局</string>
-    <string name="appearance_home_layout_summary">选择状态、快捷入口和设备信息的排列方式。</string>
+    <string name="appearance_home_layout_summary">切换上部状态与概览的布局。KSUD、SUMH 始终位于共用的核心信息卡片上方。</string>
     <string name="appearance_background_blur">背景模糊</string>
     <string name="appearance_background_blur_summary">柔化卡片后方的壁纸，同时保持文字清晰。</string>
 </resources>

@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -276,11 +277,15 @@ fun HomeScreen(navigator: DestinationsNavigator) {
     }
 
     val scrollState = rememberScrollState()
+    LaunchedEffect(viewModel.homeLayout) {
+        scrollState.scrollTo(0)
+    }
 
     YukiPageScaffold(
         topBar = {
             TopBar(
-                isDataLoaded = viewModel.isCoreDataLoaded
+                isDataLoaded = viewModel.isCoreDataLoaded,
+                onInstall = { navigator.navigate(InstallScreenDestination) },
             )
         },
         contentWindowInsets = WindowInsets.safeDrawing.only(
@@ -478,8 +483,9 @@ private fun RebootDropdownItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TopBar(
-    isDataLoaded: Boolean = false
+internal fun TopBar(
+    isDataLoaded: Boolean = false,
+    onInstall: () -> Unit = {},
 ) {
     YukiTopAppBar(
         title = {
@@ -497,6 +503,9 @@ private fun TopBar(
         },
         actions = {
             if (isDataLoaded) {
+                IconButton(onClick = onInstall, modifier = Modifier.testTag("home-install-toolbar")) {
+                    YukiIcon(Icons.Outlined.Download, contentDescription = stringResource(R.string.install))
+                }
                 var showDropdown by remember { mutableStateOf(false) }
                 KsuIsValid {
                     IconButton(onClick = {

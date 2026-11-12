@@ -52,4 +52,17 @@ class HomeLayoutStyleTest {
         assertEquals(34f, history.cpuTemperatureHistory.last())
         assertEquals(.5f, history.memoryHistory.last())
     }
+
+    @Test fun countChartRequiresCompleteNonNegativeCountsAndHandlesEmptyData() {
+        assertNull(HomeCountDistribution.fromCounts(null, 3))
+        assertNull(HomeCountDistribution.fromCounts(5, null))
+        assertNull(HomeCountDistribution.fromCounts(-1, 3))
+        val empty = HomeCountDistribution.fromCounts(0, 0)!!
+        assertEquals(0L, empty.total)
+        assertEquals(0f, empty.moduleFraction)
+        val complete = HomeCountDistribution.fromCounts(3, 1)!!
+        assertEquals(4L, complete.total)
+        assertEquals(.25f, complete.moduleFraction)
+        assertEquals(Int.MAX_VALUE.toLong() * 2, HomeCountDistribution.fromCounts(Int.MAX_VALUE, Int.MAX_VALUE)!!.total)
+    }
 }

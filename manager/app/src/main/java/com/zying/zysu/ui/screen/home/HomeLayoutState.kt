@@ -25,3 +25,15 @@ internal data class HomeLayoutState(
     val showMetrics: Boolean = true,
     val showBuildDetails: Boolean = false,
 )
+
+/** Unknown counts stay unknown; a partial read must not produce a misleading complete chart. */
+internal data class HomeCountDistribution private constructor(val superuser: Int, val modules: Int) {
+    val total: Long get() = superuser.toLong() + modules.toLong()
+    val moduleFraction: Float get() = if (total == 0L) 0f else modules.toFloat() / total.toFloat()
+
+    companion object {
+        fun fromCounts(superuser: Int?, modules: Int?): HomeCountDistribution? =
+            if (superuser == null || modules == null || superuser < 0 || modules < 0) null
+            else HomeCountDistribution(superuser, modules)
+    }
+}

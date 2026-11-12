@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performClick
@@ -46,7 +47,8 @@ class NavigationBarStyleTest {
         NavigationBarStylePreferences.preferences(context).edit()
             .putString(NavigationBarStylePreferences.STYLE_KEY, "removed-style").commit()
         assertEquals(NavigationBarStyle.Glass, NavigationBarStylePreferences.read(context))
-        assertEquals(2, NavigationBarStyle.entries.size)
+        assertEquals(listOf("glass", "material", "floating_standard", "floating_drawer"),
+            NavigationBarStyle.entries.map { it.preferenceValue })
     }
 
     @Test
@@ -64,8 +66,10 @@ class NavigationBarStyleTest {
             Text(style.preferenceValue)
         }
         compose.onNodeWithText("glass").assertExists()
-        compose.runOnIdle { NavigationBarStylePreferences.set(context, NavigationBarStyle.Material) }
-        compose.onNodeWithText("material").assertExists()
+        NavigationBarStyle.entries.forEach { style ->
+            compose.runOnIdle { NavigationBarStylePreferences.set(context, style) }
+            compose.onNodeWithText(style.preferenceValue).assertExists()
+        }
         compose.runOnIdle { NavigationBarStylePreferences.preferences(context).edit().clear().commit() }
         compose.onNodeWithText("glass").assertExists()
     }
@@ -87,13 +91,13 @@ class NavigationBarStyleTest {
                 )
             }
         }
-        compose.onNodeWithText("Settings").performClick().assertIsSelected()
-        compose.runOnIdle { NavigationBarStylePreferences.set(context, NavigationBarStyle.Material) }
-        compose.onNodeWithText("Settings").assertIsSelected()
-        compose.onNodeWithText("Home").performClick().assertIsSelected()
-        compose.runOnIdle { NavigationBarStylePreferences.set(context, NavigationBarStyle.Glass) }
-        compose.onNodeWithText("Home").assertIsSelected()
-        compose.onNodeWithContentDescription(context.resources.getQuantityString(R.plurals.ui_navigation_item_count, 12, 12))
-            .assertExists()
+        compose.onNodeWithTag("navigation-item-settings").performClick().assertIsSelected()
+        NavigationBarStyle.entries.forEach { style ->
+            compose.runOnIdle { NavigationBarStylePreferences.set(context, style) }
+            compose.onNodeWithTag("navigation-item-settings").assertIsSelected()
+            compose.onNodeWithContentDescription(context.resources.getQuantityString(R.plurals.ui_navigation_item_count, 12, 12))
+                .assertExists()
+        }
+        compose.onNodeWithTag("navigation-item-home").performClick().assertIsSelected()
     }
 }
