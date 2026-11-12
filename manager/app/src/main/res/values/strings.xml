@@ -3,9 +3,7 @@
     <string name="app_name" translatable="false">ZySU</string>
     <string name="home">Home</string>
     <string name="home_not_installed">Not installed</string>
-    <string name="home_click_to_install">Click to install</string>
     <string name="home_working">Working</string>
-    <string name="home_working_version">Version: %s</string>
     <string name="home_kernel">Kernel version</string>
     <string name="home_manager_version">Manager version</string>
     <string name="home_selinux_status">SELinux status</string>
@@ -363,9 +361,6 @@
     <string name="log_viewer_too_many_logs" tools:ignore="PluralsCandidate">Too many logs, showing only the latest %1$d entries</string>
     <string name="log_viewer_load_more">Load More Logs</string>
     <string name="log_viewer_all_logs_loaded">All logs displayed</string>
-    <string name="incompatible_kernel_msg">
-    The current manager is incompatible with this kernel! Please upgrade the kernel to version %2$d or higher (currently %1$d)
-    </string>
     <string name="operation_failed">Operation failed</string>
     <string name="group_contains_apps" tools:ignore="PluralsCandidate">Contains %d apps</string>
     <string name="settings_disable_sulog">Superuser logging</string>

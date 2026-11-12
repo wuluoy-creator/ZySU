@@ -22,15 +22,13 @@
     <string name="appearance_display_home">Home layout</string>
     <string name="appearance_display_visibility">Home information visibility</string>
     <string name="appearance_home_metrics">System overview</string>
-    <string name="appearance_home_metrics_summary">Show live battery, memory, storage and processor information.</string>
+    <string name="appearance_home_metrics_summary">Show live readings in Focus and Statistics layouts.</string>
     <string name="appearance_home_counts">Authorization and module counts</string>
     <string name="appearance_home_counts_summary">Show shortcuts with the current authorization and module totals.</string>
     <string name="appearance_home_details">Expand device details</string>
-    <string name="appearance_home_details_summary">Show the full build and device information when opening Home.</string>
-    <string name="appearance_home_layout">Overview layout</string>
-    <string name="appearance_home_layout_summary">Adapt status tiles to the available width, or keep each item on its own row.</string>
-    <string name="appearance_layout_adaptive">Adaptive</string>
-    <string name="appearance_layout_list">List</string>
+    <string name="appearance_home_details_summary">Expand device summaries on Home. Open a value to read and copy its full details.</string>
+    <string name="appearance_home_layout">Home layout</string>
+    <string name="appearance_home_layout_summary">Choose how status, shortcuts and device information are arranged.</string>
     <string name="appearance_background_blur">Background blur</string>
     <string name="appearance_background_blur_summary">Soften the wallpaper behind cards while keeping text sharp.</string>
 </resources>

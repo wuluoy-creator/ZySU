@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
-import android.system.Os
-import androidx.annotation.DrawableRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -18,10 +16,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Engineering
 import androidx.compose.material.icons.filled.*
@@ -70,13 +65,7 @@ import com.zying.zysu.ui.component.AppLogo
 import com.zying.zysu.ui.component.KsuIsValid
 import com.zying.zysu.ui.component.LocalBottomBarPadding
 import com.zying.zysu.ui.sumh.HomeSUMHCard
-import com.zying.zysu.ui.sumh.SUMHStatusSummaryCard
-import com.zying.zysu.ui.sumh.util.SUMHUiAdapter
 import com.zying.zysu.ui.component.KsudStatusCard
-import com.zying.zysu.ui.component.HomeCardIcon
-import com.zying.zysu.ui.component.HomeDeviceOverview
-import com.zying.zysu.ui.component.HomeCountCards
-import com.zying.zysu.ui.component.HomeSectionTitle
 import com.zying.zysu.ui.component.HomeStatusLayout
 import com.zying.zysu.ui.component.rememberConfirmDialog
 import com.zying.zysu.ui.component.YukiIcon
@@ -84,7 +73,6 @@ import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiPageScaffold
 import com.zying.zysu.ui.component.YukiTopBarTitle
 import com.zying.zysu.ui.component.YukiPullToRefreshBox
-import com.zying.zysu.ui.component.YukiAlertDialog
 import com.zying.zysu.ui.component.clickHapticFeedback
 import com.zying.zysu.ui.theme.CardConfig
 import com.zying.zysu.ui.theme.getCardBorder
@@ -101,6 +89,8 @@ import com.zying.zysu.ui.util.reboot
 import com.zying.zysu.ui.viewmodel.HomeViewModel
 import com.zying.zysu.ui.viewmodel.HomeDeviceMetrics
 import com.zying.zysu.ui.viewmodel.HomeDeviceMetricsReader
+import com.zying.zysu.ui.viewmodel.appendHomeMetricSample
+import com.zying.zysu.ui.screen.home.*
 import com.zying.zysu.ui.component.SuperKeyDialog
 import com.zying.zysu.ui.component.rememberSuperKeyDialog
 import com.zying.zysu.ui.component.SuperKeyAuthResult
@@ -155,11 +145,14 @@ fun HomeScreen(navigator: DestinationsNavigator) {
         if (viewModel.isCoreDataLoaded) hasLoadedCore = true
         if (viewModel.isExtendedDataLoaded) hasLoadedExtended = true
     }
-    val deviceMetrics by produceState<HomeDeviceMetrics?>(null, lifecycleOwner, viewModel.showDeviceMetrics && !viewModel.isSimpleMode, homeRefreshKey) {
-        if (viewModel.showDeviceMetrics && !viewModel.isSimpleMode) {
+    val deviceMetrics by produceState<HomeDeviceMetrics?>(null, lifecycleOwner, viewModel.showDeviceMetrics && !viewModel.isSimpleMode && viewModel.homeLayout.usesMetrics, homeRefreshKey) {
+        if (viewModel.showDeviceMetrics && !viewModel.isSimpleMode && viewModel.homeLayout.usesMetrics) {
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Start a contiguous history after a pause; background time is not sampled.
+                value = null
                 while (isActive) {
-                    value = withContext(Dispatchers.IO) { HomeDeviceMetricsReader.read(context.applicationContext) }
+                    val next = withContext(Dispatchers.IO) { HomeDeviceMetricsReader.read(context.applicationContext) }
+                    value = appendHomeMetricSample(value, next)
                     delay(10_000)
                 }
             }
@@ -312,104 +305,46 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                     .padding(top = 16.dp, start = 20.dp, end = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 状态卡片
                 if (viewModel.isCoreDataLoaded || hasLoadedCore) {
-                    val isNotManager = !viewModel.systemStatus.isManager
-                    val needsSuperKeyAuth = isNotManager && !superKeyAuthSuccess && viewModel.systemStatus.ksuVersion == null
-
-                    HomeStatusLayout(
-                        listLayout = viewModel.useListLayout,
-                        status = { tileModifier ->
-                            StatusCard(
-                                modifier = tileModifier,
-                                systemStatus = viewModel.systemStatus,
-                                isSuperKeyMode = isSuperKeyConfigured || superKeyAuthSuccess,
-                                needsSuperKeyAuth = needsSuperKeyAuth,
-                                onClickInstall = { navigator.navigate(InstallScreenDestination) },
-                                onSuperKeyAuth = { superKeyDialog.show() },
-                                isSignatureOk = isSignatureOk,
-                                hideVersion = viewModel.isHideVersion,
-                                hideOtherInfo = viewModel.isHideOtherInfo,
-                            )
-                        },
-                        daemon = { tileModifier ->
-                            KsudSummaryCard(tileModifier, ksudIntegrityStatus, homeRefreshKey, viewModel)
-                        },
-                        kernel = { tileModifier ->
-                            HomeSUMHCard(
-                                modifier = tileModifier,
-                                canReadStatus = viewModel.systemStatus.isManager && viewModel.systemStatus.ksuVersion != null,
-                                refreshKey = homeRefreshKey,
-                            )
-                        },
+                    val needsSuperKeyAuth = !viewModel.systemStatus.isManager && !superKeyAuthSuccess && viewModel.systemStatus.ksuVersion == null
+                    val layoutState = homeLayoutState(
+                        viewModel, deviceMetrics,
+                        isSignatureOk = isSignatureOk,
+                        isSuperKeyMode = isSuperKeyConfigured || superKeyAuthSuccess,
+                        needsAuthentication = needsSuperKeyAuth,
                     )
-
-                    if (ksudIntegrityStatus == KsudIntegrityStatus.MISMATCH) {
-                        WarningCard(stringResource(R.string.ksud_integrity_warning))
-                    }
-
-                    if (viewModel.systemStatus.requireNewKernel) {
-                        WarningCard(
-                            message = stringResource(R.string.require_kernel_version),
-                            onClick = { navigator.navigate(InstallScreenDestination) },
-                        )
-                    }
-                    if (viewModel.systemStatus.requireNewManager) {
-                        WarningCard(stringResource(R.string.require_manager_version))
-                    }
-                    if (viewModel.systemStatus.showLkmUpdate) {
-                        WarningCard(
-                            message = stringResource(R.string.home_lkm_update_available),
-                            color = MaterialTheme.colorScheme.primary,
-                            onClick = { navigator.navigate(InstallScreenDestination) },
-                        )
-                    }
-
-                    if (viewModel.systemStatus.ksuVersion != null && !viewModel.systemStatus.isRootAvailable) {
-                        WarningCard(
-                            stringResource(id = R.string.grant_root_failed)
-                        )
-                    }
-
-                }
-
-                if (viewModel.informationLoadFailed) {
-                    WarningCard(stringResource(R.string.home_load_retry), onClick = { viewModel.onPullRefresh(context) })
-                }
-                if (viewModel.showCounts && !viewModel.isSimpleMode && viewModel.systemStatus.isManager &&
-                    (viewModel.isExtendedDataLoaded || hasLoadedExtended)) {
-                    HomeCountCards(
-                        superuserCount = viewModel.systemInfo.superuserCount,
-                        moduleCount = viewModel.systemInfo.moduleCount,
+                    HomeLayoutContent(
+                        style = viewModel.homeLayout,
+                        state = layoutState,
+                        onInstall = { navigator.navigate(InstallScreenDestination) },
+                        onAuthenticate = { superKeyDialog.show() },
                         onSuperuser = { navigator.navigate(SuperUserScreenDestination) },
                         onModules = { navigator.navigate(ModuleScreenDestination) },
-                        listLayout = viewModel.useListLayout,
+                        services = {
+                            HomeStatusLayout(
+                                listLayout = viewModel.homeLayout == HomeLayoutStyle.Circle,
+                                status = {},
+                                daemon = { KsudSummaryCard(it, ksudIntegrityStatus, homeRefreshKey, viewModel) },
+                                kernel = { HomeSUMHCard(it,
+                                    canReadStatus = viewModel.systemStatus.isManager && viewModel.systemStatus.ksuVersion != null,
+                                    refreshKey = homeRefreshKey) },
+                            )
+                        },
+                        warnings = {
+                            if (ksudIntegrityStatus == KsudIntegrityStatus.MISMATCH) WarningCard(stringResource(R.string.ksud_integrity_warning))
+                            if (viewModel.systemStatus.requireNewKernel) WarningCard(stringResource(R.string.require_kernel_version),
+                                onClick = { navigator.navigate(InstallScreenDestination) })
+                            if (viewModel.systemStatus.requireNewManager) WarningCard(stringResource(R.string.require_manager_version))
+                            if (viewModel.systemStatus.showLkmUpdate) WarningCard(stringResource(R.string.home_lkm_update_available),
+                                color = MaterialTheme.colorScheme.primary, onClick = { navigator.navigate(InstallScreenDestination) })
+                            if (viewModel.systemStatus.ksuVersion != null && !viewModel.systemStatus.isRootAvailable) WarningCard(stringResource(R.string.grant_root_failed))
+                            if (viewModel.informationLoadFailed) WarningCard(stringResource(R.string.home_load_retry), onClick = { viewModel.onPullRefresh(context) })
+                        },
                     )
                 }
-                if (viewModel.showDeviceMetrics && !viewModel.isSimpleMode) {
-                    HomeDeviceOverview(deviceMetrics, listLayout = viewModel.useListLayout)
-                }
-
-                if (viewModel.isExtendedDataLoaded || hasLoadedExtended) {
-                    val checkUpdate = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-                        .getBoolean("check_update", true)
-                    if (checkUpdate) {
-                        UpdateCard()
-                    }
-
-                    // 信息卡片
-                    InfoCard(
-                        systemInfo = viewModel.systemInfo,
-                        isSimpleMode = viewModel.isSimpleMode,
-                        canReadHookType = viewModel.systemStatus.isManager &&
-                            viewModel.systemStatus.ksuVersion != null,
-                        isHideZygiskImplement = viewModel.isHideZygiskImplement,
-                        isHideMetaModuleImplement = viewModel.isHideMetaModuleImplement,
-                        isHideSeccompStatus = viewModel.isHideSeccompStatus,
-                        showDeviceDetails = viewModel.showDeviceDetails,
-                        managerUapiVersion = viewModel.systemStatus.managerUapiVersion,
-                    )
-
+                if ((viewModel.isExtendedDataLoaded || hasLoadedExtended) &&
+                    context.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean("check_update", true)) {
+                    UpdateCard()
                 }
 
                 if (viewModel.isExtendedDataLoaded || hasLoadedExtended) {
@@ -603,151 +538,6 @@ private fun TopBar(
 }
 
 @Composable
-private fun StatusCard(
-    systemStatus: HomeViewModel.SystemStatus,
-    modifier: Modifier = Modifier,
-    isSuperKeyMode: Boolean = false,
-    needsSuperKeyAuth: Boolean = false,
-    isSignatureOk: Boolean = false,
-    hideVersion: Boolean = false,
-    hideOtherInfo: Boolean = false,
-    onClickInstall: () -> Unit = {},
-    onSuperKeyAuth: () -> Unit = {},
-) {
-    val installed = systemStatus.ksuVersion != null
-    val safeMode = installed && Natives.isSafeMode
-    val version = systemStatus.ksuFullVersion?.takeIf { installed && !hideVersion }
-    val machine = if (installed) remember { Os.uname().machine } else null
-    val labels = buildList {
-        if (installed && isSignatureOk) add(stringResource(R.string.home_auth_signature_tag))
-        if (installed && isSuperKeyMode) add(stringResource(R.string.home_auth_superkey_tag))
-        if (machine != null && machine != "aarch64") add(machine)
-        if (version != null && systemStatus.showCustomLkmBadge) add(stringResource(R.string.home_lkm_custom))
-    }
-    InstallationStatusCard(
-        status = stringResource(when {
-            !installed -> R.string.home_not_installed
-            safeMode -> R.string.safe_mode
-            else -> R.string.home_working
-        }),
-        installed = installed,
-        safeMode = safeMode,
-        onClickInstall = onClickInstall,
-        modifier = modifier,
-        version = version?.let { stringResource(R.string.home_working_version, it) },
-        buildInfo = version?.let {
-            if (systemStatus.kernelUapiVersion > 0) {
-                stringResource(R.string.home_status_build_api, systemStatus.ksuVersion ?: 0, systemStatus.kernelUapiVersion)
-            } else stringResource(R.string.home_status_build, systemStatus.ksuVersion ?: 0)
-        },
-        labels = if (hideOtherInfo) emptyList() else labels,
-        needsSuperKeyAuth = !installed && needsSuperKeyAuth,
-        onSuperKeyAuth = onSuperKeyAuth,
-    )
-}
-
-/** Pure presentation shared by the live status and previews of every installation state. */
-@Composable
-private fun InstallationStatusCard(
-    status: String,
-    installed: Boolean,
-    safeMode: Boolean,
-    onClickInstall: () -> Unit,
-    modifier: Modifier = Modifier,
-    version: String? = null,
-    buildInfo: String? = null,
-    labels: List<String> = emptyList(),
-    needsSuperKeyAuth: Boolean = false,
-    onSuperKeyAuth: () -> Unit = {},
-) {
-    val statusColor = if (installed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-    ElevatedCard(
-        onClick = onClickInstall,
-        modifier = modifier
-            .heightIn(min = 168.dp)
-            .border(getCardBorder(statusColor.copy(alpha = 0.16f)), getCardShape()),
-        colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
-        shape = getCardShape(),
-        elevation = getCardElevation(),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    HomeCardIcon(
-                        icon = when {
-                            !installed -> Icons.Outlined.Download
-                            safeMode -> Icons.Outlined.Shield
-                            else -> Icons.Outlined.TaskAlt
-                        },
-                        tint = statusColor,
-                        containerColor = if (installed) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,
-                    )
-                    Text(
-                        text = status,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = statusColor,
-                    )
-                    if (needsSuperKeyAuth) {
-                        IconButton(onClick = onSuperKeyAuth) {
-                            YukiIcon(Icons.Default.Key, stringResource(R.string.superkey_auth_title), tint = MaterialTheme.colorScheme.tertiary)
-                        }
-                    }
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (installed) {
-                    if (version != null) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(version, style = MaterialTheme.typography.bodyMedium)
-                            buildInfo?.let {
-                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    if (labels.isNotEmpty()) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            labels.forEach { StatusBadge(it) }
-                        }
-                    }
-                } else {
-                    Text(
-                        text = stringResource(R.string.home_click_to_install),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusBadge(label: String) {
-    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-        )
-    }
-}
-
-@Composable
 fun WarningCard(
     message: String,
     color: Color = MaterialTheme.colorScheme.error,
@@ -845,166 +635,79 @@ fun DonateCard() {
 }
 
 @Composable
-private fun HomeInfoItem(
-    label: String,
-    content: String,
-    icon: ImageVector? = null,
-    @DrawableRes iconRes: Int? = null,
-    contentColor: Color = Color.Unspecified,
-    onClick: (() -> Unit)? = null,
-    trailing: @Composable (() -> Unit)? = null,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .defaultMinSize(minHeight = 64.dp)
-            .then(onClick?.let { Modifier.clickable(onClick = it) } ?: Modifier)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        if (icon != null || iconRes != null) {
-            if (iconRes != null) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
-                )
-            } else {
-                YukiIcon(
-                    imageVector = icon!!,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            SelectionContainer {
-                Text(
-                    text = content.ifBlank { stringResource(R.string.home_reading_unavailable) },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (contentColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else contentColor,
-                )
-            }
-        }
-        trailing?.invoke()
-        if (onClick != null && trailing == null) {
-            YukiIcon(
-                imageVector = Icons.AutoMirrored.Filled.NavigateNext,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
-
-private data class HomeInfoEntry(
-    val label: String,
-    val content: String,
-    val icon: ImageVector? = null,
-    @DrawableRes val iconRes: Int? = null,
-    val contentColor: Color = Color.Unspecified,
-    val onClick: (() -> Unit)? = null,
-    val trailing: (@Composable () -> Unit)? = null,
-)
-
-@Composable
-private fun InfoCard(
-    systemInfo: HomeViewModel.SystemInfo,
-    isSimpleMode: Boolean,
-    canReadHookType: Boolean,
-    isHideZygiskImplement: Boolean,
-    isHideMetaModuleImplement: Boolean,
-    isHideSeccompStatus: Boolean = false,
-    showDeviceDetails: Boolean = false,
-    managerUapiVersion: Int = 0,
-) {
+private fun homeLayoutState(
+    viewModel: HomeViewModel,
+    metrics: HomeDeviceMetrics?,
+    isSignatureOk: Boolean,
+    isSuperKeyMode: Boolean,
+    needsAuthentication: Boolean,
+): HomeLayoutState {
+    val system = viewModel.systemStatus
+    val info = viewModel.systemInfo
+    val installed = system.ksuVersion != null
     val unknown = stringResource(R.string.home_reading_unavailable)
-    fun String.displayValue() = takeUnless { it.isBlank() || it == "Unknown" } ?: unknown
-    val systemEntries = buildList {
-        add(HomeInfoEntry(stringResource(R.string.home_device_model), systemInfo.deviceModel.displayValue(), Icons.Default.PhoneAndroid))
-        if (!isSimpleMode) {
-            add(HomeInfoEntry(stringResource(R.string.home_android_version),
-                stringResource(R.string.home_android_api, systemInfo.androidVersion.displayValue(), Build.VERSION.SDK_INT), Icons.Default.Android))
-        }
-        add(HomeInfoEntry(stringResource(R.string.home_kernel), systemInfo.kernelRelease.displayValue(), Icons.Default.Memory))
-        val managerVersion = buildString {
-            append(systemInfo.managerVersion.first.displayValue())
-            if (systemInfo.managerVersion.second > 0) append(" (${systemInfo.managerVersion.second})")
-            if (managerUapiVersion > 0) append(" · UAPI $managerUapiVersion")
-        }
-        add(HomeInfoEntry(stringResource(R.string.home_manager_version), managerVersion, Icons.Default.SettingsSuggest))
+    fun String.readable() = takeUnless { it.isBlank() || it == "Unknown" } ?: unknown
+    val version = system.ksuFullVersion?.takeIf { installed && !viewModel.isHideVersion }?.let {
+        HomeFact("kernel-module", stringResource(R.string.home_layout_kernel_module), buildString {
+            append(it)
+            append("\n")
+            append(stringResource(R.string.home_status_build_api, system.ksuVersion ?: 0, system.kernelUapiVersion))
+        }, homeReleaseLabel(it))
     }
-    val runtimeEntries = buildList {
-        if (!isSimpleMode && canReadHookType && systemInfo.workingMode != null) {
-            add(HomeInfoEntry(stringResource(R.string.home_working_mode), systemInfo.workingMode, Icons.Default.Link))
-        }
-        add(HomeInfoEntry(stringResource(R.string.home_selinux_status), systemInfo.seLinuxStatus.displayValue(), Icons.Default.Security))
-        if (!isHideSeccompStatus) {
-            val seccompText = stringResource(when (systemInfo.seccompStatus) {
-                -1 -> R.string.seccomp_status_not_supported
-                0 -> R.string.seccomp_status_disabled
-                1 -> R.string.seccomp_status_strict
-                2 -> R.string.seccomp_status_filter
-                else -> R.string.seccomp_status_unknown
-            })
-            add(HomeInfoEntry(stringResource(R.string.home_seccomp_status), seccompText, Icons.Default.LocalPolice))
-        }
-        if (!isHideZygiskImplement && !isSimpleMode && systemInfo.zygiskImplement.isNotBlank() && systemInfo.zygiskImplement != "None") {
-            add(HomeInfoEntry(stringResource(R.string.home_zygisk_implement), systemInfo.zygiskImplement, iconRes = R.drawable.ms_syringe))
-        }
-        if (!isHideMetaModuleImplement && !isSimpleMode && systemInfo.metaModuleImplement.isNotBlank() && systemInfo.metaModuleImplement != "None") {
-            add(HomeInfoEntry(stringResource(R.string.home_meta_module_implement), systemInfo.metaModuleImplement, Icons.Default.Extension))
-        }
+    val badges = if (viewModel.isHideOtherInfo) emptyList() else buildList {
+        if (installed && isSignatureOk) add(stringResource(R.string.home_auth_signature_tag))
+        if (installed && isSuperKeyMode) add(stringResource(R.string.home_auth_superkey_tag))
+        if (installed && system.showCustomLkmBadge) add(stringResource(R.string.home_lkm_custom))
     }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        HomeInfoGroup(stringResource(R.string.home_system_section), systemEntries)
-        HomeInfoGroup(stringResource(R.string.home_runtime_section), runtimeEntries)
-        if (!isSimpleMode) {
-            var detailsExpanded by rememberSaveable(showDeviceDetails) { mutableStateOf(showDeviceDetails) }
-            TextButton(onClick = { detailsExpanded = !detailsExpanded }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                YukiIcon(if (detailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(if (detailsExpanded) R.string.home_collapse_details else R.string.home_expand_details))
+    val facts = buildList {
+        add(HomeFact("device", stringResource(R.string.home_device_model), info.deviceModel.readable()))
+        add(HomeFact("kernel", stringResource(R.string.home_kernel), info.kernelRelease.readable(), homeReleaseLabel(info.kernelRelease.readable())))
+        add(HomeFact("selinux", stringResource(R.string.home_selinux_status), info.seLinuxStatus.readable()))
+        val managerVersion = info.managerVersion.first.readable()
+        add(HomeFact("manager", stringResource(R.string.home_manager_version), buildString {
+            append(managerVersion)
+            if (info.managerVersion.second > 0) {
+                append("\n")
+                append(stringResource(R.string.home_status_build_api, info.managerVersion.second.toInt(), system.managerUapiVersion))
             }
-            if (detailsExpanded) {
-                HomeInfoGroup(stringResource(R.string.home_build_section), listOf(
-                    HomeInfoEntry(stringResource(R.string.home_security_patch), systemInfo.securityPatch.displayValue(), Icons.Default.Security),
-                    HomeInfoEntry(stringResource(R.string.home_architecture), systemInfo.architecture.displayValue(), Icons.Default.DeveloperBoard),
-                    HomeInfoEntry(stringResource(R.string.home_build_id), systemInfo.buildId.displayValue(), Icons.Default.Info),
-                    HomeInfoEntry(stringResource(R.string.home_fingerprint), systemInfo.fingerprint.displayValue(), Icons.Default.Fingerprint),
-                ))
-            }
+        }, homeReleaseLabel(managerVersion)))
+        if (!viewModel.isSimpleMode) {
+            add(HomeFact("android", stringResource(R.string.home_android_version),
+                stringResource(R.string.home_android_api, info.androidVersion.readable(), Build.VERSION.SDK_INT)))
+            info.workingMode?.takeIf { system.isManager }?.let { add(HomeFact("mode", stringResource(R.string.home_working_mode), it)) }
+        }
+        if (!viewModel.isHideSeccompStatus) add(HomeFact("seccomp", stringResource(R.string.home_seccomp_status), stringResource(when (info.seccompStatus) {
+            -1 -> R.string.seccomp_status_not_supported
+            0 -> R.string.seccomp_status_disabled
+            1 -> R.string.seccomp_status_strict
+            2 -> R.string.seccomp_status_filter
+            else -> R.string.seccomp_status_unknown
+        })))
+        if (!viewModel.isSimpleMode && !viewModel.isHideZygiskImplement && info.zygiskImplement.isNotBlank() && info.zygiskImplement != "None") {
+            add(HomeFact("zygisk", stringResource(R.string.home_zygisk_implement), info.zygiskImplement))
+        }
+        if (!viewModel.isSimpleMode && !viewModel.isHideMetaModuleImplement && info.metaModuleImplement.isNotBlank() && info.metaModuleImplement != "None") {
+            add(HomeFact("mount", stringResource(R.string.home_meta_module_implement), info.metaModuleImplement))
         }
     }
-}
-
-@Composable
-private fun HomeInfoGroup(title: String, entries: List<HomeInfoEntry>) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        HomeSectionTitle(title)
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth().border(getCardBorder(), getCardShape()),
-            shape = getCardShape(),
-            colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow),
-            elevation = getCardElevation(),
-        ) {
-            entries.forEachIndexed { index, entry ->
-                HomeInfoItem(entry.label, entry.content, entry.icon, entry.iconRes, entry.contentColor, entry.onClick, entry.trailing)
-                if (index < entries.lastIndex) {
-                    HorizontalDivider(Modifier.padding(start = 56.dp, end = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
-        }
-    }
+    val buildFacts = if (viewModel.isSimpleMode) emptyList() else listOf(
+        HomeFact("security", stringResource(R.string.home_security_patch), info.securityPatch.readable()),
+        HomeFact("architecture", stringResource(R.string.home_architecture), info.architecture.readable()),
+        HomeFact("build", stringResource(R.string.home_build_id), info.buildId.readable()),
+        HomeFact("fingerprint", stringResource(R.string.home_fingerprint), info.fingerprint.readable()),
+    )
+    return HomeLayoutState(
+        status = HomeStatusPresentation(
+            title = stringResource(when { !installed -> R.string.home_not_installed; system.safeMode -> R.string.safe_mode; else -> R.string.home_working }),
+            installed = installed, safeMode = system.safeMode, version = version, badges = badges,
+            needsAuthentication = needsAuthentication,
+        ),
+        facts = facts, buildFacts = buildFacts,
+        superuserCount = info.superuserCount, moduleCount = info.moduleCount, metrics = metrics,
+        showCounts = viewModel.showCounts && !viewModel.isSimpleMode && system.isManager,
+        showMetrics = viewModel.showDeviceMetrics && !viewModel.isSimpleMode,
+        showBuildDetails = viewModel.showDeviceDetails,
+    )
 }
 
 @Composable
@@ -1070,73 +773,19 @@ private fun HomeStatusPreviewContent(installed: Boolean, safeMode: Boolean = fal
     UtilityPreviewTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-                HomeStatusLayout(
-                    status = { modifier ->
-                        InstallationStatusCard(
-                            status = stringResource(when {
-                                !installed -> R.string.home_not_installed
-                                safeMode -> R.string.safe_mode
-                                else -> R.string.home_working
-                            }),
-                            installed = installed,
-                            safeMode = safeMode,
-                            onClickInstall = {},
-                            modifier = modifier,
-                            version = if (installed) stringResource(R.string.home_working_version, "1.0.0-android16-release") else null,
-                            buildInfo = if (installed) stringResource(R.string.home_status_build_api, 12345, 5) else null,
-                            labels = if (installed) listOf("Signature", "SuperKey") else emptyList(),
-                            needsSuperKeyAuth = !installed,
-                        )
-                    },
-                    daemon = { modifier ->
-                        KsudStatusCard(
-                            bundledVersion = "v1.3.0-94ca662a-nc",
-                            installedVersion = if (installed && !safeMode) "v1.3.0-94ca662a-nc" else null,
-                            integrity = when {
-                                !installed -> KsudIntegrityStatus.UNAVAILABLE
-                                safeMode -> KsudIntegrityStatus.MISMATCH
-                                else -> KsudIntegrityStatus.MATCH
-                            },
-                            loading = false, syncing = false, syncResult = null,
-                            syncUnavailableReason = if (installed) null else stringResource(R.string.home_ksud_requires_manager),
-                            modifier = modifier, onSync = {},
-                        )
-                    },
-                    kernel = { modifier ->
-                        SUMHStatusSummaryCard(
-                            status = if (installed) SUMHUiAdapter.SUMHStatus.AVAILABLE else null,
-                            version = if (installed) "1" else null,
-                            systemInfo = if (installed) SUMHUiAdapter.SystemInfo(
-                                kernel = "6.12.52-android16", mountBase = "none",
-                                activeMounts = emptyList(), sumhModuleIds = emptyList(),
-                                sumhMismatch = safeMode, mismatchMessage = null,
-                                viewsEnabled = !safeMode,
-                            ) else null,
-                            unavailableReason = if (installed) null else stringResource(R.string.home_sumh_requires_manager),
-                            modifier = modifier, onRefresh = {},
-                        )
-                    },
-                )
+                HomeLayoutContent(HomeLayoutStyle.Circle, HomeLayoutState(
+                    status = HomeStatusPresentation(
+                        title = stringResource(when { !installed -> R.string.home_not_installed; safeMode -> R.string.safe_mode; else -> R.string.home_working }),
+                        installed = installed, safeMode = safeMode,
+                        version = if (installed) HomeFact("module", stringResource(R.string.home_layout_kernel_module), "v1.3.0-94ca662a-nc", "v1.3.0") else null,
+                        needsAuthentication = !installed,
+                    ),
+                    facts = listOf(HomeFact("device", stringResource(R.string.home_device_model), "Android device")),
+                    showCounts = installed, superuserCount = 5, moduleCount = 8,
+                ))
             }
         }
     }
-}
-
-@Composable
-private fun IncompatibleKernelCard() {
-    val currentKver = remember { Natives.version }
-    val threshold   = Natives.MINIMAL_NEW_IOCTL_KERNEL
-
-    val msg = stringResource(
-        id = R.string.incompatible_kernel_msg,
-        currentKver,
-        threshold
-    )
-
-    WarningCard(
-        message = msg,
-        color = MaterialTheme.colorScheme.error
-    )
 }
 
 @Preview

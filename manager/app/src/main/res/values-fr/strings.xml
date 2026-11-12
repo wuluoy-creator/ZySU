@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Accueil</string>
     <string name="home_not_installed">Non installé</string>
-    <string name="home_click_to_install">Appuyez ici pour installer</string>
     <string name="home_working">Fonctionnel</string>
-    <string name="home_working_version">Version : %s</string>
     <string name="home_kernel">Noyau</string>
     <string name="home_manager_version">Version du gestionnaire</string>
     <string name="home_selinux_status">Mode SELinux</string>
@@ -327,7 +325,6 @@
     <string name="log_viewer_too_many_logs">Trop de journaux, affichage des %1$d entrées les plus récentes uniquement</string>
     <string name="log_viewer_load_more">Charger plus de journaux</string>
     <string name="log_viewer_all_logs_loaded">Tous les journaux affichés</string>
-    <string name="incompatible_kernel_msg">Le gestionnaire actuel est incompatible avec ce noyau ! Veuillez mettre à niveau le noyau vers la version %2$d ou supérieure (actuellement %1$d)</string>
     <string name="operation_failed">Échec de l\'opération</string>
     <string name="group_contains_apps">Contient %d applications</string>
     <string name="settings_disable_sulog">Journalisation superutilisateur</string>

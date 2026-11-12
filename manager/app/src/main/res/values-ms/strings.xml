@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Layar Utama</string>
     <string name="home_not_installed">Tidak terpasang</string>
-    <string name="home_click_to_install">Tekan untuk memasang</string>
     <string name="home_working">Berjalan</string>
-    <string name="home_working_version">Versi: %s</string>
     <string name="home_kernel">Kernel</string>
     <string name="home_manager_version">Versi manager</string>
     <string name="home_selinux_status">Status SELinux</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">Terlalu banyak log, hanya memaparkan %1$d entri terkini</string>
     <string name="log_viewer_load_more">Muatkan Lebih Banyak Log</string>
     <string name="log_viewer_all_logs_loaded">Semua log dipaparkan</string>
-    <string name="incompatible_kernel_msg">Pengurus semasa tidak serasi dengan kernel ini! Sila naik taraf kernel kepada versi %2$d atau lebih tinggi (kini %1$d)</string>
     <string name="operation_failed">Operasi gagal</string>
     <string name="group_contains_apps">Mengandungi %d aplikasi</string>
     <string name="settings_disable_sulog">Pengelogan superuser</string>

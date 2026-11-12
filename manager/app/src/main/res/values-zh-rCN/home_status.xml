@@ -13,6 +13,5 @@
     <string name="home_sumh_refresh">刷新 SUMH 状态</string>
     <string name="home_sumh_show_error">查看原因</string>
     <string name="home_sumh_hide_error">收起原因</string>
-    <string name="home_status_build">构建 %1$d</string>
     <string name="home_status_build_api">构建 %1$d · UAPI %2$d</string>
 </resources>

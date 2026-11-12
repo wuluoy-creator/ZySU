@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Inicio</string>
     <string name="home_not_installed">Non instalado</string>
-    <string name="home_click_to_install">Toca para instalar</string>
     <string name="home_working">En funcionamento</string>
-    <string name="home_working_version">Versión: %s</string>
     <string name="home_kernel">Kernel</string>
     <string name="home_manager_version">Versión da aplicación</string>
     <string name="home_selinux_status">Estado do SELinux</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">Demasiados rexistros, amosando só as %1$d entradas máis recentes</string>
     <string name="log_viewer_load_more">Cargar máis rexistros</string>
     <string name="log_viewer_all_logs_loaded">Amosáronse todos os rexistros</string>
-    <string name="incompatible_kernel_msg">O xestor actual é incompatible con este kernel! Actualiza o kernel á versión %2$d ou superior (actualmente %1$d)</string>
     <string name="operation_failed">Erro na operación</string>
     <string name="group_contains_apps">Contén %d aplicacións</string>
     <string name="settings_disable_sulog">Rexistro de superusuario</string>

@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Kezdőlap</string>
     <string name="home_not_installed">Nincs telepítve</string>
-    <string name="home_click_to_install">Kattintson a telepítéshez</string>
     <string name="home_working">Működik</string>
-    <string name="home_working_version">Verzió: %s</string>
     <string name="home_kernel">Kernel</string>
     <string name="home_manager_version">Alkalmazás verziója</string>
     <string name="home_selinux_status">SELinux állapot</string>
@@ -326,7 +324,6 @@ A</string>
     <string name="log_viewer_too_many_logs">Túl sok napló, csak a legújabb %1$d bejegyzés jelenik meg</string>
     <string name="log_viewer_load_more">További naplók betöltése</string>
     <string name="log_viewer_all_logs_loaded">Minden napló megjelenítve</string>
-    <string name="incompatible_kernel_msg">A jelenlegi kezelő nem kompatibilis ezzel a kernellel! Kérjük, frissítse a kernelt a(z) %2$d vagy újabb verzióra (jelenleg %1$d)</string>
     <string name="operation_failed">A művelet sikertelen</string>
     <string name="group_contains_apps">%d alkalmazást tartalmaz</string>
     <string name="settings_disable_sulog">Rendszergazdai naplózás</string>

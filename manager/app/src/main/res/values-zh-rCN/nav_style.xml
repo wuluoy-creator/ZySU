@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_style_title">底部导航栏样式</string>
+    <string name="nav_style_summary">选择现有的悬浮胶囊，或与页面融为一体的 Material 底栏。</string>
+    <string name="nav_style_glass">玻璃胶囊</string>
+    <string name="nav_style_glass_summary">悬浮玻璃质感，选中状态覆盖图标与文字。</string>
+    <string name="nav_style_material">Material 底栏</string>
+    <string name="nav_style_material_summary">通栏底栏与配套顶栏，搭配紧凑的图标指示块，颜色跟随当前主题。</string>
+</resources>

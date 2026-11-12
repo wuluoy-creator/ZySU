@@ -20,6 +20,14 @@ internal data class HomeDeviceMetrics(
     val memory: HomeCapacity? = null,
     val storage: HomeCapacity? = null,
     val uptimeMillis: Long = 0L,
+    val memoryHistory: List<Float?> = emptyList(),
+    val cpuTemperatureHistory: List<Float?> = emptyList(),
+)
+
+/** History is bounded to five minutes, and unavailable readings remain gaps in the chart. */
+internal fun appendHomeMetricSample(previous: HomeDeviceMetrics?, next: HomeDeviceMetrics): HomeDeviceMetrics = next.copy(
+    memoryHistory = (previous?.memoryHistory.orEmpty() + next.memory?.fraction).takeLast(30),
+    cpuTemperatureHistory = (previous?.cpuTemperatureHistory.orEmpty() + next.cpuTemperatureC).takeLast(30),
 )
 
 internal data class HomeCapacity private constructor(val usedBytes: Long, val totalBytes: Long) {

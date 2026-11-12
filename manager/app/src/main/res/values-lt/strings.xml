@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Namai</string>
     <string name="home_not_installed">Neįdiegta</string>
-    <string name="home_click_to_install">Spustelėkite norėdami įdiegti</string>
     <string name="home_working">Veikia</string>
-    <string name="home_working_version">Versija: %s</string>
     <string name="home_kernel">Branduolys</string>
     <string name="home_manager_version">Tvarkyklės versija</string>
     <string name="home_selinux_status">SELinux statusas</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">Per daug žurnalų, rodomi tik naujausi %1$d įrašai</string>
     <string name="log_viewer_load_more">Įkelti daugiau žurnalų</string>
     <string name="log_viewer_all_logs_loaded">Rodomi visi žurnalai</string>
-    <string name="incompatible_kernel_msg">Dabartinė tvarkyklė nesuderinama su šiuo branduoliu! Atnaujinkite branduolį į versiją %2$d arba naujesnę (dabar %1$d)</string>
     <string name="operation_failed">Operacija nepavyko</string>
     <string name="group_contains_apps">Turi %d programas</string>
     <string name="settings_disable_sulog">Supervartotojo registravimas</string>

@@ -2,9 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="home">Início</string>
     <string name="home_not_installed">Não instalado</string>
-    <string name="home_click_to_install">Clique para instalar</string>
     <string name="home_working">Funcionando</string>
-    <string name="home_working_version">Versão: %s</string>
     <string name="home_kernel">Kernel</string>
     <string name="home_manager_version">Versão do aplicativo</string>
     <string name="home_selinux_status">Status do SELinux</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">Registros em excesso, exibindo apenas as %1$d entradas mais recentes</string>
     <string name="log_viewer_load_more">Carregar mais registros</string>
     <string name="log_viewer_all_logs_loaded">Todos os registros exibidos</string>
-    <string name="incompatible_kernel_msg">O gerenciador atual é incompatível com este kernel! Atualize o kernel para a versão %2$d ou superior (atualmente %1$d)</string>
     <string name="operation_failed">Falha na operação</string>
     <string name="group_contains_apps">Contém %d aplicativos</string>
     <string name="settings_disable_sulog">Registro de superusuário</string>

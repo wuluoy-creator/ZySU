@@ -2,9 +2,7 @@
 <resources>
     <string name="home">होम</string>
     <string name="home_not_installed">इंस्टाल नहीं हुआ</string>
-    <string name="home_click_to_install">इंस्टाल करने के लिए क्लिक करें</string>
     <string name="home_working">काम कर रहा है</string>
-    <string name="home_working_version">वर्जन: %s</string>
     <string name="home_kernel">कर्नल</string>
     <string name="home_manager_version">मैनेजर वर्जन</string>
     <string name="home_selinux_status">SELinux स्थिति</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">बहुत अधिक लॉग, केवल नवीनतम %1$d प्रविष्टियां दिखा रहा है</string>
     <string name="log_viewer_load_more">अधिक लॉग लोड करें</string>
     <string name="log_viewer_all_logs_loaded">सभी लॉग प्रदर्शित किए गए</string>
-    <string name="incompatible_kernel_msg">वर्तमान प्रबंधक इस कर्नेल के साथ असंगत है! कृपया कर्नेल को संस्करण %2$d या उच्चतर में अपग्रेड करें (वर्तमान में %1$d)</string>
     <string name="operation_failed">ऑपरेशन विफल</string>
     <string name="group_contains_apps">%d ऐप्स शामिल हैं</string>
     <string name="settings_disable_sulog">सुपरयूज़र लॉगिंग</string>

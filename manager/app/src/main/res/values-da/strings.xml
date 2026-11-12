@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Hjem</string>
     <string name="home_not_installed">Ikke installeret</string>
-    <string name="home_click_to_install">Klik for at installere</string>
     <string name="home_working">Arbejder</string>
-    <string name="home_working_version">Version: %s</string>
     <string name="home_kernel">Kernel</string>
     <string name="home_manager_version">Manager Version</string>
     <string name="home_selinux_status">SELinux-status</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">For mange logge, viser kun de seneste %1$d poster</string>
     <string name="log_viewer_load_more">Indlæs flere logge</string>
     <string name="log_viewer_all_logs_loaded">Alle logge vises</string>
-    <string name="incompatible_kernel_msg">Den nuværende manager er inkompatibel med denne kerne! Opgrader venligst kernen til version %2$d eller højere (i øjeblikket %1$d)</string>
     <string name="operation_failed">Handling mislykkedes</string>
     <string name="group_contains_apps">Indeholder %d apps</string>
     <string name="settings_disable_sulog">Superbruger-logning</string>

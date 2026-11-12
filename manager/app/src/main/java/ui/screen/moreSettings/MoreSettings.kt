@@ -60,6 +60,7 @@ import ui.screen.moreSettings.component.AmoledSetting
 import ui.screen.moreSettings.component.AppearancePreview
 import ui.screen.moreSettings.component.BackgroundBlurSetting
 import ui.screen.moreSettings.component.HomeDisplaySettings
+import ui.screen.moreSettings.component.NavigationStyleSetting
 import ui.screen.moreSettings.component.TypographyAndShapeSettings
 import ui.screen.moreSettings.component.LanguageSelectionDialog
 import ui.screen.moreSettings.component.MoreSettingsDialogs
@@ -285,6 +286,7 @@ private fun AppearanceSettings(
         AmoledSetting()
     }
     TypographyAndShapeSettings()
+    NavigationStyleSetting()
     SettingsCard(title = stringResource(R.string.app_dpi_title), icon = Icons.Filled.FormatSize) {
         DpiSettings(state = state, handlers = handlers)
     }

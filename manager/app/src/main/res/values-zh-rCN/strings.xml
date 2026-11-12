@@ -2,9 +2,7 @@
 <resources>
     <string name="home">主页</string>
     <string name="home_not_installed">未安装</string>
-    <string name="home_click_to_install">点击安装</string>
     <string name="home_working">工作中</string>
-    <string name="home_working_version">版本：%s</string>
     <string name="home_kernel">内核版本</string>
     <string name="home_manager_version">管理器版本</string>
     <string name="home_selinux_status">SELinux 状态</string>
@@ -363,7 +361,6 @@
     <string name="log_viewer_load_more">加载更多日志</string>
     <string name="log_viewer_all_logs_loaded">已显示所有日志</string>
     <!-- Umount Path Manager -->
-    <string name="incompatible_kernel_msg">    当前管理器与此内核不兼容！请将内核升级至版本 %2$d 或以上（当前 %1$d）</string>
     <string name="operation_failed">操作失败</string>
     <string name="group_contains_apps">包含 %1$d 个应用</string>
     <string name="settings_disable_sulog">超级用户日志</string>

@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Home</string>
     <string name="home_not_installed">Hindi naka-install</string>
-    <string name="home_click_to_install">Pindutin para mag-install</string>
     <string name="home_working">Gumagana</string>
-    <string name="home_working_version">Bersyon: %s</string>
     <string name="home_kernel">Bersyon ng kernel</string>
     <string name="home_manager_version">Bersyon ng Manager</string>
     <string name="home_selinux_status">Katayuan ng SELinux</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">Masyadong maraming log, ipinapakita lang ang pinakabagong %1$d na entry</string>
     <string name="log_viewer_load_more">Mag-load ng Higit Pang Log</string>
     <string name="log_viewer_all_logs_loaded">Naipakita na ang lahat ng log</string>
-    <string name="incompatible_kernel_msg">Hindi tugma ang kasalukuyang manager sa kernel na ito! Mangyaring i-upgrade ang kernel sa version %2$d o mas mataas (kasalukuyang %1$d)</string>
     <string name="operation_failed">Nabigo ang operasyon</string>
     <string name="group_contains_apps">Naglalaman ng %d app</string>
     <string name="settings_disable_sulog">Superuser logging</string>

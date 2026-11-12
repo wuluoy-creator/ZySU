@@ -6,6 +6,7 @@ import android.os.Looper
 import android.system.Os
 import android.system.StructUtsname
 import androidx.lifecycle.ViewModelStore
+import com.zying.zysu.ui.screen.home.HomeLayoutStyle
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -16,6 +17,7 @@ import org.robolectric.annotation.Implements
 import org.robolectric.annotation.Implementation
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [35], shadows = [HomePreferenceOsShadow::class])
@@ -30,7 +32,7 @@ class HomeDisplayPreferencesTest {
         assertTrue(model.showDeviceMetrics)
         assertTrue(model.showCounts)
         assertFalse(model.showDeviceDetails)
-        assertFalse(model.useListLayout)
+        assertEquals(HomeLayoutStyle.Circle, model.homeLayout)
 
         preferences.edit().putBoolean("home_show_metrics", false).putBoolean("home_show_counts", false)
             .putBoolean("home_show_device_details", true).putString("home_layout", "list")
@@ -39,7 +41,7 @@ class HomeDisplayPreferencesTest {
         assertFalse(model.showDeviceMetrics)
         assertFalse(model.showCounts)
         assertTrue(model.showDeviceDetails)
-        assertTrue(model.useListLayout)
+        assertEquals(HomeLayoutStyle.Circle, model.homeLayout)
         assertTrue(model.isHideVersion)
 
         store.clear()

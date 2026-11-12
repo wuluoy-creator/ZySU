@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Domov</string>
     <string name="home_not_installed">Ni nameščeno</string>
-    <string name="home_click_to_install">Klikni za namestitev</string>
     <string name="home_working">V obdelavi</string>
-    <string name="home_working_version">Verzija: %s</string>
     <string name="home_kernel">Kernel</string>
     <string name="home_manager_version">Verzija upravitelja</string>
     <string name="home_selinux_status">Stanje SELinux</string>
@@ -325,7 +323,6 @@
     <string name="log_viewer_too_many_logs">Preveč dnevnikov, prikazujem samo najnovejših %1$d vnosov</string>
     <string name="log_viewer_load_more">Naloži več dnevnikov</string>
     <string name="log_viewer_all_logs_loaded">Prikazani vsi dnevniki</string>
-    <string name="incompatible_kernel_msg">Trenutni upravitelj ni združljiv s tem jedrom! Nadgradite jedro na različico %2$d ali novejšo (trenutno %1$d)</string>
     <string name="operation_failed">Operacija ni uspela</string>
     <string name="group_contains_apps">Vsebuje %d aplikacij</string>
     <string name="settings_disable_sulog">Beleženje superuporabnika</string>

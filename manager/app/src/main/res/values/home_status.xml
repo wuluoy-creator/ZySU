@@ -13,6 +13,5 @@
     <string name="home_sumh_refresh" tools:ignore="MissingTranslation">Refresh SUMH status</string>
     <string name="home_sumh_show_error" tools:ignore="MissingTranslation">Show reason</string>
     <string name="home_sumh_hide_error" tools:ignore="MissingTranslation">Hide reason</string>
-    <string name="home_status_build" tools:ignore="MissingTranslation">Build %1$d</string>
     <string name="home_status_build_api" tools:ignore="MissingTranslation">Build %1$d · UAPI %2$d</string>
 </resources>

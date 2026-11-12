@@ -14,15 +14,10 @@
     <string name="home_capacity_value">%1$s / %2$s</string>
     <string name="home_authorized_apps">已授权应用</string>
     <string name="home_installed_modules">已安装模块</string>
-    <string name="home_system_section">系统与设备</string>
-    <string name="home_runtime_section">Root 环境</string>
-    <string name="home_build_section">构建信息</string>
     <string name="home_security_patch">Android 安全补丁</string>
     <string name="home_fingerprint">构建指纹</string>
     <string name="home_build_id">构建标识</string>
     <string name="home_architecture">处理器架构</string>
     <string name="home_android_api">Android %1$s · API %2$d</string>
-    <string name="home_expand_details">展开构建信息</string>
-    <string name="home_collapse_details">收起构建信息</string>
     <string name="home_load_retry">部分信息加载失败，点按重试。</string>
 </resources>

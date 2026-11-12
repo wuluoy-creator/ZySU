@@ -2,9 +2,7 @@
 <resources>
     <string name="home">首頁</string>
     <string name="home_not_installed">未安裝</string>
-    <string name="home_click_to_install">點擊開始安裝</string>
     <string name="home_working">運作中</string>
-    <string name="home_working_version">版本：%s</string>
     <string name="home_kernel">內核版本</string>
     <string name="home_manager_version">管理器版本</string>
     <string name="home_selinux_status">SELinux 狀態</string>
@@ -336,8 +334,6 @@
     <string name="log_viewer_too_many_logs">日誌過多，只顯示最新的 %1$d 條</string>
     <string name="log_viewer_load_more">讀取更多日誌</string>
     <string name="log_viewer_all_logs_loaded">已顯示所有日誌</string>
-    <string name="incompatible_kernel_msg">    目前管理器與此核心不相容！請升級核心到 %2$d 或是更高版本(：%1$d)
-    </string>
     <string name="operation_failed">作業失敗</string>
     <string name="group_contains_apps">包含 %d 個應用程式</string>
     <string name="settings_disable_sulog">超級使用者紀錄</string>

@@ -3,11 +3,14 @@ package com.zying.zysu.ui.component
 import android.content.res.Configuration
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -19,6 +22,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zying.zysu.R
 import com.zying.zysu.integrity.KsudIntegrityStatus
@@ -27,6 +31,7 @@ import com.zying.zysu.ui.theme.getCardColors
 import com.zying.zysu.ui.theme.getCardShape
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardElevation
+import com.zying.zysu.ui.screen.home.homeReleaseLabel
 
 /** Tap the card to sync; status and progress remain visible alongside the version. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +76,7 @@ internal fun KsudStatusCard(
         ?: stringResource(R.string.home_ksud_daemon_sync)
     val canSync = !loading && !syncing && syncUnavailableReason == null
     val cardColors = getCardColors(colors.surfaceContainerLow)
+    var showVersionDetails by remember { mutableStateOf(false) }
 
     ElevatedCard(
         onClick = onSync,
@@ -94,29 +100,23 @@ internal fun KsudStatusCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             HomeStatusCardHeader("KSUD", titleDescription, Icons.Outlined.Terminal, canSync)
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                tooltip = { PlainTooltip { Text(versionDescription) } },
-                state = rememberTooltipState(),
+            TextButton(
+                onClick = { showVersionDetails = true },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                contentPadding = PaddingValues(0.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = versionDescription },
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    // The package symbol identifies a bundled version, not an unknown installed binary.
-                    if (!verified) {
-                        YukiIcon(Icons.Outlined.Inventory2, null, Modifier.padding(top = 2.dp).size(16.dp), tint = colors.onSurfaceVariant)
-                    }
-                    Text(
-                        stringResource(
-                            R.string.home_ksud_version,
-                            version ?: stringResource(R.string.home_ksud_daemon_unknown),
-                        ),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                if (!verified) {
+                    YukiIcon(Icons.Outlined.Inventory2, null, Modifier.size(16.dp), tint = colors.onSurfaceVariant)
+                    Spacer(Modifier.width(6.dp))
                 }
+                Text(
+                    stringResource(R.string.home_ksud_version,
+                        version?.let(::homeReleaseLabel) ?: stringResource(R.string.home_ksud_daemon_unknown)),
+                    modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.width(4.dp))
+                YukiIcon(Icons.Outlined.Info, stringResource(R.string.home_layout_details), Modifier.size(16.dp))
             }
             Row(
                 Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
@@ -143,6 +143,14 @@ internal fun KsudStatusCard(
                 Text(syncUnavailableReason, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
         }
+    }
+    if (showVersionDetails) {
+        YukiAlertDialog(
+            onDismissRequest = { showVersionDetails = false },
+            title = { Text(titleDescription) },
+            text = { SelectionContainer { Text(versionDescription, Modifier.verticalScroll(rememberScrollState())) } },
+            confirmButton = { TextButton(onClick = { showVersionDetails = false }) { Text(stringResource(android.R.string.ok)) } },
+        )
     }
 }
 

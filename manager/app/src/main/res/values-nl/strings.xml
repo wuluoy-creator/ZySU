@@ -2,9 +2,7 @@
 <resources>
     <string name="home">Home</string>
     <string name="home_not_installed">Niet geïnstalleerd</string>
-    <string name="home_click_to_install">Klik om te installeren</string>
     <string name="home_working">Werkend</string>
-    <string name="home_working_version">Versie: %s</string>
     <string name="home_kernel">Kernel</string>
     <string name="home_manager_version">Manager versie</string>
     <string name="home_selinux_status">SELinux-status</string>
@@ -327,7 +325,6 @@
     <string name="log_viewer_too_many_logs">Te veel logboeken, alleen de nieuwste %1$d items worden weergegeven</string>
     <string name="log_viewer_load_more">Meer logboeken laden</string>
     <string name="log_viewer_all_logs_loaded">Alle logboeken weergegeven</string>
-    <string name="incompatible_kernel_msg">De huidige beheerder is niet compatibel met deze kernel! Werk de kernel bij naar versie %2$d of hoger (momenteel %1$d)</string>
     <string name="operation_failed">Bewerking mislukt</string>
     <string name="group_contains_apps">Bevat %d apps</string>
     <string name="settings_disable_sulog">Supergebruiker-logboekregistratie</string>

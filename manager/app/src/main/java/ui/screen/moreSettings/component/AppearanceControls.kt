@@ -171,21 +171,7 @@ private fun AppearanceSlider(
 fun HomeDisplaySettings() {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
-    var layout by remember { mutableStateOf(preferences.getString("home_layout", "adaptive") ?: "adaptive") }
-    SettingsControlGroup {
-        Text(stringResource(R.string.appearance_home_layout), style = MaterialTheme.typography.titleSmall)
-        Text(stringResource(R.string.appearance_home_layout_summary), style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("adaptive" to R.string.appearance_layout_adaptive, "list" to R.string.appearance_layout_list).forEach { (value, label) ->
-                FilterChip(
-                    selected = layout == value,
-                    onClick = { layout = value; preferences.edit { putString("home_layout", value) } },
-                    label = { Text(stringResource(label)) },
-                )
-            }
-        }
-    }
+    HomeLayoutSetting()
     data class Option(val key: String, val default: Boolean, val title: Int, val summary: Int)
     val options = listOf(
         Option("home_show_metrics", true, R.string.appearance_home_metrics, R.string.appearance_home_metrics_summary),

@@ -18,6 +18,7 @@ import com.zying.zysu.ksuApp
 import com.zying.zysu.integrity.KsudIntegrity
 import com.zying.zysu.integrity.KsudIntegrityStatus
 import com.zying.zysu.ui.util.*
+import com.zying.zysu.ui.screen.home.HomeLayoutStyle
 import com.zying.zysu.ui.util.module.LatestVersionInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -122,6 +123,7 @@ class HomeViewModel : ViewModel() {
         val kernelUapiVersion: Int = 0,
         val managerUapiVersion: Int = 0,
         val managerVersionCode: Long = BuildConfig.VERSION_CODE.toLong(),
+        val safeMode: Boolean = false,
     ) {
         val requireNewKernel: Boolean
             get() = isManager && kernelUapiVersion < managerUapiVersion
@@ -188,7 +190,7 @@ class HomeViewModel : ViewModel() {
         private set
     var showDeviceDetails by mutableStateOf(false)
         private set
-    var useListLayout by mutableStateOf(false)
+    var homeLayout by mutableStateOf(HomeLayoutStyle.Circle)
         private set
     var informationLoadFailed by mutableStateOf(false)
         private set
@@ -225,7 +227,7 @@ class HomeViewModel : ViewModel() {
             showDeviceMetrics = prefs.getBoolean("home_show_metrics", true)
             showCounts = prefs.getBoolean("home_show_counts", true)
             showDeviceDetails = prefs.getBoolean("home_show_device_details", false)
-            useListLayout = prefs.getString("home_layout", "adaptive") == "list"
+            homeLayout = HomeLayoutStyle.fromValue(prefs.getString("home_layout", null))
         }
         read()
         if (settingsPreferences === prefs) return
@@ -305,7 +307,8 @@ class HomeViewModel : ViewModel() {
                     isRootAvailable = isRootAvailable,
                     isLkmBundled = isLkmBundled,
                     kernelUapiVersion = kernelUapiVersion,
-                    managerUapiVersion = managerUapiVersion
+                    managerUapiVersion = managerUapiVersion,
+                    safeMode = isManager && runCatching { Natives.isSafeMode }.getOrDefault(false),
                 )
 
                 isCoreDataLoaded = true

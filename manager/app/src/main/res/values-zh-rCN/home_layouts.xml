@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_layout_circle">圆环</string>
+    <string name="home_layout_grid">网格</string>
+    <string name="home_layout_focus">聚焦</string>
+    <string name="home_layout_dashboard">仪表盘</string>
+    <string name="home_layout_stats">统计</string>
+    <string name="home_layout_circle_description">居中状态与清晰的单列概览</string>
+    <string name="home_layout_grid_description">状态卡旁纵向排列授权与模块卡</string>
+    <string name="home_layout_focus_description">状态、系统、设备与存储组成自适应面板</string>
+    <string name="home_layout_dashboard_description">宽幅状态横栏、核心信息与操作计数</string>
+    <string name="home_layout_stats_description">设备实时趋势与授权、模块统计</string>
+    <string name="home_layout_details">完整信息</string>
+    <string name="home_layout_detail_action">查看完整%1$s</string>
+    <string name="home_layout_build_details">设备构建详情</string>
+    <string name="home_layout_kernel_module">ZySU 内核模块</string>
+    <string name="home_layout_manage_installation">管理安装</string>
+    <string name="home_layout_monitor">实时监测</string>
+    <string name="home_layout_activity">授权与模块</string>
+    <string name="home_layout_storage">内存与存储</string>
+    <string name="home_layout_device">设备读数</string>
+    <string name="home_layout_trend_waiting">正在收集读数…</string>
+    <string name="home_layout_trend_window">近期读数 · 每 10 秒采样</string>
+    <string name="home_layout_essential">核心信息</string>
+</resources>
