@@ -6,14 +6,15 @@
 
 | 范围 | FinaSU 参考实现 | ZySU 的实现与补充 |
 | --- | --- | --- |
-| 首页层级 | `ui/screen/home/HomeStatusCard.kt`、`HomeFactsCards.kt` | 工作状态、KSUD、SUMH 组成上部布局，下方保留唯一的核心信息卡片。已安装时点击工作状态卡进入安装／升级，不添加“管理安装”按钮或顶栏安装入口；未安装、认证操作保留。长字段摘要显示，点击查看完整可复制详情。 |
+| 首页层级 | `ui/screen/home/HomeStatusCard.kt`、`HomeFactsCards.kt` | 主卡片、KSUD、SUMH 共用标题、版本／协议详情和状态行的排版，组成上部布局。已安装时点击工作状态卡进入安装／升级；未安装、认证操作保留。下方核心信息的 13 个字段可逐项显示／隐藏，全部隐藏时不留空卡片；长字段点击查看完整可复制详情。 |
 | 服务卡片 | `HomeMetricComponents.kt`、`HomeCountCards.kt` 的区域组织 | 按当前要求移除系统概览、趋势、授权与模块统计及其显示开关和采集逻辑，原区域改为实际 KSUD、SUMH 卡片。两卡共用标题、版本／协议详情行、状态行和间距，保留同步／刷新行为。 |
-| 首页布局 | `HomeLayoutStyle.kt`、`Home*Layout.kt` | 圆环：横排状态与服务双列；网格：状态左、服务上下堆叠右；聚焦：有标题的状态与服务面板；仪表盘：横幅状态与服务双列；统计：紧凑状态与服务纵列。大字号和窄屏堆叠，选择即时生效并回到顶部。旧布局 ID 迁移保持兼容。 |
+| 首页布局 | `HomeLayoutStyle.kt`、`Home*Layout.kt` | 仅保留圆环、网格、聚焦三种。圆环：主卡片下方并列服务卡；网格：主卡片与 KSUD 并列、SUMH 在下方；聚焦：三卡纵向排列，宽屏自适应。大字号和窄屏堆叠，选择即时生效并回到顶部。已删除的仪表盘迁移到圆环，统计迁移到聚焦。 |
+| 主卡片图片 | `wallpaper/WallpaperManager.kt`、工作卡片背景配置 | 三种布局共用一张自定义背景，支持普通图片及 PNG／WebP 透明区域，适应／填充、50–300% 缩放、实时预览、更换和移除。校验后将原始图片复制到应用私有目录，保留透明度；失败时保留旧图片。 |
 | 导航样式 | `ui/component/bottombar/FloatingBarDrawer.kt` | 仅保留原玻璃胶囊与悬浮抽屉。移除 Material、悬浮标准和配套顶栏分支；旧 Material 迁移到玻璃，旧标准迁移到抽屉。抽屉与顶栏共享材质、圆角、外侧间距及中性控件色，保留选中项展开、徽标、安全区与键盘隐藏逻辑。 |
 | 应用列表 | `ui/screen/superuser/SuperUserMaterial.kt` | 应用组摘要、全部／已授权／未授权／自定义配置筛选、次级 Android 用户标记；保留共享 UID 提示、批量操作和授权确认。 |
 | 模块列表 | `ui/screen/module/ModuleItemCard.kt`、`ModuleSortMenu.kt` | 保留已有模块卡片层级，增加总数／启用／待重启摘要和筛选、名称／ID 排序及方向；明确加载、失败、无匹配和未安装状态；筛选变化回到列表起点。 |
 | 设置导航 | `ui/screen/settings/SettingsCategoryContent.kt`、`settings/search/` | 分类保留；搜索可按分类、摘要和功能名找到外观、显示、更新、安全、挂载及诊断入口。多关键词和大小写／重音归一化；结果打开所属分类。 |
-| 基础外观 | `ui/screen/colorpalette/`、`ui/screen/font/`、`settings/` | 保留深浅色、动态色、色板和 DPI；增加纯黑背景、系统／衬线／等宽字体、85–130% 应用文字缩放、12–32dp 卡片圆角、预览和重置。系统辅助字号继续生效。 |
+| 基础外观 | `ui/screen/colorpalette/`、`ui/screen/font/`、`settings/` | 保留深浅色、动态色、色板和 DPI；提供纯黑背景、系统／衬线／等宽字体及 TTF／OTF 字体导入。导入字体保存到应用内，立即应用并在重启后恢复，可更换、移除或恢复系统字体；损坏文件安全回退。85–130% 应用文字缩放、12–32dp 卡片圆角、预览和重置保留，系统辅助字号继续生效。 |
 | 壁纸 | `wallpaper/`、`ui/screen/wallpaper/` | 保留选择、裁剪、更换和移除；增加 Android 12+ 图片模糊；修正透明度、暗度、模糊的持久化和移除后状态同步。 |
 | 显示选项 | `HomeDisplaySettings.kt`、`settings/SettingsCategoryContent.kt` | 按模块信息、首页布局、信息可见性分组；保留精简显示、版本、Seccomp、Zygisk、元模块、链接卡片与标签控制。 |
 | 交互与可访问性 | 分组行、状态标签、自适应组件 | 状态不只用颜色表示；筛选换行，较多的页签可滚动；选择语义、48dp 触控区域、标题语义和安全区；卡片使用共享主题圆角。 |
@@ -28,9 +29,10 @@
 - WebUI 桥接回归：`node --test js/tests/webui.test.mjs`。
 - 新增回归覆盖数值边界、外观保存与重置、首页偏好实时更新与监听释放、模块筛选和排序、设置搜索。
 - `PresentationLayoutTest` 用 Robolectric 原生图形渲染生产组件，验证 375dp 浅色／深色、2 倍字号、800×375dp 横屏的滚动、筛选选择和预览可达性，并输出 `out/fina-ui/` 下的截图。
-- `HomeNavigationLayoutTest` 渲染五种实际首页结构、KSUD／SUMH 卡片和导航，检查服务卡随布局重排且位于核心信息之前、字段不重复、长值按需查看，以及点击已安装状态卡进入安装、未安装／认证操作仍可用且顶栏无安装入口。覆盖中文手机、2 倍字号和横屏，截图输出到 `out/home-service-ui/`。
-- `HomeLayoutSettingsTest` 通过真实选择器 → SharedPreferences → 保留的 HomeViewModel → 生产 HomeLayoutContent 验证全部五种选择即时生效。`FloatingNavigationLayoutTest` 检查玻璃胶囊与悬浮抽屉、顶底栏间距、选中项展开、徽标、大字号、RTL 和连续切换，输出 `out/nav-service-revision-ui/`。
+- `HomeNavigationLayoutTest` 渲染三种实际首页结构、KSUD／SUMH 卡片和导航，检查主卡与服务卡排版一致、卡片随布局重排、字段不重复、长值按需查看，以及安装／认证／详情操作。覆盖中文手机、2 倍字号和横屏。
+- `HomeLayoutSettingsTest` 通过真实选择器 → SharedPreferences → 保留的 HomeViewModel → 生产 HomeLayoutContent 验证全部三种选择即时生效及旧选项迁移。`FloatingNavigationLayoutTest` 检查玻璃胶囊与悬浮抽屉、顶底栏间距、选中项展开、徽标、大字号、RTL 和连续切换。
 - `ServiceCardLayoutTest` 检查两张服务卡的标题、详情和状态行对齐、大字号、独立详情操作、加载与协议异常状态，输出 `out/service-card-revision-ui/`。
+- 图片测试覆盖原始透明像素保留、私有副本、无效／超大文件保留旧图、缩放实际改变绘制而不影响布局和安装操作，以及设置中的缩放／重置／移除。核心信息测试覆盖逐项选择、全部隐藏、旧隐藏设置兼容和保留 ViewModel 的实时更新。字体测试覆盖导入、字体应用、重新加载、更换、移除和错误回退。
 - 本机未连接 Android 实机，截图验证不等同于实机上的 Root、传感器和系统手势测试。
 
 新增文案提供简体中文和英文；其他现有语言按 Android 资源机制回退到英文。

@@ -6,12 +6,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class HomeLayoutStyleTest {
-    @Test fun allFiveStableIdsRoundTripAndLegacyLayoutsMigrate() {
-        assertEquals(listOf("circle", "grid", "focus", "dashboard_ui", "stats"), HomeLayoutStyle.entries.map { it.id })
+    @Test fun allThreeStableIdsRoundTripAndLegacyLayoutsMigrate() {
+        assertEquals(listOf("circle", "grid", "focus"), HomeLayoutStyle.entries.map { it.id })
         HomeLayoutStyle.entries.forEach { assertEquals(it, HomeLayoutStyle.fromValue(it.id)) }
         assertEquals(HomeLayoutStyle.Grid, HomeLayoutStyle.fromValue("adaptive"))
         assertEquals(HomeLayoutStyle.Grid, HomeLayoutStyle.fromValue("kernelsu"))
         assertEquals(HomeLayoutStyle.Circle, HomeLayoutStyle.fromValue("list"))
+        assertEquals(HomeLayoutStyle.Circle, HomeLayoutStyle.fromValue("dashboard_ui"))
+        assertEquals(HomeLayoutStyle.Focus, HomeLayoutStyle.fromValue("stats"))
         assertEquals(HomeLayoutStyle.Circle, HomeLayoutStyle.fromValue(null))
         assertEquals(HomeLayoutStyle.Circle, HomeLayoutStyle.fromValue("unsupported"))
     }

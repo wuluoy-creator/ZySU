@@ -41,14 +41,15 @@ class HomeLayoutSettingsTest {
         val title = compose.activity.getString(R.string.appearance_home_layout)
         val circle = compose.activity.getString(R.string.home_layout_circle)
         val focus = compose.activity.getString(R.string.home_layout_focus)
-        val stats = compose.activity.getString(R.string.home_layout_stats)
         compose.onNodeWithText(circle).assertIsDisplayed()
         compose.onNodeWithText(title).performClick()
         compose.onNodeWithText(focus).performScrollTo().performClick()
         assertEquals(HomeLayoutStyle.Focus.id, prefs.getString("home_layout", null))
         compose.onNodeWithText(focus).assertIsDisplayed()
-        compose.runOnIdle { prefs.edit().putString("home_layout", HomeLayoutStyle.Stats.id).commit() }
-        compose.onNodeWithText(stats).assertIsDisplayed()
+        compose.runOnIdle { prefs.edit().putString("home_layout", "dashboard_ui").commit() }
+        compose.onNodeWithText(circle).assertIsDisplayed()
+        compose.runOnIdle { prefs.edit().putString("home_layout", "stats").commit() }
+        compose.onNodeWithText(focus).assertIsDisplayed()
     }
 
     @Test fun everyPickerChoiceUpdatesTheRetainedHomeWithoutRestarting() {

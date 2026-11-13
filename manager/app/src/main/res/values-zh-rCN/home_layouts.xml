@@ -3,18 +3,12 @@
     <string name="home_layout_circle">圆环</string>
     <string name="home_layout_grid">网格</string>
     <string name="home_layout_focus">聚焦</string>
-    <string name="home_layout_dashboard">仪表盘</string>
-    <string name="home_layout_stats">统计</string>
     <string name="home_layout_circle_description">紧凑工作状态，下方并列 KSUD 与 SUMH 卡片</string>
-    <string name="home_layout_grid_description">高幅工作卡，旁侧纵向排列 KSUD 与 SUMH</string>
+    <string name="home_layout_grid_description">工作状态与 KSUD 并列，下方显示 SUMH</string>
     <string name="home_layout_focus_description">字段化工作状态，搭配宽幅服务面板</string>
-    <string name="home_layout_dashboard_description">宽幅工作横栏，下方并列服务摘要</string>
-    <string name="home_layout_stats_description">紧凑运行状态，纵向排列 KSUD 与 SUMH 摘要</string>
     <string name="home_layout_details">完整信息</string>
     <string name="home_layout_detail_action">查看完整%1$s</string>
     <string name="home_layout_build_details">设备构建详情</string>
     <string name="home_layout_kernel_module">ZySU 内核模块</string>
-    <string name="home_layout_status">内核模块状态</string>
-    <string name="home_layout_running_status">运行状态</string>
     <string name="home_layout_essential">核心信息</string>
 </resources>

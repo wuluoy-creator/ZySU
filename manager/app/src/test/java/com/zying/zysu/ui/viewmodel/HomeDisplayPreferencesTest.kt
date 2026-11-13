@@ -7,6 +7,8 @@ import android.system.Os
 import android.system.StructUtsname
 import androidx.lifecycle.ViewModelStore
 import com.zying.zysu.ui.screen.home.HomeLayoutStyle
+import com.zying.zysu.ui.screen.home.HomeFactField
+import com.zying.zysu.ui.screen.home.HomeFactVisibility
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -31,6 +33,7 @@ class HomeDisplayPreferencesTest {
         model.loadUserSettings(context)
         assertFalse(model.showDeviceDetails)
         assertEquals(HomeLayoutStyle.Circle, model.homeLayout)
+        assertTrue("device" in model.visibleHomeFactIds)
 
         preferences.edit().putBoolean("home_show_device_details", true).putString("home_layout", "grid")
             .putBoolean("is_hide_version", true).commit()
@@ -38,12 +41,18 @@ class HomeDisplayPreferencesTest {
         assertTrue(model.showDeviceDetails)
         assertEquals(HomeLayoutStyle.Grid, model.homeLayout)
         assertTrue(model.isHideVersion)
+        HomeFactVisibility.setVisible(preferences, HomeFactField.Device, false)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse("device" in model.visibleHomeFactIds)
 
         store.clear()
         preferences.edit().putBoolean("home_show_device_details", false).putString("home_layout", "focus").commit()
         shadowOf(Looper.getMainLooper()).idle()
         assertTrue(model.showDeviceDetails)
         assertEquals(HomeLayoutStyle.Grid, model.homeLayout)
+        HomeFactVisibility.setVisible(preferences, HomeFactField.Device, true)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse("device" in model.visibleHomeFactIds)
     }
 }
 

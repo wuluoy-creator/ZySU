@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_card_artwork_title">主卡片图片</string>
+    <string name="home_card_artwork_summary">自定义三种首页布局中的状态卡片图片。</string>
+    <string name="home_card_artwork_help">选择不超过 20 MB 的图片，保留 PNG、WebP 等图片的透明区域。图片上会覆盖柔和底色，保证文字清晰。</string>
+    <string name="home_card_artwork_import">选择图片</string>
+    <string name="home_card_artwork_replace">更换图片</string>
+    <string name="home_card_artwork_remove">移除图片</string>
+    <string name="home_card_artwork_scale">图片缩放</string>
+    <string name="home_card_artwork_fit">适应</string>
+    <string name="home_card_artwork_crop">填充</string>
+    <string name="home_card_artwork_reset">重置缩放</string>
+    <string name="home_card_artwork_busy">正在保存图片…</string>
+    <string name="home_card_artwork_invalid">无法打开这张图片，请选择 PNG、JPEG、WebP 等受支持的图片。</string>
+    <string name="home_card_artwork_too_large">请选择小于 20 MB 的图片。</string>
+    <string name="home_card_artwork_error">图片保存失败，请重新选择。</string>
+    <string name="home_card_artwork_close">完成</string>
+</resources>

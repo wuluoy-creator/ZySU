@@ -4,14 +4,14 @@ package com.zying.zysu.ui.screen.home
 enum class HomeLayoutStyle(val id: String) {
     Circle("circle"),
     Grid("grid"),
-    Focus("focus"),
-    Dashboard("dashboard_ui"),
-    Stats("stats");
+    Focus("focus");
 
     companion object {
         fun fromValue(value: String?): HomeLayoutStyle = when (value) {
             "adaptive", "kernelsu" -> Grid
             "list" -> Circle
+            "dashboard_ui" -> Circle
+            "stats" -> Focus
             else -> entries.firstOrNull { it.id == value } ?: Circle
         }
     }

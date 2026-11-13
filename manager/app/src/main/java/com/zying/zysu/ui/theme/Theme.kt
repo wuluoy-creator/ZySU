@@ -274,8 +274,8 @@ fun KernelSUTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = remember(AppearancePreferences.fontScale, AppearancePreferences.fontFamily) {
-            Typography.withAppearance(AppearancePreferences.fontScale, AppearancePreferences.fontFamily)
+        typography = remember(AppearancePreferences.fontScale, AppearancePreferences.fontFamily, AppearancePreferences.customFontFamily) {
+            Typography.withAppearance(AppearancePreferences.fontScale, AppearancePreferences.fontFamily, AppearancePreferences.customFontFamily)
         },
         shapes = appearanceShapes(AppearancePreferences.cornerRadius),
         motionScheme = MotionScheme.standard(),
@@ -312,7 +312,7 @@ private fun ThemeInitializer(context: Context, systemIsDark: Boolean) {
             ThemeManager.loadThemeColors(context)
             ThemeManager.loadDynamicColorState(context)
             ThemeManager.loadTransPrideState(context)
-            AppearancePreferences.load(context)
+            AppearancePreferences.loadFromStorage(context)
             CardConfig.load(context)
 
             if (!ThemeConfig.backgroundImageLoaded && !ThemeConfig.preventBackgroundRefresh) {

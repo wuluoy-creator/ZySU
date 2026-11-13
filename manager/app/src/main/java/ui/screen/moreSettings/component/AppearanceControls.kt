@@ -92,6 +92,7 @@ fun AmoledSetting() {
 fun TypographyAndShapeSettings() {
     val context = LocalContext.current
     var resetDialog by remember { mutableStateOf(false) }
+    var resetFailed by remember { mutableStateOf(false) }
     SettingsCard(title = stringResource(R.string.appearance_type_shape), icon = Icons.Default.TextFields) {
         SettingsControlGroup {
             Text(stringResource(R.string.appearance_font_family), style = MaterialTheme.typography.titleSmall)
@@ -105,6 +106,7 @@ fun TypographyAndShapeSettings() {
                     )
                 }
             }
+            CustomFontSetting()
         }
         AppearanceSlider(
             title = stringResource(R.string.appearance_font_scale),
@@ -128,11 +130,17 @@ fun TypographyAndShapeSettings() {
             YukiIcon(Icons.Default.RestartAlt, null)
             Text(stringResource(R.string.appearance_reset), modifier = Modifier.padding(start = 8.dp))
         }
+        if (resetFailed) Text(stringResource(R.string.appearance_reset_failed),
+            color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
     }
     if (resetDialog) ConfirmDialog(
         title = stringResource(R.string.appearance_reset),
         message = stringResource(R.string.appearance_reset_summary),
-        onConfirm = { AppearancePreferences.reset(context); resetDialog = false },
+        onConfirm = {
+            resetFailed = false
+            AppearancePreferences.reset(context) { resetFailed = true }
+            resetDialog = false
+        },
         onDismiss = { resetDialog = false },
     )
 }
@@ -172,6 +180,8 @@ fun HomeDisplaySettings() {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
     HomeLayoutSetting()
+    HomeCardArtworkSetting()
+    HomeFactVisibilitySetting()
     var details by remember(preferences) { mutableStateOf(preferences.getBoolean("home_show_device_details", false)) }
     SwitchSettingItem(
         icon = Icons.Default.Info,

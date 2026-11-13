@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appearance_reset_failed">重置保存失败，已保留原来的外观设置和导入字体，请重试。</string>
+</resources>

@@ -73,16 +73,12 @@ internal fun homeLayoutTitle(style: HomeLayoutStyle): Int = when (style) {
     HomeLayoutStyle.Circle -> R.string.home_layout_circle
     HomeLayoutStyle.Grid -> R.string.home_layout_grid
     HomeLayoutStyle.Focus -> R.string.home_layout_focus
-    HomeLayoutStyle.Dashboard -> R.string.home_layout_dashboard
-    HomeLayoutStyle.Stats -> R.string.home_layout_stats
 }
 
 internal fun homeLayoutDescription(style: HomeLayoutStyle): Int = when (style) {
     HomeLayoutStyle.Circle -> R.string.home_layout_circle_description
     HomeLayoutStyle.Grid -> R.string.home_layout_grid_description
     HomeLayoutStyle.Focus -> R.string.home_layout_focus_description
-    HomeLayoutStyle.Dashboard -> R.string.home_layout_dashboard_description
-    HomeLayoutStyle.Stats -> R.string.home_layout_stats_description
 }
 
 @Composable
@@ -125,20 +121,12 @@ private fun HomeLayoutThumbnail(style: HomeLayoutStyle, modifier: Modifier = Mod
                 tile(0f, .74f, 1f, .22f)
             }
             HomeLayoutStyle.Grid -> {
-                tile(0f, 0f, .46f, .5f, true); tile(.55f, 0f, .45f, .22f)
-                tile(.55f, .28f, .45f, .22f); tile(0f, .58f, 1f, .38f)
+                tile(0f, 0f, .46f, .26f, true); tile(.55f, 0f, .45f, .26f)
+                tile(0f, .34f, 1f, .26f); tile(0f, .7f, 1f, .26f)
             }
             HomeLayoutStyle.Focus -> {
                 tile(0f, 0f, 1f, .25f, true); tile(0f, .34f, 1f, .18f)
                 tile(0f, .6f, 1f, .18f); tile(0f, .86f, 1f, .1f)
-            }
-            HomeLayoutStyle.Dashboard -> {
-                tile(0f, 0f, 1f, .32f, true); tile(0f, .41f, .46f, .2f)
-                tile(.55f, .41f, .45f, .2f); tile(0f, .7f, 1f, .26f)
-            }
-            HomeLayoutStyle.Stats -> {
-                tile(0f, 0f, 1f, .18f, true); tile(0f, .26f, 1f, .22f)
-                tile(0f, .52f, 1f, .22f); tile(0f, .82f, 1f, .14f)
             }
         }
     }

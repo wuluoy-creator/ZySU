@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="custom_font_title">自定义字体</string>
+    <string name="custom_font_summary">导入不超过 32 MB 的 TTF 或 OTF 文件，私有保存并立即应用。不支持的字符使用系统字体补充显示。</string>
+    <string name="custom_font_import">导入字体</string>
+    <string name="custom_font_replace">替换字体</string>
+    <string name="custom_font_use">使用导入字体</string>
+    <string name="custom_font_revert">使用系统字体</string>
+    <string name="custom_font_remove">删除字体</string>
+    <string name="custom_font_importing">正在验证并导入字体…</string>
+    <string name="custom_font_too_large">字体超过 32 MB，原字体未改变。</string>
+    <string name="custom_font_invalid">该文件不是支持的 TTF 或 OTF 字体，原字体未改变。</string>
+    <string name="custom_font_read_failed">无法读取或保存字体，请重新导入。</string>
+    <string name="custom_font_missing">导入的字体已丢失或损坏，无法选择使用。请替换或删除该字体。</string>
+</resources>

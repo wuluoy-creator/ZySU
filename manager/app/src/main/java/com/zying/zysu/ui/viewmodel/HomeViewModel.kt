@@ -19,6 +19,8 @@ import com.zying.zysu.integrity.KsudIntegrity
 import com.zying.zysu.integrity.KsudIntegrityStatus
 import com.zying.zysu.ui.util.*
 import com.zying.zysu.ui.screen.home.HomeLayoutStyle
+import com.zying.zysu.ui.screen.home.HomeFactField
+import com.zying.zysu.ui.screen.home.HomeFactVisibility
 import com.zying.zysu.ui.util.module.LatestVersionInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -188,6 +190,8 @@ class HomeViewModel : ViewModel() {
         private set
     var homeLayout by mutableStateOf(HomeLayoutStyle.Circle)
         private set
+    internal var visibleHomeFactIds by mutableStateOf<Set<String>>(HomeFactField.entries.mapTo(linkedSetOf()) { it.id })
+        private set
     var informationLoadFailed by mutableStateOf(false)
         private set
     private var settingsPreferences: SharedPreferences? = null
@@ -222,6 +226,7 @@ class HomeViewModel : ViewModel() {
             isHideMetaModuleImplement = prefs.getBoolean("is_hide_meta_module_Implement", false)
             showDeviceDetails = prefs.getBoolean("home_show_device_details", false)
             homeLayout = HomeLayoutStyle.fromValue(prefs.getString("home_layout", null))
+            visibleHomeFactIds = HomeFactVisibility.read(prefs)
         }
         read()
         if (settingsPreferences === prefs) return

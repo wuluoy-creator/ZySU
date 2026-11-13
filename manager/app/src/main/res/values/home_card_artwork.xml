@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- New controls provide English and Simplified Chinese; other locales use Android's English fallback. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="home_card_artwork_title">Main card image</string>
+    <string name="home_card_artwork_summary">Customize the status card in all three home layouts.</string>
+    <string name="home_card_artwork_help">Choose an image up to 20 MB. PNG and WebP transparency is preserved. A soft overlay keeps the card text readable.</string>
+    <string name="home_card_artwork_import">Choose image</string>
+    <string name="home_card_artwork_replace">Replace image</string>
+    <string name="home_card_artwork_remove">Remove image</string>
+    <string name="home_card_artwork_scale">Image scale</string>
+    <string name="home_card_artwork_fit">Fit</string>
+    <string name="home_card_artwork_crop">Fill</string>
+    <string name="home_card_artwork_reset">Reset scale</string>
+    <string name="home_card_artwork_busy">Saving image…</string>
+    <string name="home_card_artwork_invalid">This image cannot be opened. Choose a supported image such as PNG, JPEG or WebP.</string>
+    <string name="home_card_artwork_too_large">Choose an image smaller than 20 MB.</string>
+    <string name="home_card_artwork_error">Could not save the image. Please choose it again.</string>
+    <string name="home_card_artwork_close">Done</string>
+</resources>

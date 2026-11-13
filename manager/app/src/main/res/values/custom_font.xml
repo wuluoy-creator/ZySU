@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="custom_font_title">Custom font</string>
+    <string name="custom_font_summary">Import a TTF or OTF file up to 32 MB. It is copied privately and applies immediately. Unsupported characters use system fallback.</string>
+    <string name="custom_font_import">Import font</string>
+    <string name="custom_font_replace">Replace font</string>
+    <string name="custom_font_use">Use imported font</string>
+    <string name="custom_font_revert">Use system font</string>
+    <string name="custom_font_remove">Remove font</string>
+    <string name="custom_font_importing">Checking and importing font…</string>
+    <string name="custom_font_too_large">This font exceeds 32 MB. The previous font is unchanged.</string>
+    <string name="custom_font_invalid">This file is not a supported TTF or OTF font. The previous font is unchanged.</string>
+    <string name="custom_font_read_failed">The font could not be read or saved. Try importing it again.</string>
+    <string name="custom_font_missing">The imported font is missing or damaged and cannot be selected. Replace or remove the file.</string>
+</resources>

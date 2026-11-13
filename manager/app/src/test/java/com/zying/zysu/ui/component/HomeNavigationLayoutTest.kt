@@ -54,10 +54,8 @@ class HomeNavigationLayoutTest {
     @Test fun circleWithGlass() = verify(HomeLayoutStyle.Circle, NavigationBarStyle.Glass)
     @Test fun gridWithDrawerFloating() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.FloatingDrawer)
     @Test fun focusWithDrawerFloating() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingDrawer)
-    @Test fun dashboardWithDrawerFloating() = verify(HomeLayoutStyle.Dashboard, NavigationBarStyle.FloatingDrawer)
-    @Test fun statisticsWithDrawerFloating() = verify(HomeLayoutStyle.Stats, NavigationBarStyle.FloatingDrawer)
     @Test fun retainedGlassNavigation() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.Glass)
-    @Test fun largeTextDarkNavigation() = verify(HomeLayoutStyle.Stats, NavigationBarStyle.FloatingDrawer, dark = true, fontScale = 2f)
+    @Test fun largeTextDarkNavigation() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingDrawer, dark = true, fontScale = 2f)
     @Test fun gridLargeTextStacksServices() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.Glass, fontScale = 2f)
 
     @Test
@@ -66,11 +64,11 @@ class HomeNavigationLayoutTest {
 
     @Test
     @Config(qualifiers = "zh-rCN-w800dp-h450dp-land-mdpi")
-    fun statisticsKeepsCoreFullWidth() = verify(HomeLayoutStyle.Stats,
+    fun circleKeepsCoreFullWidth() = verify(HomeLayoutStyle.Circle,
         NavigationBarStyle.Glass, suffix = "-landscape")
 
     @Test fun switchingLayoutsRearrangesActualServiceCards() = verifyDistinctUpperLayouts(1f)
-    @Test fun largeTextStillLeavesFiveDistinctUpperLayouts() = verifyDistinctUpperLayouts(2f)
+    @Test fun largeTextKeepsThreeLayoutsReadable() = verifyDistinctUpperLayouts(2f)
 
     private fun verifyDistinctUpperLayouts(fontScale: Float) {
         val selected = mutableStateOf(HomeLayoutStyle.Circle)
@@ -100,7 +98,7 @@ class HomeNavigationLayoutTest {
             compose.onNodeWithTag("home-install-action").assertDoesNotExist()
             saveFrame("services-${style.id}-${fontScale}x")
         }
-        assertEquals(5, paintedLayouts.size, "Every layout must retain a distinct upper arrangement")
+        assertEquals(3, paintedLayouts.size, "Every layout must retain a distinct upper arrangement")
         assertTrue(servicePlacements.size >= 3, "Service cards must move with the layout, not remain in one fixed section")
     }
 
@@ -128,8 +126,67 @@ class HomeNavigationLayoutTest {
             compose.onNodeWithTag("home-install-action").performScrollTo().performClick()
             compose.onNodeWithTag("home-authenticate-action").performScrollTo().performClick()
         }
-        assertEquals(10, installs)
-        assertEquals(5, authentications)
+        assertEquals(6, installs)
+        assertEquals(3, authentications)
+    }
+
+    @Test fun mainAndKsudShareHeaderVersionAndStatusRhythmInCompactGrid() {
+        compose.setContent {
+            MaterialTheme {
+                Row(Modifier.fillMaxWidth().padding(20.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    HomeMainStatusCard(HomeLayoutStyle.Grid,
+                        HomeStatusPresentation("运行正常", installed = true, version = HomeFact("root", "Root", "v3.6.2")),
+                        modifier = Modifier.weight(1f).fillMaxHeight())
+                    KsudFixture(Modifier.weight(1f).fillMaxHeight())
+                }
+            }
+        }
+        listOf("header", "value", "status").forEach { row ->
+            val main = compose.onNodeWithTag("service-main-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            val ksud = compose.onNodeWithTag("service-ksud-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            assertEquals(ksud.top.value, main.top.value, 1f)
+            assertEquals(ksud.bottom.value, main.bottom.value, 1f)
+        }
+        val card = compose.onNodeWithTag("home-status-card").getUnclippedBoundsInRoot()
+        val header = compose.onNodeWithTag("service-main-header", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertEquals(16f, header.top.value - card.top.value, 1f)
+        compose.onNodeWithTag("service-main-value").assertHeightIsAtLeast(48.dp)
+        saveFrame("main-service-grid-rhythm")
+    }
+
+    @Test fun safeModeMainCardKeepsIndependentVersionDetailsAtLargeText() {
+        val selected = mutableStateOf(HomeLayoutStyle.Circle)
+        val fullVersion = "v3.6.2-safe-mode-build-with-long-diagnostic-details"
+        var installs = 0
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                MaterialTheme(colorScheme = darkColorScheme()) {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+                        HomeLayoutContent(selected.value, HomeLayoutState(status = HomeStatusPresentation(
+                            title = "安全模式", installed = true, safeMode = true,
+                            version = HomeFact("root", "Root 版本", fullVersion, "v3.6.2"))),
+                            onInstall = { installs++ })
+                    }
+                }
+            }
+        }
+        HomeLayoutStyle.entries.forEachIndexed { index, style ->
+            compose.runOnIdle { selected.value = style }
+            compose.onNodeWithTag("home-install-action").assertDoesNotExist()
+            compose.onNodeWithTag("service-main-header", useUnmergedTree = true).performTouchInput { click() }
+            assertEquals(index + 1, installs)
+            compose.onNodeWithTag("service-main-value").performScrollTo().performClick()
+            compose.onNodeWithText(fullVersion).assertIsDisplayed()
+            assertEquals(index + 1, installs, "Version details must not bubble to the installation action")
+            saveFrame("safe-${style.id}-large-detail")
+            compose.onNodeWithText(compose.activity.getString(android.R.string.ok)).performClick()
+            val card = compose.onNodeWithTag("home-status-card").fetchSemanticsNode().boundsInRoot
+            listOf("header", "value", "status").forEach { row ->
+                val bounds = compose.onNodeWithTag("service-main-$row", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+                assertTrue(bounds.left >= card.left && bounds.right <= card.right && bounds.bottom <= card.bottom)
+            }
+        }
     }
 
 
@@ -202,7 +259,7 @@ class HomeNavigationLayoutTest {
         // Each fact stays in the shared core panel exactly once.
         facts.forEach { compose.onAllNodesWithText(it.label, useUnmergedTree = true).assertCountEquals(1) }
         compose.onNodeWithText(kernel).assertDoesNotExist()
-        scrollAboveDock(compose.onNodeWithText("运行正常")).performClick()
+        scrollAboveDock(compose.onNodeWithTag("service-main-header", useUnmergedTree = true)).performTouchInput { click() }
         assertEquals(1, installs)
         val kernelFact = scrollAboveDock(compose.onNodeWithTag("home-fact-kernel"))
         if (suffix.contains("landscape")) kernelFact.assertWidthIsAtLeast(600.dp)
@@ -252,7 +309,7 @@ class HomeNavigationLayoutTest {
     }
 
     private fun saveFrame(name: String) {
-        val output = File("../../out/home-service-ui/$name.png")
+        val output = File("../../out/custom-home-layout-ui/$name.png")
         output.parentFile?.mkdirs()
         val frame = if (name.endsWith("-detail")) {
             compose.onNode(isDialog()).assertIsDisplayed()

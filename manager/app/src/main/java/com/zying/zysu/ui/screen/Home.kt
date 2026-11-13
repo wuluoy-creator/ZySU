@@ -638,26 +638,24 @@ private fun homeLayoutState(
                 append(stringResource(R.string.home_status_build_api, info.managerVersion.second.toInt(), system.managerUapiVersion))
             }
         }, homeReleaseLabel(managerVersion)))
-        if (!viewModel.isSimpleMode) {
-            add(HomeFact("android", stringResource(R.string.home_android_version),
-                stringResource(R.string.home_android_api, info.androidVersion.readable(), Build.VERSION.SDK_INT)))
-            info.workingMode?.takeIf { system.isManager }?.let { add(HomeFact("mode", stringResource(R.string.home_working_mode), it)) }
-        }
-        if (!viewModel.isHideSeccompStatus) add(HomeFact("seccomp", stringResource(R.string.home_seccomp_status), stringResource(when (info.seccompStatus) {
+        add(HomeFact("android", stringResource(R.string.home_android_version),
+            stringResource(R.string.home_android_api, info.androidVersion.readable(), Build.VERSION.SDK_INT)))
+        info.workingMode?.takeIf { system.isManager }?.let { add(HomeFact("mode", stringResource(R.string.home_working_mode), it)) }
+        add(HomeFact("seccomp", stringResource(R.string.home_seccomp_status), stringResource(when (info.seccompStatus) {
             -1 -> R.string.seccomp_status_not_supported
             0 -> R.string.seccomp_status_disabled
             1 -> R.string.seccomp_status_strict
             2 -> R.string.seccomp_status_filter
             else -> R.string.seccomp_status_unknown
         })))
-        if (!viewModel.isSimpleMode && !viewModel.isHideZygiskImplement && info.zygiskImplement.isNotBlank() && info.zygiskImplement != "None") {
+        if (info.zygiskImplement.isNotBlank() && info.zygiskImplement != "None") {
             add(HomeFact("zygisk", stringResource(R.string.home_zygisk_implement), info.zygiskImplement))
         }
-        if (!viewModel.isSimpleMode && !viewModel.isHideMetaModuleImplement && info.metaModuleImplement.isNotBlank() && info.metaModuleImplement != "None") {
+        if (info.metaModuleImplement.isNotBlank() && info.metaModuleImplement != "None") {
             add(HomeFact("mount", stringResource(R.string.home_meta_module_implement), info.metaModuleImplement))
         }
     }
-    val buildFacts = if (viewModel.isSimpleMode) emptyList() else listOf(
+    val buildFacts = listOf(
         HomeFact("security", stringResource(R.string.home_security_patch), info.securityPatch.readable()),
         HomeFact("architecture", stringResource(R.string.home_architecture), info.architecture.readable()),
         HomeFact("build", stringResource(R.string.home_build_id), info.buildId.readable()),
@@ -669,7 +667,8 @@ private fun homeLayoutState(
             installed = installed, safeMode = system.safeMode, version = version, badges = badges,
             needsAuthentication = needsAuthentication,
         ),
-        facts = facts, buildFacts = buildFacts,
+        facts = visibleHomeFacts(facts, viewModel.visibleHomeFactIds),
+        buildFacts = visibleHomeFacts(buildFacts, viewModel.visibleHomeFactIds),
         showBuildDetails = viewModel.showDeviceDetails,
     )
 }
