@@ -9,10 +9,9 @@ extern "C" {
 #include <linux/ioctl.h>
 #include <linux/types.h>
 #else
+#include <linux/types.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
-// __u8/__u16/__u32/__u64/__s32 are provided by <sys/ioctl.h>
-// (-> linux/ioctl.h -> asm/types.h) on Linux/Android.
 #ifndef __aligned_u64
 #define __aligned_u64 __u64 __attribute__((aligned(8)))
 #endif // #ifndef __aligned_u64

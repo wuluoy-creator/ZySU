@@ -8,9 +8,9 @@ extern "C" {
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
+#include <linux/types.h>
 #include <stdbool.h>
 #include <stdint.h>
-// __u32/__u64/__s32 are provided by <sys/ioctl.h> on Linux/Android.
 #endif // #ifdef __KERNEL__
 
 #define KSU_APP_PROFILE_VER 4
