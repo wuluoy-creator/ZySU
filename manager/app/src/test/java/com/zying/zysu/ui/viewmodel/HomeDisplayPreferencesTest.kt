@@ -29,25 +29,21 @@ class HomeDisplayPreferencesTest {
         val model = HomeViewModel()
         val store = ViewModelStore().apply { put("home", model) }
         model.loadUserSettings(context)
-        assertTrue(model.showDeviceMetrics)
-        assertTrue(model.showCounts)
         assertFalse(model.showDeviceDetails)
         assertEquals(HomeLayoutStyle.Circle, model.homeLayout)
 
-        preferences.edit().putBoolean("home_show_metrics", false).putBoolean("home_show_counts", false)
-            .putBoolean("home_show_device_details", true).putString("home_layout", "list")
+        preferences.edit().putBoolean("home_show_device_details", true).putString("home_layout", "grid")
             .putBoolean("is_hide_version", true).commit()
         shadowOf(Looper.getMainLooper()).idle()
-        assertFalse(model.showDeviceMetrics)
-        assertFalse(model.showCounts)
         assertTrue(model.showDeviceDetails)
-        assertEquals(HomeLayoutStyle.Circle, model.homeLayout)
+        assertEquals(HomeLayoutStyle.Grid, model.homeLayout)
         assertTrue(model.isHideVersion)
 
         store.clear()
-        preferences.edit().putBoolean("home_show_metrics", true).commit()
+        preferences.edit().putBoolean("home_show_device_details", false).putString("home_layout", "focus").commit()
         shadowOf(Looper.getMainLooper()).idle()
-        assertFalse(model.showDeviceMetrics)
+        assertTrue(model.showDeviceDetails)
+        assertEquals(HomeLayoutStyle.Grid, model.homeLayout)
     }
 }
 

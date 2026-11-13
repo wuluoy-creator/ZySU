@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -31,8 +32,7 @@ import com.zying.zysu.ui.theme.ExpressiveShapes
 import com.zying.zysu.ui.theme.ThemeColors
 import com.zying.zysu.ui.theme.Typography
 import com.zying.zysu.ui.theme.utilitySurfaces
-import com.zying.zysu.ui.viewmodel.HomeCapacity
-import com.zying.zysu.ui.viewmodel.HomeDeviceMetrics
+import com.zying.zysu.ui.screen.TopBar
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -52,55 +52,59 @@ class HomeNavigationLayoutTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun circleWithGlass() = verify(HomeLayoutStyle.Circle, NavigationBarStyle.Glass)
-    @Test fun gridWithStandardFloating() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.FloatingStandard)
+    @Test fun gridWithDrawerFloating() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.FloatingDrawer)
     @Test fun focusWithDrawerFloating() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingDrawer)
-    @Test fun dashboardWithStandardFloating() = verify(HomeLayoutStyle.Dashboard, NavigationBarStyle.FloatingStandard)
+    @Test fun dashboardWithDrawerFloating() = verify(HomeLayoutStyle.Dashboard, NavigationBarStyle.FloatingDrawer)
     @Test fun statisticsWithDrawerFloating() = verify(HomeLayoutStyle.Stats, NavigationBarStyle.FloatingDrawer)
-    @Test fun retainedMaterialNavigation() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.Material)
+    @Test fun retainedGlassNavigation() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.Glass)
     @Test fun largeTextDarkNavigation() = verify(HomeLayoutStyle.Stats, NavigationBarStyle.FloatingDrawer, dark = true, fontScale = 2f)
-    @Test fun focusWithoutOptionalPanels() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.Glass, suffix = "-simple", optionalPanels = false)
+    @Test fun gridLargeTextStacksServices() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.Glass, fontScale = 2f)
 
     @Test
     @Config(qualifiers = "zh-rCN-w800dp-h450dp-land-mdpi")
-    fun focusLandscapeBoard() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingStandard, suffix = "-landscape")
+    fun focusLandscapeBoard() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingDrawer, suffix = "-landscape")
 
     @Test
     @Config(qualifiers = "zh-rCN-w800dp-h450dp-land-mdpi")
-    fun statisticsWithoutOptionalPanelsUsesFullWidth() = verify(HomeLayoutStyle.Stats,
-        NavigationBarStyle.Material, suffix = "-simple-landscape", optionalPanels = false)
+    fun statisticsKeepsCoreFullWidth() = verify(HomeLayoutStyle.Stats,
+        NavigationBarStyle.Glass, suffix = "-landscape")
 
-    @Test fun hiddenOptionalPanelsStillLeaveFiveDistinctUpperLayouts() = verifyDistinctUpperLayouts(1f)
+    @Test fun switchingLayoutsRearrangesActualServiceCards() = verifyDistinctUpperLayouts(1f)
     @Test fun largeTextStillLeavesFiveDistinctUpperLayouts() = verifyDistinctUpperLayouts(2f)
 
     private fun verifyDistinctUpperLayouts(fontScale: Float) {
         val selected = mutableStateOf(HomeLayoutStyle.Circle)
         val state = HomeLayoutState(status = HomeStatusPresentation(
-            title = "Working", installed = true, version = HomeFact("root", "Root", "v3.6.2")),
-            showCounts = false, showMetrics = false)
+            title = "Working", installed = true, version = HomeFact("root", "Root", "v3.6.2")))
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                 MaterialTheme {
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
-                        HomeLayoutContent(selected.value, state)
+                        HomeLayoutContent(selected.value, state, daemon = { KsudFixture(it) }, kernel = { SumhFixture(it) })
                     }
                 }
             }
         }
         val paintedLayouts = mutableSetOf<String>()
+        val servicePlacements = mutableSetOf<String>()
         HomeLayoutStyle.entries.forEach { style ->
             compose.runOnIdle { selected.value = style }
             val bitmap = compose.onNodeWithTag("home-upper-${style.id}").captureToImage().asAndroidBitmap()
             val pixels = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
             paintedLayouts += "${bitmap.width}:${bitmap.height}:${pixels.contentHashCode()}"
+            val daemon = compose.onNodeWithTag("fixture-ksud").getUnclippedBoundsInRoot()
+            val sumh = compose.onNodeWithTag("fixture-sumh").getUnclippedBoundsInRoot()
+            servicePlacements += "$daemon:$sumh"
             compose.onNodeWithTag("home-install-action").assertDoesNotExist()
-            saveFrame("simple-${style.id}-${fontScale}x")
+            saveFrame("services-${style.id}-${fontScale}x")
         }
-        assertEquals(5, paintedLayouts.size, "Hidden optional panels must not collapse choices to the same painted layout")
+        assertEquals(5, paintedLayouts.size, "Every layout must retain a distinct upper arrangement")
+        assertTrue(servicePlacements.size >= 3, "Service cards must move with the layout, not remain in one fixed section")
     }
 
-    @Test fun installationActionsOnlyAppearWhenTheModuleIsNotInstalled() {
+    @Test fun installedCardOpensInstallationWithoutAnExtraButtonAndRequiredActionsRemain() {
         val selected = mutableStateOf(HomeLayoutStyle.Circle)
         val installed = mutableStateOf(true)
         var installs = 0
@@ -110,7 +114,7 @@ class HomeNavigationLayoutTest {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
                     HomeLayoutContent(selected.value, HomeLayoutState(
                         status = HomeStatusPresentation(title = "Status", installed = installed.value,
-                            needsAuthentication = !installed.value), showCounts = false, showMetrics = false),
+                            needsAuthentication = !installed.value)),
                         onInstall = { installs++ }, onAuthenticate = { authentications++ })
                 }
             }
@@ -119,17 +123,18 @@ class HomeNavigationLayoutTest {
             compose.runOnIdle { selected.value = style; installed.value = true }
             compose.onNodeWithTag("home-install-action").assertDoesNotExist()
             compose.onNodeWithTag("home-authenticate-action").assertDoesNotExist()
+            compose.onNodeWithTag("home-status-card").performSemanticsAction(SemanticsActions.OnClick) { it() }
             compose.runOnIdle { installed.value = false }
             compose.onNodeWithTag("home-install-action").performScrollTo().performClick()
             compose.onNodeWithTag("home-authenticate-action").performScrollTo().performClick()
         }
-        assertEquals(5, installs)
+        assertEquals(10, installs)
         assertEquals(5, authentications)
     }
 
 
     private fun verify(style: HomeLayoutStyle, navigation: NavigationBarStyle, dark: Boolean = false,
-        fontScale: Float = 1f, suffix: String = "", optionalPanels: Boolean = true) {
+        fontScale: Float = 1f, suffix: String = "") {
         val kernel = "6.12.0-android16-2026-11-device-very-long-build-suffix\nrelease@builder"
         val facts = listOf(
             HomeFact("device", "设备", "Pixel 9 Pro"),
@@ -143,18 +148,8 @@ class HomeNavigationLayoutTest {
                 version = HomeFact("root", "Root 版本", "v3.6.2-custom-long-version-build-6908-uapi-13", "v3.6.2")),
             facts = facts,
             buildFacts = listOf(HomeFact("fingerprint", "构建指纹", "google/caiman/caiman:16/BP4A.260901.001/12345678:user/release-keys")),
-            superuserCount = 12, moduleCount = 9,
-            showCounts = optionalPanels, showMetrics = optionalPanels,
-            metrics = HomeDeviceMetrics(
-                batteryPercent = 76, batteryTemperatureC = 32.5f, charging = true,
-                cpuTemperatureC = null, cpuFrequencyKHz = 2_400_000,
-                memory = HomeCapacity.fromAvailable(8_000_000_000, 3_000_000_000),
-                storage = HomeCapacity.fromAvailable(256_000_000_000, 90_000_000_000),
-                uptimeMillis = 185_400_000,
-                memoryHistory = listOf(.61f, .64f, .62f, .63f, .625f),
-                cpuTemperatureHistory = listOf(null, null, null, null, null)),
         )
-        var moduleClicks = 0
+        var installs = 0
         val destinations = listOf(
             NavigationBarItem("home", "首页", Icons.Outlined.Home, true),
             NavigationBarItem("auth", "授权", Icons.Outlined.AdminPanelSettings, false, 12),
@@ -175,28 +170,12 @@ class HomeNavigationLayoutTest {
                 MaterialTheme(colorScheme = scheme, typography = Typography, shapes = ExpressiveShapes) {
                     FloatingNavigationScaffold(showBottomBar = true, containerColor = scheme.background,
                         bottomBar = { BottomNavigationBar(navigation, destinations, {}) }, snackbarHost = {}) {
-                        YukiPageScaffold(topBar = { YukiTopAppBar(title = { YukiTopBarTitle("ZySU") }) }) { padding ->
+                        YukiPageScaffold(topBar = { TopBar(showReboot = false) }) { padding ->
                             Column(Modifier.fillMaxSize().testTag("home-test-scroll").verticalScroll(rememberScrollState())
                                 .padding(padding).padding(horizontal = 20.dp)
                                 .padding(top = 16.dp, bottom = LocalBottomBarPadding.current + 16.dp)) {
-                                HomeLayoutContent(style, state, onModules = { moduleClicks++ }, services = {
-                                    HomeStatusLayout(listLayout = style == HomeLayoutStyle.Circle, status = {},
-                                        daemon = { modifier ->
-                                            KsudStatusCard(
-                                                bundledVersion = "v3.6.2", installedVersion = "v3.6.2",
-                                                integrity = KsudIntegrityStatus.MATCH, loading = false, syncing = false,
-                                                syncResult = null, syncUnavailableReason = null, onSync = {},
-                                                modifier = modifier.testTag("fixture-ksud"))
-                                        }, kernel = { modifier ->
-                                            SUMHStatusSummaryCard(
-                                                status = SUMHUiAdapter.SUMHStatus.AVAILABLE, version = "13",
-                                                systemInfo = SUMHUiAdapter.SystemInfo(
-                                                    kernel = "6.12.0", mountBase = "/data/adb",
-                                                    activeMounts = emptyList(), sumhModuleIds = emptyList(),
-                                                    sumhMismatch = false, mismatchMessage = null, viewsEnabled = true),
-                                                onRefresh = {}, modifier = modifier.testTag("fixture-sumh"))
-                                        })
-                                })
+                                HomeLayoutContent(style, state, onInstall = { installs++ },
+                                    daemon = { KsudFixture(it) }, kernel = { SumhFixture(it) })
                             }
                         }
                     }
@@ -207,24 +186,24 @@ class HomeNavigationLayoutTest {
         compose.onNodeWithTag("home-layout-${style.id}").assertExists()
         compose.onNodeWithTag("navigation-item-home").assertIsSelected().assertIsDisplayed()
         compose.onNodeWithTag("home-install-action").assertDoesNotExist()
+        compose.onNodeWithTag("home-install-toolbar").assertDoesNotExist()
+        listOf("home-focus-device", "home-focus-storage", "home-stats-monitor", "home-stats-counts",
+            "home-count-superuser", "home-count-modules").forEach { compose.onNodeWithTag(it).assertDoesNotExist() }
         saveFrame(frame)
-        // Every upper layout precedes the real service cards and the same full-width facts panel.
+        // Real service cards are now part of the chosen upper layout, with core facts after it.
         val upper = compose.onNodeWithTag("home-upper-${style.id}").getUnclippedBoundsInRoot()
-        val services = compose.onNodeWithTag("home-services").getUnclippedBoundsInRoot()
         val core = compose.onNodeWithTag("home-core-facts").getUnclippedBoundsInRoot()
-        assertTrue(services.top >= upper.bottom, "Services must follow the selected upper layout")
-        assertTrue(core.top >= services.bottom, "Core facts must follow both service cards")
+        assertTrue(core.top >= upper.bottom, "Core facts must follow the upper service layout")
         listOf("fixture-ksud", "fixture-sumh").forEach { tag ->
             val card = compose.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+            assertTrue(card.top >= upper.top && card.bottom <= upper.bottom, "$tag must be inside the rearranged upper region")
             assertTrue(card.bottom <= core.top, "$tag must appear before core facts")
         }
         // Each fact stays in the shared core panel exactly once.
         facts.forEach { compose.onAllNodesWithText(it.label, useUnmergedTree = true).assertCountEquals(1) }
         compose.onNodeWithText(kernel).assertDoesNotExist()
-        if (optionalPanels) {
-            scrollAboveDock(compose.onNodeWithTag("home-count-modules")).performClick()
-            assertEquals(1, moduleClicks)
-        }
+        scrollAboveDock(compose.onNodeWithText("运行正常")).performClick()
+        assertEquals(1, installs)
         val kernelFact = scrollAboveDock(compose.onNodeWithTag("home-fact-kernel"))
         if (suffix.contains("landscape")) kernelFact.assertWidthIsAtLeast(600.dp)
         saveFrame("$frame-core")
@@ -250,8 +229,30 @@ class HomeNavigationLayoutTest {
         return node.assertIsDisplayed()
     }
 
+    @Composable
+    private fun KsudFixture(modifier: Modifier) {
+        KsudStatusCard(
+            bundledVersion = "v3.6.2", installedVersion = "v3.6.2",
+            integrity = KsudIntegrityStatus.MATCH, loading = false, syncing = false,
+            syncResult = null, syncUnavailableReason = null, onSync = {},
+            modifier = modifier.testTag("fixture-ksud"),
+        )
+    }
+
+    @Composable
+    private fun SumhFixture(modifier: Modifier) {
+        SUMHStatusSummaryCard(
+            status = SUMHUiAdapter.SUMHStatus.AVAILABLE, version = "13",
+            systemInfo = SUMHUiAdapter.SystemInfo(
+                kernel = "6.12.0", mountBase = "/data/adb",
+                activeMounts = emptyList(), sumhModuleIds = emptyList(),
+                sumhMismatch = false, mismatchMessage = null, viewsEnabled = true,
+            ), onRefresh = {}, modifier = modifier.testTag("fixture-sumh"),
+        )
+    }
+
     private fun saveFrame(name: String) {
-        val output = File("../../out/home-nav-correction-ui/$name.png")
+        val output = File("../../out/home-service-ui/$name.png")
         output.parentFile?.mkdirs()
         val frame = if (name.endsWith("-detail")) {
             compose.onNode(isDialog()).assertIsDisplayed()

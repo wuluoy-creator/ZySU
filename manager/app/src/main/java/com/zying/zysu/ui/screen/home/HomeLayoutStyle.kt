@@ -1,12 +1,12 @@
 package com.zying.zysu.ui.screen.home
 
 /** Stable settings/home_layout IDs; legacy choices migrate without losing the user's intent. */
-enum class HomeLayoutStyle(val id: String, val usesMetrics: Boolean = false) {
+enum class HomeLayoutStyle(val id: String) {
     Circle("circle"),
     Grid("grid"),
-    Focus("focus", usesMetrics = true),
+    Focus("focus"),
     Dashboard("dashboard_ui"),
-    Stats("stats", usesMetrics = true);
+    Stats("stats");
 
     companion object {
         fun fromValue(value: String?): HomeLayoutStyle = when (value) {

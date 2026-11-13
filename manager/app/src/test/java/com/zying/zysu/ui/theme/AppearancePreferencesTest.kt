@@ -25,7 +25,7 @@ class AppearancePreferencesTest {
 
     @Test
     fun preferencesSurviveReloadAndResetDoesNotChangeOtherSettings() {
-        context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putBoolean("home_show_metrics", false).commit()
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putBoolean("home_show_device_details", false).commit()
         AppearancePreferences.setAmoled(context, true)
         AppearancePreferences.setFontScale(context, 1.2f)
         AppearancePreferences.setFontFamily(context, "serif")
@@ -41,7 +41,7 @@ class AppearancePreferencesTest {
         assertEquals(1f, AppearancePreferences.fontScale)
         assertEquals("system", AppearancePreferences.fontFamily)
         assertEquals(24f, AppearancePreferences.cornerRadius)
-        assertFalse(context.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean("home_show_metrics", true))
+        assertFalse(context.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean("home_show_device_details", true))
     }
 
     @Test

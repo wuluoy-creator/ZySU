@@ -1,12 +1,8 @@
 package com.zying.zysu.ui.screen.home
 
-import com.zying.zysu.ui.viewmodel.HomeCapacity
-import com.zying.zysu.ui.viewmodel.HomeDeviceMetrics
-import com.zying.zysu.ui.viewmodel.appendHomeMetricSample
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HomeLayoutStyleTest {
@@ -18,10 +14,6 @@ class HomeLayoutStyleTest {
         assertEquals(HomeLayoutStyle.Circle, HomeLayoutStyle.fromValue("list"))
         assertEquals(HomeLayoutStyle.Circle, HomeLayoutStyle.fromValue(null))
         assertEquals(HomeLayoutStyle.Circle, HomeLayoutStyle.fromValue("unsupported"))
-    }
-
-    @Test fun onlyLayoutsWithReadingsKeepMetricCollectionActive() {
-        assertEquals(setOf(HomeLayoutStyle.Focus, HomeLayoutStyle.Stats), HomeLayoutStyle.entries.filter { it.usesMetrics }.toSet())
     }
 
     @Test fun longMachineValuesKeepOriginalButHaveCompactSingleLineSummary() {
@@ -36,33 +28,4 @@ class HomeLayoutStyleTest {
         assertEquals("v3.6.2", homeReleaseLabel("ZySU v3.6.2-6908-release"))
     }
 
-    @Test fun metricHistoryIsBoundedAndMissingReadingsRemainGaps() {
-        var previous: HomeDeviceMetrics? = null
-        repeat(35) { index ->
-            previous = appendHomeMetricSample(previous, HomeDeviceMetrics(
-                cpuTemperatureC = if (index == 33) null else index.toFloat(),
-                memory = if (index == 33) null else HomeCapacity.fromAvailable(100, 50),
-            ))
-        }
-        val history = previous!!
-        assertEquals(30, history.cpuTemperatureHistory.size)
-        assertEquals(5f, history.cpuTemperatureHistory.first())
-        assertNull(history.cpuTemperatureHistory[28])
-        assertNull(history.memoryHistory[28])
-        assertEquals(34f, history.cpuTemperatureHistory.last())
-        assertEquals(.5f, history.memoryHistory.last())
-    }
-
-    @Test fun countChartRequiresCompleteNonNegativeCountsAndHandlesEmptyData() {
-        assertNull(HomeCountDistribution.fromCounts(null, 3))
-        assertNull(HomeCountDistribution.fromCounts(5, null))
-        assertNull(HomeCountDistribution.fromCounts(-1, 3))
-        val empty = HomeCountDistribution.fromCounts(0, 0)!!
-        assertEquals(0L, empty.total)
-        assertEquals(0f, empty.moduleFraction)
-        val complete = HomeCountDistribution.fromCounts(3, 1)!!
-        assertEquals(4L, complete.total)
-        assertEquals(.25f, complete.moduleFraction)
-        assertEquals(Int.MAX_VALUE.toLong() * 2, HomeCountDistribution.fromCounts(Int.MAX_VALUE, Int.MAX_VALUE)!!.total)
-    }
 }

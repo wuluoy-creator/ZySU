@@ -1,19 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="home_device_overview">设备概览</string>
-    <string name="home_memory_usage">内存使用</string>
-    <string name="home_storage_usage">内部存储使用</string>
-    <string name="home_battery">电池</string>
-    <string name="home_cpu_temperature">CPU 温度</string>
     <string name="home_reading_unavailable">暂不可用</string>
-    <string name="home_charging">正在充电</string>
-    <string name="home_on_battery">使用电池</string>
-    <string name="home_temperature_value">%1$s °C</string>
-    <string name="home_cpu_frequency">最高核心频率：%1$s MHz</string>
-    <string name="home_uptime_value">运行时间：%1$d 天 %2$d 时 %3$d 分</string>
-    <string name="home_capacity_value">%1$s / %2$s</string>
-    <string name="home_authorized_apps">已授权应用</string>
-    <string name="home_installed_modules">已安装模块</string>
     <string name="home_security_patch">Android 安全补丁</string>
     <string name="home_fingerprint">构建指纹</string>
     <string name="home_build_id">构建标识</string>

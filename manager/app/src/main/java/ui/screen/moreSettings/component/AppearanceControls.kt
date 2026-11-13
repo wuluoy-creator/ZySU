@@ -172,22 +172,14 @@ fun HomeDisplaySettings() {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
     HomeLayoutSetting()
-    data class Option(val key: String, val default: Boolean, val title: Int, val summary: Int)
-    val options = listOf(
-        Option("home_show_metrics", true, R.string.appearance_home_metrics, R.string.appearance_home_metrics_summary),
-        Option("home_show_counts", true, R.string.appearance_home_counts, R.string.appearance_home_counts_summary),
-        Option("home_show_device_details", false, R.string.appearance_home_details, R.string.appearance_home_details_summary),
+    var details by remember(preferences) { mutableStateOf(preferences.getBoolean("home_show_device_details", false)) }
+    SwitchSettingItem(
+        icon = Icons.Default.Info,
+        title = stringResource(R.string.appearance_home_details),
+        summary = stringResource(R.string.appearance_home_details_summary),
+        checked = details,
+        onChange = { details = it; preferences.edit { putBoolean("home_show_device_details", it) } },
     )
-    options.forEachIndexed { index, option ->
-        var enabled by remember(option.key) { mutableStateOf(preferences.getBoolean(option.key, option.default)) }
-        SwitchSettingItem(
-            icon = when (index) { 0 -> Icons.Default.MonitorHeart; 1 -> Icons.Default.Dashboard; else -> Icons.Default.Info },
-            title = stringResource(option.title),
-            summary = stringResource(option.summary),
-            checked = enabled,
-            onChange = { enabled = it; preferences.edit { putBoolean(option.key, it) } },
-        )
-    }
 }
 
 @Composable

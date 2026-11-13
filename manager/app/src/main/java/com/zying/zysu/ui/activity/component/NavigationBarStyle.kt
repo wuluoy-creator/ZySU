@@ -13,13 +13,14 @@ import androidx.core.content.edit
 /** Stable persisted names keep the existing capsule as the default for every upgrade. */
 enum class NavigationBarStyle(val preferenceValue: String) {
     Glass("glass"),
-    Material("material"),
-    FloatingStandard("floating_standard"),
     FloatingDrawer("floating_drawer");
 
     companion object {
-        fun fromPreference(value: String?): NavigationBarStyle =
-            entries.firstOrNull { it.preferenceValue == value } ?: Glass
+        fun fromPreference(value: String?): NavigationBarStyle = when (value) {
+            "material" -> Glass
+            "floating_standard" -> FloatingDrawer
+            else -> entries.firstOrNull { it.preferenceValue == value } ?: Glass
+        }
     }
 }
 

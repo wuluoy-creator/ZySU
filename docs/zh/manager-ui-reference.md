@@ -6,10 +6,10 @@
 
 | 范围 | FinaSU 参考实现 | ZySU 的实现与补充 |
 | --- | --- | --- |
-| 首页层级 | `ui/screen/home/HomeStatusCard.kt`、`HomeFactsCards.kt` | 上部状态／概览 → KSUD、SUMH → 共用核心信息卡片；五种布局不搬动或拆分核心信息。工作状态不显示“管理安装”按钮，安装入口保留在顶部栏，未安装状态保留必要操作。长字段默认摘要，点按查看可选择复制的完整详情。 |
-| 系统概览 | `HomeMetricComponents.kt`、`data/SystemMetrics.kt` | 聚焦与统计布局显示电池、温度、内存、存储、CPU 可用读数、运行时长；统计布局绘制实际采集的内存与 CPU 温度趋势。不可用读数保持空缺；隐藏概览、切换到不使用指标的布局或离开前台时停止轮询。 |
-| 首页布局 | `HomeLayoutStyle.kt`、`Home*Layout.kt`、`HomeCountCards.kt` | 圆环使用紧凑横排状态，网格使用状态与计数双列，聚焦使用有标题的状态／概览面板，仪表盘使用宽幅横栏，统计使用实时监控与计数图形。选择即时更新并回到首页顶部；隐藏计数、读数或使用大字号时仍保留不同的上部结构。旧自适应迁移为网格，旧列表迁移为圆环。 |
-| 导航样式 | `ui/component/bottombar/FloatingBarStandard.kt`、`FloatingBarDrawer.kt` | 新增两种实际悬浮形式：等宽纯图标胶囊与滑动选中指示器；选中项展开文字、其余项仅显示图标的抽屉胶囊。保留已有玻璃导航和 Material 通栏选择；悬浮样式沿用协调的悬浮顶部栏。所有样式共用导航状态、离开拦截、徽标、安全区与键盘隐藏逻辑。 |
+| 首页层级 | `ui/screen/home/HomeStatusCard.kt`、`HomeFactsCards.kt` | 工作状态、KSUD、SUMH 组成上部布局，下方保留唯一的核心信息卡片。已安装时点击工作状态卡进入安装／升级，不添加“管理安装”按钮或顶栏安装入口；未安装、认证操作保留。长字段摘要显示，点击查看完整可复制详情。 |
+| 服务卡片 | `HomeMetricComponents.kt`、`HomeCountCards.kt` 的区域组织 | 按当前要求移除系统概览、趋势、授权与模块统计及其显示开关和采集逻辑，原区域改为实际 KSUD、SUMH 卡片。两卡共用标题、版本／协议详情行、状态行和间距，保留同步／刷新行为。 |
+| 首页布局 | `HomeLayoutStyle.kt`、`Home*Layout.kt` | 圆环：横排状态与服务双列；网格：状态左、服务上下堆叠右；聚焦：有标题的状态与服务面板；仪表盘：横幅状态与服务双列；统计：紧凑状态与服务纵列。大字号和窄屏堆叠，选择即时生效并回到顶部。旧布局 ID 迁移保持兼容。 |
+| 导航样式 | `ui/component/bottombar/FloatingBarDrawer.kt` | 仅保留原玻璃胶囊与悬浮抽屉。移除 Material、悬浮标准和配套顶栏分支；旧 Material 迁移到玻璃，旧标准迁移到抽屉。抽屉与顶栏共享材质、圆角、外侧间距及中性控件色，保留选中项展开、徽标、安全区与键盘隐藏逻辑。 |
 | 应用列表 | `ui/screen/superuser/SuperUserMaterial.kt` | 应用组摘要、全部／已授权／未授权／自定义配置筛选、次级 Android 用户标记；保留共享 UID 提示、批量操作和授权确认。 |
 | 模块列表 | `ui/screen/module/ModuleItemCard.kt`、`ModuleSortMenu.kt` | 保留已有模块卡片层级，增加总数／启用／待重启摘要和筛选、名称／ID 排序及方向；明确加载、失败、无匹配和未安装状态；筛选变化回到列表起点。 |
 | 设置导航 | `ui/screen/settings/SettingsCategoryContent.kt`、`settings/search/` | 分类保留；搜索可按分类、摘要和功能名找到外观、显示、更新、安全、挂载及诊断入口。多关键词和大小写／重音归一化；结果打开所属分类。 |
@@ -18,7 +18,7 @@
 | 显示选项 | `HomeDisplaySettings.kt`、`settings/SettingsCategoryContent.kt` | 按模块信息、首页布局、信息可见性分组；保留精简显示、版本、Seccomp、Zygisk、元模块、链接卡片与标签控制。 |
 | 交互与可访问性 | 分组行、状态标签、自适应组件 | 状态不只用颜色表示；筛选换行，较多的页签可滚动；选择语义、48dp 触控区域、标题语义和安全区；卡片使用共享主题圆角。 |
 
-参考仓库的其他内核机制、插件运行时、多媒体播放、在线素材、可导入主题包及任意界面素材替换没有作为本轮依赖引入。系统指标仅从公开 Android API 和可读的设备节点取得，不为界面显示额外开启 Root shell。
+参考仓库的其他内核机制、插件运行时、多媒体播放、在线素材、可导入主题包及任意界面素材替换没有作为本轮依赖引入。
 
 参考实现会在部分布局内部安排事实信息；本轮按明确的界面要求，将核心信息固定在 KSUD、SUMH 之后，而只改变其上方区域。这是有意的层级调整，不宣称所有页面与参考仓库逐像素一致。
 
@@ -28,8 +28,9 @@
 - WebUI 桥接回归：`node --test js/tests/webui.test.mjs`。
 - 新增回归覆盖数值边界、外观保存与重置、首页偏好实时更新与监听释放、模块筛选和排序、设置搜索。
 - `PresentationLayoutTest` 用 Robolectric 原生图形渲染生产组件，验证 375dp 浅色／深色、2 倍字号、800×375dp 横屏的滚动、筛选选择和预览可达性，并输出 `out/fina-ui/` 下的截图。
-- `HomeNavigationLayoutTest` 渲染五种实际首页结构、实际 KSUD／SUMH 卡片和导航，检查服务卡在核心信息之前、字段不重复、长值按需查看、隐藏可选面板后五种布局仍不同，以及安装操作仅在未安装时出现在状态卡。覆盖中文手机、2 倍字号和横屏，截图输出到 `out/home-nav-correction-ui/`。
-- `HomeLayoutSettingsTest` 通过真实选择器 → SharedPreferences → 保留的 HomeViewModel → 生产 HomeLayoutContent 验证全部五种选择即时生效。`FloatingNavigationLayoutTest` 检查标准与抽屉悬浮导航的几何、选中项展开、徽标、大字号、RTL 和连续切换，输出 `out/navigation-correction-ui/`。
+- `HomeNavigationLayoutTest` 渲染五种实际首页结构、KSUD／SUMH 卡片和导航，检查服务卡随布局重排且位于核心信息之前、字段不重复、长值按需查看，以及点击已安装状态卡进入安装、未安装／认证操作仍可用且顶栏无安装入口。覆盖中文手机、2 倍字号和横屏，截图输出到 `out/home-service-ui/`。
+- `HomeLayoutSettingsTest` 通过真实选择器 → SharedPreferences → 保留的 HomeViewModel → 生产 HomeLayoutContent 验证全部五种选择即时生效。`FloatingNavigationLayoutTest` 检查玻璃胶囊与悬浮抽屉、顶底栏间距、选中项展开、徽标、大字号、RTL 和连续切换，输出 `out/nav-service-revision-ui/`。
+- `ServiceCardLayoutTest` 检查两张服务卡的标题、详情和状态行对齐、大字号、独立详情操作、加载与协议异常状态，输出 `out/service-card-revision-ui/`。
 - 本机未连接 Android 实机，截图验证不等同于实机上的 Root、传感器和系统手势测试。
 
 新增文案提供简体中文和英文；其他现有语言按 Android 资源机制回退到英文。

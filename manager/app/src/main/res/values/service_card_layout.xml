@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="service_card_version">Version</string>
+    <string name="service_card_protocol">Protocol</string>
+</resources>

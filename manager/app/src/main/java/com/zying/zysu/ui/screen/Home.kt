@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,8 +52,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.InstallScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.ModuleScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.SuperUserScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.zying.zysu.KernelVersion
 import com.zying.zysu.Natives
@@ -63,11 +60,9 @@ import com.zying.zysu.integrity.KsudIntegrity
 import com.zying.zysu.integrity.KsudIntegrityStatus
 import com.zying.zysu.superkey.SuperKeyHelper
 import com.zying.zysu.ui.component.AppLogo
-import com.zying.zysu.ui.component.KsuIsValid
 import com.zying.zysu.ui.component.LocalBottomBarPadding
 import com.zying.zysu.ui.sumh.HomeSUMHCard
 import com.zying.zysu.ui.component.KsudStatusCard
-import com.zying.zysu.ui.component.HomeStatusLayout
 import com.zying.zysu.ui.component.rememberConfirmDialog
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.component.YukiTopAppBar
@@ -88,9 +83,6 @@ import com.zying.zysu.ui.util.checkNewVersion
 import com.zying.zysu.ui.util.module.LatestVersionInfo
 import com.zying.zysu.ui.util.reboot
 import com.zying.zysu.ui.viewmodel.HomeViewModel
-import com.zying.zysu.ui.viewmodel.HomeDeviceMetrics
-import com.zying.zysu.ui.viewmodel.HomeDeviceMetricsReader
-import com.zying.zysu.ui.viewmodel.appendHomeMetricSample
 import com.zying.zysu.ui.screen.home.*
 import com.zying.zysu.ui.component.SuperKeyDialog
 import com.zying.zysu.ui.component.rememberSuperKeyDialog
@@ -146,20 +138,6 @@ fun HomeScreen(navigator: DestinationsNavigator) {
         if (viewModel.isCoreDataLoaded) hasLoadedCore = true
         if (viewModel.isExtendedDataLoaded) hasLoadedExtended = true
     }
-    val deviceMetrics by produceState<HomeDeviceMetrics?>(null, lifecycleOwner, viewModel.showDeviceMetrics && !viewModel.isSimpleMode && viewModel.homeLayout.usesMetrics, homeRefreshKey) {
-        if (viewModel.showDeviceMetrics && !viewModel.isSimpleMode && viewModel.homeLayout.usesMetrics) {
-            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Start a contiguous history after a pause; background time is not sampled.
-                value = null
-                while (isActive) {
-                    val next = withContext(Dispatchers.IO) { HomeDeviceMetricsReader.read(context.applicationContext) }
-                    value = appendHomeMetricSample(value, next)
-                    delay(10_000)
-                }
-            }
-        }
-    }
-
     // SuperKey 对话框
     val superKeyDialog = rememberSuperKeyDialog()
     var superKeyAuthSuccess by remember { mutableStateOf(false) }
@@ -283,10 +261,7 @@ fun HomeScreen(navigator: DestinationsNavigator) {
 
     YukiPageScaffold(
         topBar = {
-            TopBar(
-                isDataLoaded = viewModel.isCoreDataLoaded,
-                onInstall = { navigator.navigate(InstallScreenDestination) },
-            )
+            TopBar(showReboot = viewModel.systemStatus.isManager && viewModel.systemStatus.ksuVersion != null)
         },
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Top + WindowInsetsSides.Horizontal
@@ -313,7 +288,7 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                 if (viewModel.isCoreDataLoaded || hasLoadedCore) {
                     val needsSuperKeyAuth = !viewModel.systemStatus.isManager && !superKeyAuthSuccess && viewModel.systemStatus.ksuVersion == null
                     val layoutState = homeLayoutState(
-                        viewModel, deviceMetrics,
+                        viewModel,
                         isSignatureOk = isSignatureOk,
                         isSuperKeyMode = isSuperKeyConfigured || superKeyAuthSuccess,
                         needsAuthentication = needsSuperKeyAuth,
@@ -323,18 +298,10 @@ fun HomeScreen(navigator: DestinationsNavigator) {
                         state = layoutState,
                         onInstall = { navigator.navigate(InstallScreenDestination) },
                         onAuthenticate = { superKeyDialog.show() },
-                        onSuperuser = { navigator.navigate(SuperUserScreenDestination) },
-                        onModules = { navigator.navigate(ModuleScreenDestination) },
-                        services = {
-                            HomeStatusLayout(
-                                listLayout = viewModel.homeLayout == HomeLayoutStyle.Circle,
-                                status = {},
-                                daemon = { KsudSummaryCard(it, ksudIntegrityStatus, homeRefreshKey, viewModel) },
-                                kernel = { HomeSUMHCard(it,
-                                    canReadStatus = viewModel.systemStatus.isManager && viewModel.systemStatus.ksuVersion != null,
-                                    refreshKey = homeRefreshKey) },
-                            )
-                        },
+                        daemon = { KsudSummaryCard(it, ksudIntegrityStatus, homeRefreshKey, viewModel) },
+                        kernel = { HomeSUMHCard(it,
+                            canReadStatus = viewModel.systemStatus.isManager && viewModel.systemStatus.ksuVersion != null,
+                            refreshKey = homeRefreshKey) },
                         warnings = {
                             if (ksudIntegrityStatus == KsudIntegrityStatus.MISMATCH) WarningCard(stringResource(R.string.ksud_integrity_warning))
                             if (viewModel.systemStatus.requireNewKernel) WarningCard(stringResource(R.string.require_kernel_version),
@@ -483,10 +450,7 @@ private fun RebootDropdownItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun TopBar(
-    isDataLoaded: Boolean = false,
-    onInstall: () -> Unit = {},
-) {
+internal fun TopBar(showReboot: Boolean = false) {
     YukiTopAppBar(
         title = {
             Row(
@@ -502,42 +466,37 @@ internal fun TopBar(
             }
         },
         actions = {
-            if (isDataLoaded) {
-                IconButton(onClick = onInstall, modifier = Modifier.testTag("home-install-toolbar")) {
-                    YukiIcon(Icons.Outlined.Download, contentDescription = stringResource(R.string.install))
-                }
+            if (showReboot) {
                 var showDropdown by remember { mutableStateOf(false) }
-                KsuIsValid {
-                    IconButton(onClick = {
-                        showDropdown = true
-                    }) {
-                        YukiIcon(
-                            imageVector = Icons.Filled.PowerSettingsNew,
-                            contentDescription = stringResource(id = R.string.reboot)
-                        )
+                IconButton(onClick = {
+                    showDropdown = true
+                }) {
+                    YukiIcon(
+                        imageVector = Icons.Filled.PowerSettingsNew,
+                        contentDescription = stringResource(id = R.string.reboot)
+                    )
 
-                        val rebootOptions = buildList {
-                            add(RebootMenuOption(R.string.reboot))
-                            add(RebootMenuOption(R.string.reboot_recovery, "recovery"))
-                            add(RebootMenuOption(R.string.reboot_bootloader, "bootloader"))
-                            add(RebootMenuOption(R.string.reboot_fastbootd, "fastboot"))
-                            add(RebootMenuOption(R.string.reboot_download, "download"))
-                            add(RebootMenuOption(R.string.reboot_edl, "edl"))
-                        }
+                    val rebootOptions = buildList {
+                        add(RebootMenuOption(R.string.reboot))
+                        add(RebootMenuOption(R.string.reboot_recovery, "recovery"))
+                        add(RebootMenuOption(R.string.reboot_bootloader, "bootloader"))
+                        add(RebootMenuOption(R.string.reboot_fastbootd, "fastboot"))
+                        add(RebootMenuOption(R.string.reboot_download, "download"))
+                        add(RebootMenuOption(R.string.reboot_edl, "edl"))
+                    }
 
-                        DropdownMenu(
-                            expanded = showDropdown,
-                            onDismissRequest = { showDropdown = false },
-                            modifier = Modifier.clickHapticFeedback(),
-                        ) {
-                            rebootOptions.forEachIndexed { index, option ->
-                                RebootDropdownItem(
-                                    option = option,
-                                    index = index,
-                                    count = rebootOptions.size,
-                                    onSelected = { showDropdown = false },
-                                )
-                            }
+                    DropdownMenu(
+                        expanded = showDropdown,
+                        onDismissRequest = { showDropdown = false },
+                        modifier = Modifier.clickHapticFeedback(),
+                    ) {
+                        rebootOptions.forEachIndexed { index, option ->
+                            RebootDropdownItem(
+                                option = option,
+                                index = index,
+                                count = rebootOptions.size,
+                                onSelected = { showDropdown = false },
+                            )
                         }
                     }
                 }
@@ -646,7 +605,6 @@ fun DonateCard() {
 @Composable
 private fun homeLayoutState(
     viewModel: HomeViewModel,
-    metrics: HomeDeviceMetrics?,
     isSignatureOk: Boolean,
     isSuperKeyMode: Boolean,
     needsAuthentication: Boolean,
@@ -712,9 +670,6 @@ private fun homeLayoutState(
             needsAuthentication = needsAuthentication,
         ),
         facts = facts, buildFacts = buildFacts,
-        superuserCount = info.superuserCount, moduleCount = info.moduleCount, metrics = metrics,
-        showCounts = viewModel.showCounts && !viewModel.isSimpleMode && system.isManager,
-        showMetrics = viewModel.showDeviceMetrics && !viewModel.isSimpleMode,
         showBuildDetails = viewModel.showDeviceDetails,
     )
 }
@@ -790,7 +745,6 @@ private fun HomeStatusPreviewContent(installed: Boolean, safeMode: Boolean = fal
                         needsAuthentication = !installed,
                     ),
                     facts = listOf(HomeFact("device", stringResource(R.string.home_device_model), "Android device")),
-                    showCounts = installed, superuserCount = 5, moduleCount = 8,
                 ))
             }
         }

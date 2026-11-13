@@ -40,6 +40,25 @@ private class GlassCoordinates {
     var offset by mutableStateOf<Offset?>(null)
 }
 
+/** Shared geometry and control surfaces for the floating page header and navigation. */
+internal object FloatingChrome {
+    val HorizontalGutter = 16.dp
+    val VerticalGutter = 8.dp
+    val MaxHeaderWidth = 920.dp
+    val Shape = RoundedCornerShape(percent = 50)
+}
+
+@Composable
+internal fun floatingChromeControlColor(selected: Boolean = false): Color {
+    val colors = MaterialTheme.colorScheme
+    val dark = colors.surfaceContainerLow.luminance() < 0.5f
+    return colors.surfaceContainerHighest.copy(alpha = when {
+        !selected -> 0.45f
+        dark -> 0.90f
+        else -> 0.76f
+    })
+}
+
 /** Samples wallpaper and page content with a sharp foreground for text and touch targets. */
 @Composable
 internal fun LiquidGlassSurface(
@@ -63,7 +82,7 @@ internal fun LiquidGlassSurface(
         if (dark) 0.88f else 0.82f
     }
     val tint = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = opacity)
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = FloatingChrome.Shape
     val density = LocalDensity.current
     val blur = remember(density) {
         val radius = with(density) { 20.dp.toPx() }

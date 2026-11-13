@@ -22,8 +22,6 @@ import com.zying.zysu.ui.theme.ExpressiveShapes
 import com.zying.zysu.ui.theme.ThemeColors
 import com.zying.zysu.ui.theme.Typography
 import com.zying.zysu.ui.theme.utilitySurfaces
-import com.zying.zysu.ui.viewmodel.HomeCapacity
-import com.zying.zysu.ui.viewmodel.HomeDeviceMetrics
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,13 +63,6 @@ class PresentationLayoutTest {
                         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Text("ZySU", style = MaterialTheme.typography.headlineMedium)
-                            HomeDeviceOverview(HomeDeviceMetrics(
-                                batteryPercent = 76, batteryTemperatureC = 32.5f, charging = true,
-                                cpuTemperatureC = null, cpuFrequencyKHz = 2_400_000,
-                                memory = HomeCapacity.fromAvailable(8_000_000_000, 3_000_000_000),
-                                storage = HomeCapacity.fromAvailable(256_000_000_000, 90_000_000_000),
-                                uptimeMillis = 185_400_000,
-                            ))
                             ListOverview("Installed modules", "12 total · 9 enabled · 2 pending restart",
                                 listOf("All", "Enabled", "Disabled", "Pending restart"), selection.intValue,
                                 { selection.intValue = it })
@@ -82,7 +73,7 @@ class PresentationLayoutTest {
                 }
             }
         }
-        compose.onNodeWithText(compose.activity.getString(R.string.home_device_overview)).assertIsDisplayed()
+        compose.onNodeWithText("Installed modules").assertIsDisplayed()
         saveFrame(name)
         compose.onNodeWithText("Pending restart").performScrollTo().performClick()
         assertEquals(3, selection.intValue)

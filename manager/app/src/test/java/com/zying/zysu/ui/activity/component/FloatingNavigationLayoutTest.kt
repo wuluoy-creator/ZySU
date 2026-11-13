@@ -29,6 +29,10 @@ import com.zying.zysu.ui.component.LocalBottomBarPadding
 import com.zying.zysu.ui.component.YukiPageScaffold
 import com.zying.zysu.ui.component.YukiTopAppBar
 import com.zying.zysu.ui.component.YukiTopBarTitle
+import com.zying.zysu.ui.theme.ExpressiveShapes
+import com.zying.zysu.ui.theme.ThemeColors
+import com.zying.zysu.ui.theme.Typography
+import com.zying.zysu.ui.theme.utilitySurfaces
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,17 +52,35 @@ class FloatingNavigationLayoutTest {
     private val keys = listOf("home", "auth", "modules", "settings")
     private var requiredBadgeWidthPx = 0f
 
-    @Test fun standardUsesIconOnlyCompactGeometryAndSlidingSelection() {
-        show(NavigationBarStyle.FloatingStandard)
-        compose.onNodeWithTag("navigation-floating_standard").assertWidthIsEqualTo(242.dp).assertHeightIsEqualTo(68.dp)
-        keys.forEach { compose.onNodeWithTag("navigation-item-$it").assertWidthIsEqualTo(52.dp).assertHeightIsEqualTo(52.dp) }
-        compose.onAllNodesWithText("Home", useUnmergedTree = true).assertCountEquals(0)
-        compose.onNodeWithContentDescription("Home").assertIsSelected()
-        assertIndicatorMatches("navigation-standard-indicator", "home")
-        saveFrame("standard-home")
-        compose.onNodeWithTag("navigation-item-settings").performClick().assertIsSelected()
-        assertIndicatorMatches("navigation-standard-indicator", "settings")
-        saveFrame("standard-settings")
+    @Test fun originalGlassKeepsVisibleLabelsAndSharedFloatingHeader() {
+        show(NavigationBarStyle.Glass)
+        compose.onNodeWithText("Home").assertIsSelected()
+        compose.onNodeWithText("Settings").performClick().assertIsSelected()
+        compose.onNodeWithTag("floating-page-header").assertIsDisplayed()
+        saveFrame("glass-settings")
+    }
+
+    @Test
+    @Config(qualifiers = "en-w375dp-h800dp-mdpi")
+    fun drawerAndHeaderSharePhoneGutters() {
+        show(NavigationBarStyle.FloatingDrawer)
+        val header = compose.onNodeWithTag("floating-page-header").fetchSemanticsNode().boundsInRoot
+        val drawer = compose.onNodeWithTag("navigation-floating_drawer").fetchSemanticsNode().boundsInRoot
+        assertEquals(16f, drawer.left, 1f)
+        assertEquals(header.left, drawer.left, 1f)
+        assertEquals(header.right, drawer.right, 1f)
+        compose.onNodeWithTag("navigation-floating_drawer").assertWidthIsEqualTo(343.dp)
+        saveFrame("drawer-phone-gutters")
+    }
+
+    @Test fun drawerKeepsSystemInsetsOutsideItsSharedGutters() {
+        show(NavigationBarStyle.FloatingDrawer, windowInsets = WindowInsets(24, 0, 12, 32))
+        val root = compose.onAllNodes(isRoot()).onFirst().fetchSemanticsNode().boundsInRoot
+        val drawer = compose.onNodeWithTag("navigation-floating_drawer").fetchSemanticsNode().boundsInRoot
+        assertEquals(40f, drawer.left - root.left, 1f)
+        assertEquals(28f, root.right - drawer.right, 1f)
+        assertEquals(40f, root.bottom - drawer.bottom, 1f)
+        keys.forEach { compose.onNodeWithTag("navigation-item-$it").assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp) }
     }
 
     @Test fun drawerShowsOnlyTheExpandedDestinationLabel() {
@@ -110,15 +132,6 @@ class FloatingNavigationLayoutTest {
         assertIndicatorMatches("navigation-drawer-indicator", "modules")
     }
 
-    @Test fun floatingStandardIndicatorFollowsRtlSelection() {
-        show(NavigationBarStyle.FloatingStandard, rtl = true)
-        compose.onNodeWithTag("navigation-item-settings").performClick()
-        assertIndicatorMatches("navigation-standard-indicator", "settings")
-        val first = compose.onNodeWithTag("navigation-item-home").fetchSemanticsNode().boundsInRoot
-        val last = compose.onNodeWithTag("navigation-item-settings").fetchSemanticsNode().boundsInRoot
-        assertTrue(first.left > last.left)
-    }
-
     @Test fun floatingDrawerIndicatorFollowsRtlSelection() {
         show(NavigationBarStyle.FloatingDrawer, rtl = true)
         compose.onNodeWithTag("navigation-item-auth").performClick()
@@ -152,14 +165,22 @@ class FloatingNavigationLayoutTest {
         assertEquals(item.bottom, indicator.bottom, 1f)
     }
 
-    private fun show(style: NavigationBarStyle, largeText: Boolean = false, dark: Boolean = false, rtl: Boolean = false) {
+    private fun show(style: NavigationBarStyle, largeText: Boolean = false, dark: Boolean = false, rtl: Boolean = false,
+        windowInsets: WindowInsets = WindowInsets(0, 0, 0, 0)) {
         NavigationBarStylePreferences.set(compose.activity, style)
         compose.setContent {
             var selected by remember { mutableStateOf("home") }
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, if (largeText) 2f else 1f),
                 LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
-                MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
+                val brand = ThemeColors.Default
+                val scheme = (if (dark) darkColorScheme() else lightColorScheme()).copy(
+                    primary = if (dark) brand.primaryDark else brand.primaryLight,
+                    onPrimary = if (dark) brand.onPrimaryDark else brand.onPrimaryLight,
+                    primaryContainer = if (dark) brand.primaryContainerDark else brand.primaryContainerLight,
+                    onPrimaryContainer = if (dark) brand.onPrimaryContainerDark else brand.onPrimaryContainerLight,
+                ).utilitySurfaces(dark, false)
+                MaterialTheme(colorScheme = scheme, typography = Typography, shapes = ExpressiveShapes) {
                     val badgeDensity = Density(density.density, (if (largeText) 2f else 1f).coerceAtMost(1.3f))
                     val fullBadgeText = rememberTextMeasurer().measure("99+", style = MaterialTheme.typography.labelSmall,
                         density = badgeDensity)
@@ -171,9 +192,11 @@ class FloatingNavigationLayoutTest {
                         NavigationBarItem("settings", "Settings", Icons.Outlined.Settings, selected == "settings"),
                     )
                     FloatingNavigationScaffold(showBottomBar = true, containerColor = MaterialTheme.colorScheme.background,
-                        bottomBar = { BottomNavigationBar(style, destinations, { selected = it }, windowInsets = WindowInsets(0, 0, 0, 0)) },
+                        bottomBar = { BottomNavigationBar(style, destinations, { selected = it }, windowInsets = windowInsets) },
                         snackbarHost = {}) {
-                        YukiPageScaffold(topBar = { YukiTopAppBar(title = { YukiTopBarTitle("ZySU") }) }) { padding ->
+                        YukiPageScaffold(topBar = { YukiTopAppBar(title = { YukiTopBarTitle("ZySU") }, actions = {
+                            IconButton(onClick = {}) { Icon(Icons.Outlined.Settings, "Header settings") }
+                        }) }) { padding ->
                             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding).padding(20.dp)
                                 .padding(bottom = LocalBottomBarPadding.current)) {
                                 Text("Navigation preview", style = MaterialTheme.typography.headlineSmall)
@@ -187,7 +210,7 @@ class FloatingNavigationLayoutTest {
     }
 
     private fun saveFrame(name: String) {
-        val output = File("../../out/navigation-correction-ui/$name.png")
+        val output = File("../../out/nav-service-revision-ui/$name.png")
         output.parentFile?.mkdirs()
         val bitmap = compose.onAllNodes(isRoot()).onFirst().captureToImage().asAndroidBitmap()
         output.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }

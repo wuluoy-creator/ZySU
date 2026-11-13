@@ -59,7 +59,6 @@ class HomeLayoutSettingsTest {
         model.loadUserSettings(compose.activity)
         val homeState = HomeLayoutState(
             status = HomeStatusPresentation(title = "Working", installed = true),
-            superuserCount = 12, moduleCount = 9,
         )
         compose.setContent {
             MaterialTheme {

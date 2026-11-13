@@ -47,8 +47,17 @@ class NavigationBarStyleTest {
         NavigationBarStylePreferences.preferences(context).edit()
             .putString(NavigationBarStylePreferences.STYLE_KEY, "removed-style").commit()
         assertEquals(NavigationBarStyle.Glass, NavigationBarStylePreferences.read(context))
-        assertEquals(listOf("glass", "material", "floating_standard", "floating_drawer"),
+        assertEquals(listOf("glass", "floating_drawer"),
             NavigationBarStyle.entries.map { it.preferenceValue })
+    }
+
+    @Test
+    fun removedStylesResolveToTheirSupportedReplacements() {
+        val preferences = NavigationBarStylePreferences.preferences(context)
+        preferences.edit().putString(NavigationBarStylePreferences.STYLE_KEY, "material").commit()
+        assertEquals(NavigationBarStyle.Glass, NavigationBarStylePreferences.read(context))
+        preferences.edit().putString(NavigationBarStylePreferences.STYLE_KEY, "floating_standard").commit()
+        assertEquals(NavigationBarStyle.FloatingDrawer, NavigationBarStylePreferences.read(context))
     }
 
     @Test
@@ -70,6 +79,16 @@ class NavigationBarStyleTest {
             compose.runOnIdle { NavigationBarStylePreferences.set(context, style) }
             compose.onNodeWithText(style.preferenceValue).assertExists()
         }
+        compose.runOnIdle {
+            NavigationBarStylePreferences.preferences(context).edit()
+                .putString(NavigationBarStylePreferences.STYLE_KEY, "floating_standard").commit()
+        }
+        compose.onNodeWithText("floating_drawer").assertExists()
+        compose.runOnIdle {
+            NavigationBarStylePreferences.preferences(context).edit()
+                .putString(NavigationBarStylePreferences.STYLE_KEY, "material").commit()
+        }
+        compose.onNodeWithText("glass").assertExists()
         compose.runOnIdle { NavigationBarStylePreferences.preferences(context).edit().clear().commit() }
         compose.onNodeWithText("glass").assertExists()
     }

@@ -184,10 +184,6 @@ class HomeViewModel : ViewModel() {
         private set
 
 
-    var showDeviceMetrics by mutableStateOf(true)
-        private set
-    var showCounts by mutableStateOf(true)
-        private set
     var showDeviceDetails by mutableStateOf(false)
         private set
     var homeLayout by mutableStateOf(HomeLayoutStyle.Circle)
@@ -224,8 +220,6 @@ class HomeViewModel : ViewModel() {
             isHideZygiskImplement = prefs.getBoolean("is_hide_zygisk_Implement", false)
             isHideSeccompStatus = prefs.getBoolean("is_hide_seccomp_status", false)
             isHideMetaModuleImplement = prefs.getBoolean("is_hide_meta_module_Implement", false)
-            showDeviceMetrics = prefs.getBoolean("home_show_metrics", true)
-            showCounts = prefs.getBoolean("home_show_counts", true)
             showDeviceDetails = prefs.getBoolean("home_show_device_details", false)
             homeLayout = HomeLayoutStyle.fromValue(prefs.getString("home_layout", null))
         }

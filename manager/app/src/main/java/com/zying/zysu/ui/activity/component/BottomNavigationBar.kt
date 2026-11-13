@@ -1,9 +1,7 @@
 package com.zying.zysu.ui.activity.component
 
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.indication
@@ -20,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -32,12 +29,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,10 +62,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.LiquidGlassSurface
+import com.zying.zysu.ui.component.FloatingChrome
+import com.zying.zysu.ui.component.floatingChromeControlColor
 import com.zying.zysu.ui.component.YukiIcon
 import com.zying.zysu.ui.theme.AppearancePreferences
-import com.zying.zysu.ui.theme.CardConfig
-import com.zying.zysu.ui.theme.ThemeConfig
 
 @Immutable
 data class NavigationBarItem(
@@ -94,7 +88,7 @@ fun BottomNavigationBar(
     if (items.isEmpty()) return
     when (style) {
         NavigationBarStyle.Glass -> Box(
-            modifier.fillMaxWidth().windowInsetsPadding(windowInsets).padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier.fillMaxWidth().windowInsetsPadding(windowInsets).padding(horizontal = FloatingChrome.HorizontalGutter, vertical = FloatingChrome.VerticalGutter),
             contentAlignment = Alignment.Center,
         ) {
             LiquidGlassSurface(Modifier.widthIn(max = (items.size * 104).dp).fillMaxWidth()) {
@@ -116,130 +110,28 @@ fun BottomNavigationBar(
                 }
             }
         }
-        NavigationBarStyle.Material -> MaterialBottomNavigation(items, onSelected, modifier, windowInsets)
-        NavigationBarStyle.FloatingStandard, NavigationBarStyle.FloatingDrawer ->
-            ReferenceFloatingNavigation(style, items, onSelected, modifier, windowInsets)
+        NavigationBarStyle.FloatingDrawer ->
+            DrawerNavigation(items, onSelected, modifier, windowInsets)
     }
 }
 
-/** FinaSU's docked material bar: a page-width band with a separate icon selection indicator. */
+/** The expanding drawer shares the header's glass, gutters and capsule outline. */
 @Composable
-private fun MaterialBottomNavigation(
-    items: List<NavigationBarItem>,
-    onSelected: (String) -> Unit,
-    modifier: Modifier,
-    windowInsets: WindowInsets,
-) {
-    val colors = MaterialTheme.colorScheme
-    val hasWallpaper = CardConfig.isCustomBackgroundEnabled && ThemeConfig.customBackgroundUri != null
-    // Controls remain legible even when content cards are configured to be fully transparent.
-    val container = colors.surfaceContainerLow.copy(alpha = if (hasWallpaper) CardConfig.cardAlpha.coerceAtLeast(0.94f) else 1f)
-    Column(modifier.fillMaxWidth().background(container)) {
-        HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.55f))
-        Box(
-            Modifier.fillMaxWidth().windowInsetsPadding(windowInsets).padding(horizontal = 12.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Row(
-                Modifier.widthIn(max = 840.dp).fillMaxWidth().height(IntrinsicSize.Min).selectableGroup(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                items.forEach { item ->
-                    key(item.key) {
-                        val contentColor = if (item.selected) colors.primary else colors.onSurfaceVariant
-                        CompositionLocalProvider(LocalContentColor provides contentColor) {
-                            Column(
-                                Modifier.weight(1f).fillMaxHeight().heightIn(min = 64.dp)
-                                    .testTag("navigation-item-${item.key}")
-                                    .clip(MaterialTheme.shapes.large)
-                                    .selectable(item.selected, role = Role.Tab, onClick = { onSelected(item.key) })
-                                    .padding(horizontal = 2.dp, vertical = 2.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
-                            ) {
-                                Box(
-                                    Modifier.clip(MaterialTheme.shapes.large)
-                                        .background(if (item.selected) colors.secondaryContainer else Color.Transparent)
-                                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CompositionLocalProvider(LocalContentColor provides if (item.selected) colors.onSecondaryContainer else contentColor) {
-                                        GlassNavigationIcon(item.icon, item.selected, item.badgeCount)
-                                    }
-                                }
-                                NavigationLabel(item)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** FinaSU's two floating forms retain the same floating header and glass material as this app. */
-@Composable
-private fun ReferenceFloatingNavigation(
-    style: NavigationBarStyle,
+private fun DrawerNavigation(
     items: List<NavigationBarItem>,
     onSelected: (String) -> Unit,
     modifier: Modifier,
     windowInsets: WindowInsets,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth().windowInsetsPadding(windowInsets)) {
-        val preferredGutter = when { maxWidth > 600.dp -> 32.dp; maxWidth > 400.dp -> 24.dp; else -> 16.dp }
         val minimumWidth = 48.dp * items.size + 4.dp * (items.size - 1) + 16.dp
-        val gutter = ((maxWidth - minimumWidth) / 2).coerceIn(0.dp, preferredGutter)
+        val gutter = ((maxWidth - minimumWidth) / 2).coerceIn(0.dp, FloatingChrome.HorizontalGutter)
         val availableWidth = (maxWidth - gutter * 2).coerceAtLeast(minimumWidth)
-        val width = if (style == NavigationBarStyle.FloatingStandard) {
-            (52.dp * items.size + 6.dp * (items.size - 1) + 16.dp).coerceAtMost(availableWidth)
-        } else {
-            (56.dp * items.size + 88.dp).coerceAtMost(availableWidth)
-        }
-        Box(Modifier.fillMaxWidth().padding(horizontal = gutter, vertical = 16.dp), contentAlignment = Alignment.Center) {
-            LiquidGlassSurface(Modifier.width(width).testTag("navigation-${style.preferenceValue}")) {
-                if (style == NavigationBarStyle.FloatingStandard) {
-                    FloatingBarStandard(items, onSelected, width)
-                } else {
-                    FloatingBarDrawer(items, onSelected, width)
-                }
-            }
-        }
-    }
-}
-
-/** Compact reference geometry: 52 dp icons, 6 dp gaps, 8 dp padding and a 68 dp capsule. */
-@Composable
-private fun FloatingBarStandard(items: List<NavigationBarItem>, onSelected: (String) -> Unit, barWidth: Dp) {
-    val selectedIndex = items.indexOfFirst { it.selected }
-    val spacing = if (barWidth >= 52.dp * items.size + 6.dp * (items.size - 1) + 16.dp) 6.dp else 4.dp
-    val itemSize = ((barWidth - 16.dp - spacing * (items.size - 1)) / items.size).coerceIn(48.dp, 52.dp)
-    val animatedIndex by animateFloatAsState(
-        targetValue = selectedIndex.coerceAtLeast(0).toFloat(),
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "floatingStandardIndicator",
-    )
-    Box(Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
-        if (selectedIndex >= 0) {
-            Box(Modifier.offset { IntOffset(((itemSize + spacing) * animatedIndex).roundToPx(), 0) }.size(itemSize)
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
-                .testTag("navigation-standard-indicator"))
-        }
-        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(spacing),
-            verticalAlignment = Alignment.CenterVertically) {
-            items.forEach { item ->
-                key(item.key) {
-                    val tint = if (item.selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    val interactionSource = remember { MutableInteractionSource() }
-                    Box(Modifier.size(itemSize)
-                        .selectable(item.selected, role = Role.Tab, interactionSource = interactionSource,
-                            indication = null, onClick = { onSelected(item.key) })
-                        .semantics { contentDescription = item.label }
-                        .testTag("navigation-item-${item.key}"), contentAlignment = Alignment.Center) {
-                        Box(Modifier.matchParentSize().clip(CircleShape).indication(interactionSource, LocalIndication.current))
-                        FloatingNavigationIcon(item, tint)
-                    }
-                }
+        val width = (items.size * 104).dp.coerceAtMost(availableWidth)
+        Box(Modifier.fillMaxWidth().padding(horizontal = gutter, vertical = FloatingChrome.VerticalGutter),
+            contentAlignment = Alignment.Center) {
+            LiquidGlassSurface(Modifier.width(width).testTag("navigation-floating_drawer")) {
+                FloatingBarDrawer(items, onSelected, width)
             }
         }
     }
@@ -272,7 +164,7 @@ private fun FloatingBarDrawer(items: List<NavigationBarItem>, onSelected: (Strin
     Box(Modifier.fillMaxWidth().height(itemHeight + 16.dp).padding(8.dp), contentAlignment = Alignment.CenterStart) {
         if (selectedIndex >= 0) {
             Box(Modifier.offset { IntOffset(indicatorOffset.roundToPx(), 0) }.width(48.dp + extraWidth).height(itemHeight)
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .background(floatingChromeControlColor(selected = true), FloatingChrome.Shape)
                 .testTag("navigation-drawer-indicator"))
         }
         Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -280,7 +172,7 @@ private fun FloatingBarDrawer(items: List<NavigationBarItem>, onSelected: (Strin
             items.forEachIndexed { index, item ->
                 key(item.key) {
                     val expansion = expansions[index]
-                    val tint = if (item.selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    val tint = if (item.selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                     val iconScale by animateFloatAsState(if (item.selected) 1f else 0.9f, spatialSpec, label = "drawerIcon-${item.key}")
                     val interactionSource = remember { MutableInteractionSource() }
                     val itemModifier = Modifier.width(widths[index]).height(itemHeight)
@@ -289,7 +181,7 @@ private fun FloatingBarDrawer(items: List<NavigationBarItem>, onSelected: (Strin
                         .semantics { contentDescription = item.label }.testTag("navigation-item-${item.key}")
                     Box(itemModifier) {
                         // Clip the ripple only; large labels keep their complete measured bounds.
-                        Box(Modifier.matchParentSize().clip(CircleShape).indication(interactionSource, LocalIndication.current))
+                        Box(Modifier.matchParentSize().clip(FloatingChrome.Shape).indication(interactionSource, LocalIndication.current))
                         if (largeText) {
                             Column(Modifier.fillMaxSize().padding(vertical = 4.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),

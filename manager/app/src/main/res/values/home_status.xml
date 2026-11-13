@@ -3,8 +3,6 @@
     <string name="home_status_load_failed" tools:ignore="MissingTranslation">Couldn’t load status</string>
     <string name="home_status_protocol_mismatch" tools:ignore="MissingTranslation">Protocol mismatch</string>
     <string name="home_status_loading" tools:ignore="MissingTranslation">Loading…</string>
-    <string name="home_ksud_version" tools:ignore="MissingTranslation">Version: %1$s</string>
-    <string name="home_sumh_protocol" tools:ignore="MissingTranslation">Protocol version: %1$s</string>
     <string name="home_sumh_protocol_description" tools:ignore="MissingTranslation">SUMH kernel protocol version: %1$s</string>
     <string name="home_sumh_views_on" tools:ignore="MissingTranslation">Views enabled</string>
     <string name="home_sumh_views_off" tools:ignore="MissingTranslation">Views disabled</string>

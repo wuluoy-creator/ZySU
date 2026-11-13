@@ -3,8 +3,6 @@
     <string name="home_status_load_failed">状态加载失败</string>
     <string name="home_status_protocol_mismatch">协议不匹配</string>
     <string name="home_status_loading">正在加载…</string>
-    <string name="home_ksud_version">版本号：%1$s</string>
-    <string name="home_sumh_protocol">协议版本：%1$s</string>
     <string name="home_sumh_protocol_description">SUMH 内核协议版本：%1$s</string>
     <string name="home_sumh_views_on">视图已启用</string>
     <string name="home_sumh_views_off">视图已关闭</string>

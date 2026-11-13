@@ -11,18 +11,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zying.zysu.R
 import com.zying.zysu.integrity.KsudIntegrityStatus
@@ -95,50 +89,33 @@ internal fun KsudStatusCard(
         ),
         elevation = getCardElevation(),
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            HomeStatusCardHeader("KSUD", titleDescription, Icons.Outlined.Terminal, canSync)
-            TextButton(
-                onClick = { showVersionDetails = true },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                if (!verified) {
-                    YukiIcon(Icons.Outlined.Inventory2, null, Modifier.size(16.dp), tint = colors.onSurfaceVariant)
-                    Spacer(Modifier.width(6.dp))
-                }
-                Text(
-                    stringResource(R.string.home_ksud_version,
-                        version?.let(::homeReleaseLabel) ?: stringResource(R.string.home_ksud_daemon_unknown)),
-                    modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+        HomeServiceCardContent(
+            title = "KSUD", description = titleDescription, icon = Icons.Outlined.Terminal,
+            enabled = canSync, tag = "ksud",
+            value = {
+                HomeServiceValueRow(
+                    label = stringResource(R.string.service_card_version),
+                    value = version?.let(::homeReleaseLabel) ?: stringResource(R.string.home_ksud_daemon_unknown),
+                    description = versionDescription, tag = "ksud", onDetails = { showVersionDetails = true },
                 )
-                Spacer(Modifier.width(4.dp))
-                YukiIcon(Icons.Outlined.Info, stringResource(R.string.home_layout_details), Modifier.size(16.dp))
-            }
-            Row(
-                Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                if (loading || syncing) {
-                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                } else {
-                    YukiIcon(
-                        when {
-                            syncFailed || mismatch -> Icons.Outlined.Warning
-                            verified -> Icons.Outlined.CheckCircle
-                            else -> Icons.AutoMirrored.Outlined.HelpOutline
-                        },
-                        null,
-                        Modifier.size(16.dp),
-                        tint = statusColor,
-                    )
+            },
+            status = {
+                HomeServiceStatusRow(status, statusColor, "ksud") {
+                    if (loading || syncing) {
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        YukiIcon(
+                            when {
+                                syncFailed || mismatch -> Icons.Outlined.Warning
+                                verified -> Icons.Outlined.CheckCircle
+                                else -> Icons.AutoMirrored.Outlined.HelpOutline
+                            },
+                            null, Modifier.size(16.dp), tint = statusColor,
+                        )
+                    }
                 }
-                Text(status, style = MaterialTheme.typography.labelMedium, color = statusColor)
-            }
+            },
+        ) {
             if (!loading && !syncing && syncUnavailableReason != null) {
                 Text(syncUnavailableReason, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }

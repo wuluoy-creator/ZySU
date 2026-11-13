@@ -9,7 +9,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.MaterialTheme
@@ -38,20 +37,14 @@ internal fun NavigationStyleSetting() {
                 val active = selected == style
                 val title = when (style) {
                     NavigationBarStyle.Glass -> R.string.nav_style_glass
-                    NavigationBarStyle.Material -> R.string.nav_style_material
-                    NavigationBarStyle.FloatingStandard -> R.string.nav_style_floating_standard
                     NavigationBarStyle.FloatingDrawer -> R.string.nav_style_floating_drawer
                 }
                 val summary = when (style) {
                     NavigationBarStyle.Glass -> R.string.nav_style_glass_summary
-                    NavigationBarStyle.Material -> R.string.nav_style_material_summary
-                    NavigationBarStyle.FloatingStandard -> R.string.nav_style_floating_standard_summary
                     NavigationBarStyle.FloatingDrawer -> R.string.nav_style_floating_drawer_summary
                 }
                 val icon = when (style) {
                     NavigationBarStyle.Glass -> Icons.Default.Home
-                    NavigationBarStyle.Material -> Icons.Default.ViewAgenda
-                    NavigationBarStyle.FloatingStandard -> Icons.Default.MoreHoriz
                     NavigationBarStyle.FloatingDrawer -> Icons.Default.ViewCarousel
                 }
                 Row(Modifier.fillMaxWidth()

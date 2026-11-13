@@ -2,13 +2,15 @@ package com.zying.zysu.ui.sumh
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -17,7 +19,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.zying.zysu.R
 import com.zying.zysu.ui.component.YukiIcon
-import com.zying.zysu.ui.component.HomeStatusCardHeader
+import com.zying.zysu.ui.component.HomeServiceCardContent
+import com.zying.zysu.ui.component.HomeServiceStatusRow
+import com.zying.zysu.ui.component.HomeServiceValueRow
+import com.zying.zysu.ui.component.YukiAlertDialog
+import com.zying.zysu.ui.screen.home.compactHomeValue
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardColors
 import com.zying.zysu.ui.theme.getCardShape
@@ -129,7 +135,6 @@ internal fun SUMHStatusSummaryCard(
     val protocol = version?.takeUnless {
         it.isBlank() || it == "0" || it == "-" || it == "—" || it.equals("unknown", ignoreCase = true)
     }
-    val protocolText = stringResource(R.string.home_sumh_protocol, protocol ?: "—")
     val protocolDescription = stringResource(
         R.string.home_sumh_protocol_description,
         protocol ?: stringResource(R.string.home_ksud_daemon_unknown),
@@ -144,6 +149,7 @@ internal fun SUMHStatusSummaryCard(
         status == Controller.SUMHStatus.MODULE_TOO_OLD
     ) loadError else loadError ?: warning
     var showFailureDetails by rememberSaveable(failureDetails) { mutableStateOf(false) }
+    var showProtocolDetails by rememberSaveable(protocolDescription) { mutableStateOf(false) }
     val canRefresh = refreshEnabled && !loading && unavailableReason == null
     val cardColors = getCardColors(colors.surfaceContainerLow)
 
@@ -163,40 +169,34 @@ internal fun SUMHStatusSummaryCard(
         ),
         elevation = getCardElevation(),
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            HomeStatusCardHeader("SUMH", titleDescription, Icons.Outlined.Memory, canRefresh)
-            Text(
-                protocolText,
-                Modifier.fillMaxWidth()
-                    .clearAndSetSemantics { contentDescription = protocolDescription },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Row(
-                Modifier.fillMaxWidth()
-                    .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                } else YukiIcon(
-                    when {
-                        unavailableReason != null -> Icons.Outlined.Lock
-                        hasWarning -> Icons.Outlined.Warning
-                        available && systemInfo?.viewsEnabled == true -> Icons.Outlined.Visibility
-                        available && systemInfo?.viewsEnabled == false -> Icons.Outlined.VisibilityOff
-                        available -> Icons.Outlined.Layers
-                        else -> Icons.AutoMirrored.Outlined.HelpOutline
-                    },
-                    null,
-                    Modifier.size(16.dp),
-                    tint = statusColor,
+        HomeServiceCardContent(
+            title = "SUMH", description = titleDescription, icon = Icons.Outlined.Memory,
+            enabled = canRefresh, tag = "sumh",
+            value = {
+                HomeServiceValueRow(
+                    label = stringResource(R.string.service_card_protocol),
+                    value = protocol?.let { compactHomeValue(it, 24) } ?: "—",
+                    description = protocolDescription, tag = "sumh", onDetails = { showProtocolDetails = true },
                 )
-                Text(statusText, style = MaterialTheme.typography.labelMedium, color = statusColor)
-            }
+            },
+            status = {
+                HomeServiceStatusRow(statusText, statusColor, "sumh") {
+                    if (loading) {
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else YukiIcon(
+                        when {
+                            unavailableReason != null -> Icons.Outlined.Lock
+                            hasWarning -> Icons.Outlined.Warning
+                            available && systemInfo?.viewsEnabled == true -> Icons.Outlined.Visibility
+                            available && systemInfo?.viewsEnabled == false -> Icons.Outlined.VisibilityOff
+                            available -> Icons.Outlined.Layers
+                            else -> Icons.AutoMirrored.Outlined.HelpOutline
+                        },
+                        null, Modifier.size(16.dp), tint = statusColor,
+                    )
+                }
+            },
+        ) {
             if (!loading && unavailableReason == null && failureDetails != null) {
                 Column {
                     TextButton(
@@ -216,7 +216,7 @@ internal fun SUMHStatusSummaryCard(
                         )
                     }
                     if (showFailureDetails) {
-                        Text(failureDetails, style = MaterialTheme.typography.bodySmall, color = colors.error)
+                        SelectionContainer { Text(failureDetails, style = MaterialTheme.typography.bodySmall, color = colors.error) }
                     }
                 }
             }
@@ -229,6 +229,19 @@ internal fun SUMHStatusSummaryCard(
                 }
             }
         }
+    }
+    if (showProtocolDetails) {
+        YukiAlertDialog(
+            onDismissRequest = { showProtocolDetails = false },
+            title = { Text(titleDescription) },
+            text = {
+                SelectionContainer {
+                    Text(listOfNotNull(protocolDescription, failureDetails, unavailableReason).distinct().joinToString("\n\n"),
+                        Modifier.verticalScroll(rememberScrollState()))
+                }
+            },
+            confirmButton = { TextButton(onClick = { showProtocolDetails = false }) { Text(stringResource(android.R.string.ok)) } },
+        )
     }
 }
 

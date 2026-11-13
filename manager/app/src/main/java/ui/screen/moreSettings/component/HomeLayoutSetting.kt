@@ -129,16 +129,16 @@ private fun HomeLayoutThumbnail(style: HomeLayoutStyle, modifier: Modifier = Mod
                 tile(.55f, .28f, .45f, .22f); tile(0f, .58f, 1f, .38f)
             }
             HomeLayoutStyle.Focus -> {
-                tile(0f, 0f, .46f, .44f, true); tile(.55f, 0f, .45f, .44f)
-                tile(0f, .53f, .46f, .43f); tile(.55f, .53f, .45f, .43f)
+                tile(0f, 0f, 1f, .25f, true); tile(0f, .34f, 1f, .18f)
+                tile(0f, .6f, 1f, .18f); tile(0f, .86f, 1f, .1f)
             }
             HomeLayoutStyle.Dashboard -> {
                 tile(0f, 0f, 1f, .32f, true); tile(0f, .41f, .46f, .2f)
                 tile(.55f, .41f, .45f, .2f); tile(0f, .7f, 1f, .26f)
             }
             HomeLayoutStyle.Stats -> {
-                tile(0f, 0f, .46f, .25f, true); tile(.55f, 0f, .45f, .25f, true)
-                tile(0f, .34f, 1f, .25f); tile(0f, .68f, 1f, .28f)
+                tile(0f, 0f, 1f, .18f, true); tile(0f, .26f, 1f, .22f)
+                tile(0f, .52f, 1f, .22f); tile(0f, .82f, 1f, .14f)
             }
         }
     }
