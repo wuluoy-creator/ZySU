@@ -10,6 +10,10 @@ build/
 local.properties
 .gradle/
 
+# Python test caches
+__pycache__/
+*.py[cod]
+
 # ksud build artifacts
 userspace/ksud/build-android/
 build_ksud/
