@@ -40,6 +40,7 @@ SUMHP 已内置于 ksud。自动挂载按适用条件选择 OverlayFS 或 Magic 
 | [Magic Mount 验证](guide/magic-mount-validation.md) | 挂载树、生命周期、回归和设备检查 |
 | [OverlayFS 验证](guide/overlayfs-validation.md) | 目录分层、能力限制和回归入口 |
 | [环境状态与可观测性](guide/environment-observability.md) | 设置值、有效值、运行时证据与错误定位 |
+| [Manager 特权隔离验证](guide/manager-privilege-validation.md) | 辅助进程、空闲 shell 回收与普通/隔离应用观测 |
 | [启动配置与 Shell 来源限制](guide/boot-config.md) | 强制功能值、模块屏蔽默认关闭、配置兼容和回归验证 |
 | [Manager 识别与扫描验证](guide/manager-scan-validation.md) | 内核侧管理器发现、APK 签名缓存与扫描调度 |
 | [KernelSU 21 项提交适配记录](guide/upstream-20261109.md) | 逐项处理、本地兼容、回归结果与验证边界 |

@@ -90,6 +90,8 @@ jobs:
         run: python3 userspace/ksud/tests/run_script_wait_host_tests.py --cxx clang++
       - name: Process execution and file I/O
         run: python3 userspace/ksud/tests/run_runtime_host_tests.py --cxx clang++
+      - name: Manager helper framing and authorization
+        run: python3 userspace/ksud/tests/run_manager_helper_host_tests.py --cxx clang++ --sanitize
       - name: Boot-property timing, readback and retries
         run: python3 userspace/ksud/tests/run_hide_bootloader_host_tests.py --cxx clang++
       - name: Init handoff, module parser and vermagic with sanitizers

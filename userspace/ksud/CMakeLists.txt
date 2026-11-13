@@ -298,6 +298,8 @@ endif()
 # Our own sources (clang-tidy will run on these only)
 set(KSUD_OUR_SOURCES
     src/main.cpp
+    src/manager_helper.cpp
+    src/manager_integrity.cpp
     src/cli.cpp
     src/cli_args.cpp
     src/terminal.cpp
@@ -361,6 +363,7 @@ get_filename_component(REPO_ROOT "${CMAKE_SOURCE_DIR}/../.." ABSOLUTE)
 # Include directories (for both object libs and ksud)
 set(KSUD_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/sumhp/include
     ${mbedtls_SOURCE_DIR}/include
     ${miniz_SOURCE_DIR}
     ${miniz_BINARY_DIR}
@@ -423,6 +426,7 @@ target_compile_features(ksud_our_objs PUBLIC cxx_std_17)
 # module boundary so a bad copy cannot abort metadata synchronization.
 target_compile_options(ksud_our_objs PRIVATE ${KSUD_DEVIRT_FLAGS} -fno-exceptions)
 set_source_files_properties(src/module/preinit.cpp src/module/preinit_platform.cpp
+    src/manager_helper.cpp src/manager_integrity.cpp
     PROPERTIES COMPILE_OPTIONS -fexceptions)
 zysu_enable_clang_tidy(ksud_our_objs CXX)
 

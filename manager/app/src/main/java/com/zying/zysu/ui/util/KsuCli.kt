@@ -54,22 +54,11 @@ private fun getKsuDaemonPath(): String {
 fun getKsud(): String = getKsuDaemonPath()
 
 object KsuCli {
-    var SHELL: Shell = createRootShell()
-        private set
-    var GLOBAL_MNT_SHELL: Shell = createRootShell(true)
-        private set
-    
-    /** Recreate shell instances and optionally reconcile the installed ksud. */
+    /** Retire cached shells and optionally reconcile the installed ksud. */
     fun refreshShells(checkKsud: Boolean = true) {
-        Log.d(TAG, "refreshShells: starting, old SHELL.isRoot=${SHELL.isRoot}")
-        try {
-            SHELL.close()
-        } catch (_: Exception) {}
-        try {
-            GLOBAL_MNT_SHELL.close()
-        } catch (_: Exception) {}
+        RootShells.invalidate()
         
-        // Check if we're now a manager before creating shells
+        // Authentication controls whether the installed daemon can be reconciled.
         val isManagerNow = try {
             Natives.isManager
         } catch (e: Exception) {
@@ -77,10 +66,6 @@ object KsuCli {
             false
         }
         Log.d(TAG, "refreshShells: Natives.isManager=$isManagerNow")
-        
-        SHELL = createRootShell()
-        GLOBAL_MNT_SHELL = createRootShell(true)
-        Log.d(TAG, "Shells refreshed, SHELL.isRoot=${SHELL.isRoot}, GLOBAL_MNT_SHELL.isRoot=${GLOBAL_MNT_SHELL.isRoot}")
         
         // After authentication, check if ksud needs to be installed/updated
         if (checkKsud && isManagerNow) {
@@ -98,7 +83,7 @@ object KsuCli {
             val apkKsudVersion = getApkKsudVersion()
             val integrityStatus = getKsudIntegrityStatus()
             if (integrityStatus == KsudIntegrityStatus.UNAVAILABLE) {
-                Log.w(TAG, "checkAndInstallKsud: JNI manager root is unavailable")
+                Log.w(TAG, "checkAndInstallKsud: authenticated manager helper is unavailable")
                 return
             }
             val binaryMatches = integrityStatus == KsudIntegrityStatus.MATCH
@@ -203,7 +188,7 @@ object KsuCli {
         updated
     }
 
-    /** Cold-start auto-sync through the JNI manager-root channel. */
+    /** Cold-start auto-sync through the bundled manager helper. */
     suspend fun autoSyncKsudIfNeeded(): Unit = withContext(Dispatchers.IO) {
         if (!runCatching { Natives.isManager }.getOrDefault(false)) {
             Log.d(TAG, "autoSyncKsudIfNeeded: not manager, skip")
@@ -251,12 +236,6 @@ object KsuCli {
             )
         }
         return compatible
-    }
-}
-
-fun getRootShell(globalMnt: Boolean = false): Shell {
-    return if (globalMnt) KsuCli.GLOBAL_MNT_SHELL else {
-        KsuCli.SHELL
     }
 }
 
@@ -319,18 +298,19 @@ fun execKsud(args: String, newShell: Boolean = false): Boolean {
             ShellUtils.fastCmdResult(this, ksudCmd(args))
         }
     } else {
-        ShellUtils.fastCmdResult(getRootShell(), ksudCmd(args))
+        withRootShell { ShellUtils.fastCmdResult(it, ksudCmd(args)) }
     }
 }
 
 /** Run a ksud subcommand and return its trimmed stdout (single value). */
-internal fun ksudReadString(args: String, shell: Shell = getRootShell()): String =
-    ShellUtils.fastCmd(shell, ksudCmd(args)).trim()
+internal fun ksudReadString(args: String): String =
+    withRootShell { ShellUtils.fastCmd(it, ksudCmd(args)).trim() }
 
 /** Run a ksud subcommand and return non-blank trimmed stdout lines. */
-internal fun ksudReadLines(args: String, shell: Shell = getRootShell()): List<String> =
+internal fun ksudReadLines(args: String): List<String> = withRootShell { shell ->
     shell.newJob().add(ksudCmd(args)).to(ArrayList(), null).exec().out
         .filter { it.isNotBlank() }.map { it.trim() }
+}
 
 /** Boot overrides are immutable until the image is patched again. */
 fun getFeatureStatus(feature: Int): String = when {
@@ -340,7 +320,7 @@ fun getFeatureStatus(feature: Int): String = when {
 }
 
 internal fun getSuggestedBlockModules(): String = suggestedBlockModules(
-    ShellUtils.fastCmd(getRootShell(), "cat /proc/modules")
+    withRootShell { ShellUtils.fastCmd(it, "cat /proc/modules") }
 )
 
 /** A feature's on/off state. Unsupported reads as off. */
@@ -903,10 +883,9 @@ fun downloadBoot(
 }
 
 fun restartAdbd(): Boolean =
-    ShellUtils.fastCmdResult(getRootShell(), "setprop ctl.restart adbd")
+    withRootShell { ShellUtils.fastCmdResult(it, "setprop ctl.restart adbd") }
 
-fun reboot(reason: String = "") {
-    val shell = getRootShell()
+fun reboot(reason: String = ""): Unit = withRootShell { shell ->
     if (reason == "recovery") {
         // KEYCODE_POWER = 26, hide incorrect "Factory data reset" message
         ShellUtils.fastCmd(shell, "/system/bin/input keyevent 26")
@@ -914,10 +893,7 @@ fun reboot(reason: String = "") {
     ShellUtils.fastCmd(shell, "/system/bin/svc power reboot $reason || /system/bin/reboot $reason")
 }
 
-fun rootAvailable(): Boolean {
-    val shell = getRootShell()
-    return shell.isRoot
-}
+fun rootAvailable(): Boolean = withRootShell { it.isRoot }
 
 
 private val kmiPattern = Regex("""(?:android\d+-)?\d+\.\d+""")
@@ -938,8 +914,10 @@ suspend fun getTargetKmi(ota: Boolean, bootUri: Uri?): String = withContext(Disp
             else -> "boot-info target-kmi"
         }
         val command = "TMPDIR=${shellArg(ksuApp.cacheDir.absolutePath)} ${ksudCmd(args)}"
-        val lines = getRootShell().newJob().add(command).to(ArrayList(), null).exec().out
-            .filter { it.isNotBlank() }.map { it.trim() }
+        val lines = withRootShell { shell ->
+            shell.newJob().add(command).to(ArrayList(), null).exec().out
+                .filter { it.isNotBlank() }.map { it.trim() }
+        }
         parseDetectedKmi(lines)
     } finally {
         bootFile?.delete()
@@ -968,7 +946,7 @@ suspend fun isAbDevice(): Boolean = withContext(Dispatchers.IO) {
 }
 
 suspend fun getDefaultPartition(): String = withContext(Dispatchers.IO) {
-    if (getRootShell().isRoot) {
+    if (rootAvailable()) {
         ksudReadString("boot-info default-partition")
             .takeIf { it == "boot" || it == "init_boot" || it == "vendor_boot" }
             .orEmpty()
@@ -990,8 +968,7 @@ suspend fun getAvailablePartitions(): List<String> = withContext(Dispatchers.IO)
 }
 
 fun hasMagisk(): Boolean {
-    val shell = getRootShell(true)
-    val result = shell.newJob().add("which magisk").exec()
+    val result = withRootShell(true) { it.newJob().add("which magisk").exec() }
     Log.i(TAG, "has magisk: ${result.isSuccess}")
     return result.isSuccess
 }
@@ -1023,21 +1000,20 @@ fun deleteAppProfileTemplate(id: String): Boolean =
     execKsud("profile delete-template ${shellArg(id)}")
 
 fun forceStopApp(packageName: String) {
-    val shell = getRootShell()
-    val result = shell.newJob().add("am force-stop ${shellArg(packageName)}").exec()
+    val result = withRootShell { it.newJob().add("am force-stop ${shellArg(packageName)}").exec() }
     Log.i(TAG, "force stop $packageName result: $result")
 }
 
 fun launchApp(packageName: String) {
 
-    val shell = getRootShell()
-    val result =
+    val result = withRootShell { shell ->
         shell.newJob()
             .add(
                 "cmd package resolve-activity --brief ${shellArg(packageName)} " +
                     "| tail -n 1 | xargs cmd activity start-activity -n"
             )
             .exec()
+    }
     Log.i(TAG, "launch $packageName result: $result")
 }
 
@@ -1058,18 +1034,20 @@ fun runCmd(shell: Shell, cmd: String): String {
 
 fun getMetaModuleImplement(): String {
     try {
-        val metaModuleProp = SuFile.open("/data/adb/metamodule/module.prop")
-        if (!metaModuleProp.isFile) {
-            Log.i(TAG, "Meta module implement: None")
-            return "None"
+        return withRootShell { shell ->
+            val metaModuleProp = SuFile("/data/adb/metamodule/module.prop").apply { setShell(shell) }
+            if (!metaModuleProp.isFile) {
+                Log.i(TAG, "Meta module implement: None")
+                return@withRootShell "None"
+            }
+
+            val prop = Properties()
+            metaModuleProp.newInputStream().use(prop::load)
+
+            val name = prop.getProperty("name", "None")
+            Log.i(TAG, "Meta module implement: $name")
+            name
         }
-
-        val prop = Properties()
-        prop.load(metaModuleProp.newInputStream())
-
-        val name = prop.getProperty("name")
-        Log.i(TAG, "Meta module implement: $name")
-        return name
     } catch (_ : Throwable) {
         Log.i(TAG, "Meta module implement: None")
         return "None"
@@ -1080,21 +1058,25 @@ fun getMetaModuleImplement(): String {
 val ZYGISK_IMPL_MODULE_IDS = listOf("zygisksu", "rezygisk")
 
 suspend fun getZygiskImplement(): String = withContext(Dispatchers.IO) {
-    for (moduleId in ZYGISK_IMPL_MODULE_IDS) {
-        // skip disabled / pending-removal modules
-        if (SuFile.open("/data/adb/modules/$moduleId/disable").isFile || SuFile.open("/data/adb/modules/$moduleId/remove").isFile) continue
+    withRootShell { shell ->
+        fun moduleFile(moduleId: String, name: String) =
+            SuFile("/data/adb/modules/$moduleId/$name").apply { setShell(shell) }
+        for (moduleId in ZYGISK_IMPL_MODULE_IDS) {
+            // Skip disabled / pending-removal modules.
+            if (moduleFile(moduleId, "disable").isFile || moduleFile(moduleId, "remove").isFile) continue
 
-        val propFile = SuFile.open("/data/adb/modules/$moduleId/module.prop")
-        if (!propFile.isFile) continue
+            val propFile = moduleFile(moduleId, "module.prop")
+            if (!propFile.isFile) continue
 
-        val prop = Properties()
-        prop.load(propFile.newInputStream())
+            val prop = Properties()
+            propFile.newInputStream().use(prop::load)
 
-        val name = prop.getProperty("name")
-        Log.i(TAG, "Zygisk implement: $name")
-        return@withContext name
+            val name = prop.getProperty("name", "None")
+            Log.i(TAG, "Zygisk implement: $name")
+            return@withRootShell name
+        }
+
+        Log.i(TAG, "Zygisk implement: None")
+        "None"
     }
-
-    Log.i(TAG, "Zygisk implement: None")
-    "None"
 }

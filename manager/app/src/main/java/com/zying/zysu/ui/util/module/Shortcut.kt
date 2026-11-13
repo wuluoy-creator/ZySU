@@ -22,7 +22,7 @@ import com.topjohnwu.superuser.io.SuFile
 import com.topjohnwu.superuser.io.SuFileInputStream
 import com.zying.zysu.R
 import app.entry.Launcher
-import com.zying.zysu.ui.util.getRootShell
+import com.zying.zysu.ui.util.withRootShell
 import java.util.Locale
 
 object Shortcut {
@@ -265,11 +265,12 @@ object Shortcut {
             val rawBitmap = if (uri.scheme.equals("su", ignoreCase = true)) {
                 val path = uri.path ?: ""
                 if (path.isNotBlank()) {
-                    val shell = getRootShell(true)
-                    val suFile = SuFile(path)
-                    suFile.shell = shell
-                    SuFileInputStream.open(suFile).use { input ->
-                        BitmapFactory.decodeStream(input)
+                    withRootShell(true) { shell ->
+                        val suFile = SuFile(path)
+                        suFile.shell = shell
+                        SuFileInputStream.open(suFile).use { input ->
+                            BitmapFactory.decodeStream(input)
+                        }
                     }
                 } else null
             } else {
@@ -431,8 +432,7 @@ object Shortcut {
         val pkg = context.applicationContext.packageName
         val cmd = "appops set $pkg 10017 allow"
         return try {
-            val shell = getRootShell()
-            val result = shell.newJob().add(cmd).exec()
+            val result = withRootShell { it.newJob().add(cmd).exec() }
             Log.d(TAG, "tryGrantMiuiShortcutPermissionByRoot: cmd=$cmd, code=${result.code}, isSuccess=${result.isSuccess}")
             result.isSuccess
         } catch (t: Throwable) {

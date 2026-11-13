@@ -2,7 +2,7 @@ package ui.screen.partition
 
 import android.content.Context
 import android.util.Log
-import com.zying.zysu.ui.util.getRootShell
+import com.zying.zysu.ui.util.withRootShell
 import com.zying.zysu.ui.util.shellArg
 import com.zying.zysu.ui.util.ksudCmd
 import com.topjohnwu.superuser.CallbackList
@@ -16,11 +16,9 @@ object PartitionManagerHelper {
     private fun runKsudLines(args: String): List<String> {
         val stdout = ArrayList<String>()
         val stderr = ArrayList<String>()
-        val result = getRootShell()
-            .newJob()
-            .add(ksudCmd(args))
-            .to(stdout, stderr)
-            .exec()
+        val result = withRootShell { shell ->
+            shell.newJob().add(ksudCmd(args)).to(stdout, stderr).exec()
+        }
         if (!result.isSuccess) {
             throw IOException(
                 stderr.lastOrNull()
@@ -137,8 +135,6 @@ object PartitionManagerHelper {
         onStderr: (String) -> Unit = {}
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val shell = getRootShell()
-            
             val slotArg = if (slot != null) " --slot ${shellArg(slot)}" else ""
             val cmd = ksudCmd("flash backup ${shellArg(partition)} ${shellArg(outputPath)}$slotArg")
             
@@ -162,10 +158,9 @@ object PartitionManagerHelper {
                 }
             }
             
-            val result = shell.newJob()
-                .add(cmd)
-                .to(stdout, stderr)
-                .exec()
+            val result = withRootShell { shell ->
+                shell.newJob().add(cmd).to(stdout, stderr).exec()
+            }
             
             Log.d(TAG, "Backup result: success=${result.isSuccess}, code=${result.code}")
             result.isSuccess
@@ -185,8 +180,6 @@ object PartitionManagerHelper {
         onStderr: (String) -> Unit = {}
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val shell = getRootShell()
-            
             val slotArg = if (slot != null) " --slot ${shellArg(slot)}" else ""
             val cmd = ksudCmd("flash image ${shellArg(imagePath)} ${shellArg(partition)}$slotArg")
             
@@ -210,10 +203,9 @@ object PartitionManagerHelper {
                 }
             }
             
-            val result = shell.newJob()
-                .add(cmd)
-                .to(stdout, stderr)
-                .exec()
+            val result = withRootShell { shell ->
+                shell.newJob().add(cmd).to(stdout, stderr).exec()
+            }
             
             Log.d(TAG, "Flash result: success=${result.isSuccess}, code=${result.code}")
             result.isSuccess
@@ -234,8 +226,6 @@ object PartitionManagerHelper {
         onStderr: (String) -> Unit = {}
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val shell = getRootShell()
-            
             val cmd = ksudCmd("flash map ${shellArg(slot)}")
             
             Log.d(TAG, "Executing map command: $cmd")
@@ -258,10 +248,9 @@ object PartitionManagerHelper {
                 }
             }
             
-            val result = shell.newJob()
-                .add(cmd)
-                .to(stdout, stderr)
-                .exec()
+            val result = withRootShell { shell ->
+                shell.newJob().add(cmd).to(stdout, stderr).exec()
+            }
             
             Log.d(TAG, "Map result: success=${result.isSuccess}, code=${result.code}")
             result.isSuccess

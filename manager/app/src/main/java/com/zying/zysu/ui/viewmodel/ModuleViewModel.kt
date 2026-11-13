@@ -16,7 +16,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.zying.zysu.BuildConfig
 import com.zying.zysu.ui.util.HanziToPinyin
-import com.zying.zysu.ui.util.getRootShell
+import com.zying.zysu.ui.util.withRootShell
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.text.DecimalFormat
@@ -412,9 +412,10 @@ class ModuleSizeCache(context: Context) {
 
     private fun calculateModuleFolderSize(dirId: String): Long {
         return try {
-            val shell = getRootShell()
             val command = "/data/adb/ksu/bin/busybox du -sb /data/adb/modules/$dirId"
-            val result = shell.newJob().add(command).to(ArrayList(), null).exec()
+            val result = withRootShell { shell ->
+                shell.newJob().add(command).to(ArrayList(), null).exec()
+            }
 
             if (result.isSuccess && result.out.isNotEmpty()) {
                 val sizeStr = result.out.firstOrNull()?.split("\t")?.firstOrNull()

@@ -1,6 +1,7 @@
 #include <cstring>
 #include <optional>
 #include "cli.hpp"
+#include "manager_helper.hpp"
 
 #if defined(MAGISKBOOT_ALONE_AVAILABLE) && MAGISKBOOT_ALONE_AVAILABLE
 extern int magiskboot_main(int argc, char** argv);
@@ -39,6 +40,8 @@ int main(int argc, char** argv) {
     const char* first_arg = (argc >= 2 && argv[1]) ? argv[1] : nullptr;
 
     const bool dispatcher = base && (std::strcmp(base, "ksud") == 0 || std::strstr(base, ".so"));
+    if (dispatcher && first_arg && std::strcmp(first_arg, "manager-helper") == 0)
+        return argc == 2 ? ksud::manager_helper_main() : 2;
     auto dispatch = [base, first_arg, dispatcher, argc, argv](const char* name,
                                                               auto main_fn) -> std::optional<int> {
         if (base && std::strcmp(base, name) == 0) {

@@ -206,6 +206,8 @@ jobs:
 
   build-manager:
     needs: plan
+    outputs:
+      probe_artifact_url: ${{ steps.probe-artifact.outputs.artifact-url }}
     env:
       ZYSU_MANAGER_VERSION_NAME: ${{ needs.plan.outputs.manager_version_name }}
       ZYSU_MANAGER_VERSION_CODE: ${{ needs.plan.outputs.manager_version_code }}
@@ -263,7 +265,47 @@ jobs:
         run: node --test ../js/tests/webui.test.mjs
 
       - name: Build with Gradle
-        run: ./gradlew :app:testDebugUnitTest lintDebug lintRelease assembleRelease --build-cache --parallel --no-daemon -PABI=arm64-v8a
+        run: >-
+          ./gradlew :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleRelease
+          :visibility-probe:lintRelease :visibility-probe:assembleRelease
+          --build-cache --parallel --no-daemon -PABI=arm64-v8a
+
+      - name: Sign independent visibility probe
+        run: |
+          set -euo pipefail
+          umask 077
+          tools="$ANDROID_HOME/build-tools/36.1.0"
+          probe_keystore="$RUNNER_TEMP/visibility-probe.p12"
+          export PROBE_KEY_PASSWORD
+          PROBE_KEY_PASSWORD=$(openssl rand -hex 32)
+          echo "::add-mask::$PROBE_KEY_PASSWORD"
+          trap 'rm -f -- "$probe_keystore"' EXIT
+          keytool -genkeypair -noprompt -storetype PKCS12 \
+            -keystore "$probe_keystore" -alias visibility-probe \
+            -storepass:env PROBE_KEY_PASSWORD -keypass:env PROBE_KEY_PASSWORD \
+            -keyalg RSA -keysize 2048 -validity 3650 \
+            -dname 'CN=ZySU Visibility Probe CI'
+          mkdir -p visibility-probe/build/outputs/ci
+          "$tools/zipalign" -f 4 \
+            visibility-probe/build/outputs/apk/release/visibility-probe-release-unsigned.apk \
+            "$RUNNER_TEMP/visibility-probe-aligned.apk"
+          "$tools/apksigner" sign \
+            --ks "$probe_keystore" --ks-key-alias visibility-probe \
+            --ks-pass env:PROBE_KEY_PASSWORD --key-pass env:PROBE_KEY_PASSWORD \
+            --out visibility-probe/build/outputs/ci/visibility-probe-release.apk \
+            "$RUNNER_TEMP/visibility-probe-aligned.apk"
+          "$tools/apksigner" verify --verbose --print-certs \
+            visibility-probe/build/outputs/ci/visibility-probe-release.apk
+          (cd visibility-probe/build/outputs/ci && sha256sum visibility-probe-release.apk > SHA256SUMS)
+
+      - name: Upload independent visibility probe
+        id: probe-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: VisibilityProbe-release
+          path: manager/visibility-probe/build/outputs/ci/
+          if-no-files-found: error
+          compression-level: 0
 
       - name: Upload lint reports on failure
         if: failure()
@@ -273,6 +315,9 @@ jobs:
           path: |
             manager/app/build/reports/lint-results-*
             manager/app/build/intermediates/lint_intermediate_text_report/**/lint-results-*.txt
+            manager/app/build/reports/tests/testDebugUnitTest/**
+            manager/app/build/test-results/testDebugUnitTest/**
+            manager/visibility-probe/build/reports/lint-results-*
           if-no-files-found: ignore
 
       - name: Upload build artifact
@@ -466,6 +511,7 @@ jobs:
           BUILD_RESULTS: ${{ toJSON(needs) }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MANAGER_ARTIFACT_URL: ${{ needs.repack-manager.outputs.artifact_url }}
+          PROBE_ARTIFACT_URL: ${{ needs.build-manager.outputs.probe_artifact_url }}
         run: |
           python3 - <<'PY'
           import json
@@ -478,6 +524,8 @@ jobs:
               for job, result in results.items():
                   summary.write(f"| {job} | {result['result']} |\n")
               summary.write(f"\n[下载产物 / Artifacts]({os.environ['RUN_URL']}#artifacts)\n")
+              if os.environ['PROBE_ARTIFACT_URL']:
+                  summary.write(f"\n[下载独立观测 APK]({os.environ['PROBE_ARTIFACT_URL']})：独立临时签名，未启用 debuggable；请保持未授权状态。同一对比实验使用同一 APK，跨运行更换 APK 可能需要先卸载旧观测应用。\n")
               if results['repack-manager']['result'] == 'success':
                   summary.write(f"\n[下载完整 Manager APK]({os.environ['MANAGER_ARTIFACT_URL']})。请勿安装 Manager-gradle 中间产物。\n")
                   summary.write('\n配置 KEYSTORE 后，内核会信任同一份 Manager 证书。未配置时 APK 使用临时签名，需在修补时设置 SuperKey 才能认证管理器；跨运行更新需保持签名一致。\n')

@@ -115,11 +115,10 @@ private fun buildBugreportFile(context: Context, bugreportDir: File, shell: Shel
 }
 
 @Synchronized
-fun getBugreportFile(context: Context): File {
-    val shell = getRootShell(true)
+fun getBugreportFile(context: Context): File = withRootShell(true) { shell ->
     val bugreportDir = File(context.cacheDir, "bugreport_${UUID.randomUUID()}")
     check(bugreportDir.mkdir()) { "Failed to create bugreport staging directory" }
-    return try {
+    try {
         buildBugreportFile(context, bugreportDir, shell)
     } finally {
         shell.newJob().add("rm -rf -- ${shellArg(bugreportDir.absolutePath)}").exec()

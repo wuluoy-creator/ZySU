@@ -4,16 +4,18 @@ import android.content.Context
 import com.zying.zysu.R
 import com.topjohnwu.superuser.io.SuFile
 
-fun getSELinuxStatus(context: Context) = SuFile("/sys/fs/selinux/enforce").run {
-    when {
-        !exists() -> context.getString(R.string.selinux_status_disabled)
-        !isFile -> context.getString(R.string.selinux_status_unknown)
-        !canRead() -> context.getString(R.string.selinux_status_enforcing)
-        else -> when (runCatching { newInputStream() }.getOrNull()?.bufferedReader()
-            ?.use { it.runCatching { readLine() }.getOrNull()?.trim()?.toIntOrNull() }) {
-            1 -> context.getString(R.string.selinux_status_enforcing)
-            0 -> context.getString(R.string.selinux_status_permissive)
-            else -> context.getString(R.string.selinux_status_unknown)
+fun getSELinuxStatus(context: Context) = withRootShell { shell ->
+    SuFile("/sys/fs/selinux/enforce").apply { setShell(shell) }.run {
+        when {
+            !exists() -> context.getString(R.string.selinux_status_disabled)
+            !isFile -> context.getString(R.string.selinux_status_unknown)
+            !canRead() -> context.getString(R.string.selinux_status_enforcing)
+            else -> when (runCatching { newInputStream() }.getOrNull()?.bufferedReader()
+                ?.use { it.runCatching { readLine() }.getOrNull()?.trim()?.toIntOrNull() }) {
+                1 -> context.getString(R.string.selinux_status_enforcing)
+                0 -> context.getString(R.string.selinux_status_permissive)
+                else -> context.getString(R.string.selinux_status_unknown)
+            }
         }
     }
 }
@@ -23,7 +25,7 @@ fun getSELinuxStatus(context: Context) = SuFile("/sys/fs/selinux/enforce").run {
 fun isSELinuxEnforcing(): Boolean = readSELinuxEnforce() == 1
 
 /** Raw SELinux mode label (Enforcing / Permissive / Disabled / Unknown).
- *  Equivalent to `getenforce` but avoids spawning a shell. */
+ *  Reads sysfs through the managed shell without executing a getenforce command. */
 fun getSELinuxLabel(): String = when (readSELinuxEnforce()) {
     1 -> "Enforcing"
     0 -> "Permissive"
@@ -32,9 +34,11 @@ fun getSELinuxLabel(): String = when (readSELinuxEnforce()) {
 }
 
 /** Returns 1/0 from /sys/fs/selinux/enforce, -1 if missing, null if unreadable. */
-private fun readSELinuxEnforce(): Int? = SuFile("/sys/fs/selinux/enforce").run {
-    if (!exists()) return@run -1
-    runCatching {
-        newInputStream().bufferedReader().use { it.readLine()?.trim()?.toIntOrNull() }
-    }.getOrNull()
+private fun readSELinuxEnforce(): Int? = withRootShell { shell ->
+    SuFile("/sys/fs/selinux/enforce").apply { setShell(shell) }.run {
+        if (!exists()) return@run -1
+        runCatching {
+            newInputStream().bufferedReader().use { it.readLine()?.trim()?.toIntOrNull() }
+        }.getOrNull()
+    }
 }

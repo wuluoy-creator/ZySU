@@ -522,8 +522,9 @@ class HomeViewModel : ViewModel() {
     }
 
     private fun readModuleCount(): Int? = try {
-        val result = getRootShell().newJob().add(ksudCmd("module list"))
-            .to(ArrayList<String>(), null).exec()
+        val result = withRootShell { shell ->
+            shell.newJob().add(ksudCmd("module list")).to(ArrayList<String>(), null).exec()
+        }
         if (result.isSuccess) JSONArray(result.out.joinToString("\n")).length() else null
     } catch (_: Exception) {
         null

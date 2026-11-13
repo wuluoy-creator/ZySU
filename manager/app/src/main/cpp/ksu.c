@@ -95,8 +95,6 @@ static int ksuctl(unsigned long op, void *arg) {
 
 int ksu_sumh_ioctl(unsigned long op, void *arg) { return ksuctl(op, arg); }
 
-int ksu_grant_root(void) { return ksuctl(KSU_IOCTL_GRANT_ROOT, NULL); }
-
 static struct ksu_get_info_cmd g_version = {0};
 
 // Reset cached info (call after SuperKey authentication)

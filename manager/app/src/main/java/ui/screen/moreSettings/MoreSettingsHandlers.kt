@@ -32,7 +32,7 @@ import com.zying.zysu.ui.screen.SettingItem
 import com.zying.zysu.ui.screen.SwitchItem
 import com.zying.zysu.ui.theme.*
 import com.zying.zysu.ui.util.*
-import com.zying.zysu.ui.util.getRootShell
+import com.zying.zysu.ui.util.withRootShell
 import com.zying.zysu.ui.util.isSELinuxEnforcing
 import com.topjohnwu.superuser.ShellUtils
 import kotlinx.coroutines.CoroutineScope
@@ -288,7 +288,7 @@ class MoreSettingsHandlers(
     }
 
     fun handleSelinuxChange(enabled: Boolean) {
-        val ok = ShellUtils.fastCmdResult(getRootShell(), if (enabled) "setenforce 1" else "setenforce 0")
+        val ok = withRootShell { ShellUtils.fastCmdResult(it, if (enabled) "setenforce 1" else "setenforce 0") }
         if (ok) {
             state.selinuxEnabled = enabled
             val msg = if (enabled) R.string.selinux_enabled_toast else R.string.selinux_disabled_toast

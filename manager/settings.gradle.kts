@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ZySU"
 include(":app")
+include(":visibility-probe")

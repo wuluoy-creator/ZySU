@@ -989,13 +989,14 @@ private suspend fun checkForNewLogs(
 ): Boolean {
     return withContext(Dispatchers.IO) {
         try {
-            val shell = getRootShell()
-            val sources = listSulogSources(shell)
-            val activePath = readActiveSulogPath(shell)
-            val source = resolveSelectedSulogSource(sources, preferredPath, activePath, previousActivePath)
-            val currentHash = buildVisibleSulogSourceSignature(shell, sources, source, activePath)
+            withRootShell { shell ->
+                val sources = listSulogSources(shell)
+                val activePath = readActiveSulogPath(shell)
+                val source = resolveSelectedSulogSource(sources, preferredPath, activePath, previousActivePath)
+                val currentHash = buildVisibleSulogSourceSignature(shell, sources, source, activePath)
 
-            currentHash != lastHash
+                currentHash != lastHash
+            }
         } catch (_: Exception) {
             false
         }
@@ -1012,99 +1013,100 @@ private suspend fun loadLogsWithPagination(
 ) {
     withContext(Dispatchers.IO) {
         try {
-            val shell = getRootShell()
-            val sources = listSulogSources(shell)
-            val activePath = readActiveSulogPath(shell)
-            val source = resolveSelectedSulogSource(sources, preferredPath, activePath, previousActivePath)
-            val currentHash = buildVisibleSulogSourceSignature(shell, sources, source, activePath)
-            val statPart = readSulogSourceStat(shell, source.path)
+            withRootShell { shell ->
+                val sources = listSulogSources(shell)
+                val activePath = readActiveSulogPath(shell)
+                val source = resolveSelectedSulogSource(sources, preferredPath, activePath, previousActivePath)
+                val currentHash = buildVisibleSulogSourceSignature(shell, sources, source, activePath)
+                val statPart = readSulogSourceStat(shell, source.path)
 
-            if (source.path.isBlank() || statPart == "0 0") {
-                withContext(Dispatchers.Main) {
-                    onLoaded(emptyList(), LogPageInfo(), currentHash, DEFAULT_LOG_PATH, sources, activePath)
+                if (source.path.isBlank() || statPart == "0 0") {
+                    withContext(Dispatchers.Main) {
+                        onLoaded(emptyList(), LogPageInfo(), currentHash, DEFAULT_LOG_PATH, sources, activePath)
+                    }
+                    return@withContext
                 }
-                return@withContext
-            }
 
-            val quotedPath = shellArg(source.path)
+                val quotedPath = shellArg(source.path)
 
-            if (page == 0 && !forceRefresh && currentHash == lastHash && statPart != "0 0") {
-                withContext(Dispatchers.Main) {
-                    onLoaded(
-                        emptyList(),
-                        LogPageInfo(currentFileName = source.name),
-                        currentHash,
-                        source.path,
-                        sources,
-                        activePath
-                    )
+                if (page == 0 && !forceRefresh && currentHash == lastHash && statPart != "0 0") {
+                    withContext(Dispatchers.Main) {
+                        onLoaded(
+                            emptyList(),
+                            LogPageInfo(currentFileName = source.name),
+                            currentHash,
+                            source.path,
+                            sources,
+                            activePath
+                        )
+                    }
+                    return@withContext
                 }
-                return@withContext
-            }
 
-            val totalLinesResult = runCmd(shell, "wc -l < $quotedPath 2>/dev/null || echo '0'")
-            val totalLines = totalLinesResult.trim().toIntOrNull() ?: 0
+                val totalLinesResult = runCmd(shell, "wc -l < $quotedPath 2>/dev/null || echo '0'")
+                val totalLines = totalLinesResult.trim().toIntOrNull() ?: 0
 
-            if (totalLines == 0) {
-                withContext(Dispatchers.Main) {
-                    onLoaded(
-                        emptyList(),
-                        LogPageInfo(currentFileName = source.name),
-                        currentHash,
-                        source.path,
-                        sources,
-                        activePath
-                    )
+                if (totalLines == 0) {
+                    withContext(Dispatchers.Main) {
+                        onLoaded(
+                            emptyList(),
+                            LogPageInfo(currentFileName = source.name),
+                            currentHash,
+                            source.path,
+                            sources,
+                            activePath
+                        )
+                    }
+                    return@withContext
                 }
-                return@withContext
-            }
 
-            val effectiveTotal = minOf(totalLines, MAX_TOTAL_LOGS)
-            val totalPages = (effectiveTotal + PAGE_SIZE - 1) / PAGE_SIZE
-            val retainedStartLine = totalLines - effectiveTotal + 1
+                val effectiveTotal = minOf(totalLines, MAX_TOTAL_LOGS)
+                val totalPages = (effectiveTotal + PAGE_SIZE - 1) / PAGE_SIZE
+                val retainedStartLine = totalLines - effectiveTotal + 1
 
-            val endOffsetExclusive = effectiveTotal - page * PAGE_SIZE
-            val startOffsetInclusive = maxOf(0, endOffsetExclusive - PAGE_SIZE)
-            val startLine = retainedStartLine + startOffsetInclusive
-            val endLine = retainedStartLine + endOffsetExclusive - 1
+                val endOffsetExclusive = effectiveTotal - page * PAGE_SIZE
+                val startOffsetInclusive = maxOf(0, endOffsetExclusive - PAGE_SIZE)
+                val startLine = retainedStartLine + startOffsetInclusive
+                val endLine = retainedStartLine + endOffsetExclusive - 1
 
-            if (startLine > endLine || startLine > totalLines) {
-                withContext(Dispatchers.Main) {
-                    onLoaded(
-                        emptyList(),
-                        LogPageInfo(
-                            currentPage = page,
-                            totalPages = totalPages,
-                            totalLogs = effectiveTotal,
-                            hasMore = false,
-                            currentFileName = source.name
-                        ),
-                        currentHash,
-                        source.path,
-                        sources,
-                        activePath
-                    )
+                if (startLine > endLine || startLine > totalLines) {
+                    withContext(Dispatchers.Main) {
+                        onLoaded(
+                            emptyList(),
+                            LogPageInfo(
+                                currentPage = page,
+                                totalPages = totalPages,
+                                totalLogs = effectiveTotal,
+                                hasMore = false,
+                                currentFileName = source.name
+                            ),
+                            currentHash,
+                            source.path,
+                            sources,
+                            activePath
+                        )
+                    }
+                    return@withContext
                 }
-                return@withContext
-            }
 
-            val result = runCmd(shell, "sed -n '${startLine},${endLine}p' $quotedPath 2>/dev/null || echo ''")
-            val entries = parseLogEntries(
-                logContent = result,
-                useCurrentClockFallback = source.path == activePath
-            )
+                val result = runCmd(shell, "sed -n '${startLine},${endLine}p' $quotedPath 2>/dev/null || echo ''")
+                val entries = parseLogEntries(
+                    logContent = result,
+                    useCurrentClockFallback = source.path == activePath
+                )
 
-            val hasMore = page < totalPages - 1
-            val pageInfo = LogPageInfo(
-                currentPage = page,
-                totalPages = totalPages,
-                totalLogs = effectiveTotal,
-                hasMore = hasMore,
-                currentFileName = source.name
-            )
+                val hasMore = page < totalPages - 1
+                val pageInfo = LogPageInfo(
+                    currentPage = page,
+                    totalPages = totalPages,
+                    totalLogs = effectiveTotal,
+                    hasMore = hasMore,
+                    currentFileName = source.name
+                )
 
-            withContext(Dispatchers.Main) {
-                onLoaded(entries, pageInfo, currentHash, source.path, sources, activePath)
+                withContext(Dispatchers.Main) {
+                    onLoaded(entries, pageInfo, currentHash, source.path, sources, activePath)
+                }
             }
         } catch (_: Exception) {
             withContext(Dispatchers.Main) {
@@ -1118,8 +1120,7 @@ private suspend fun clearLogs(path: String) {
     withContext(Dispatchers.IO) {
         try {
             if (path.isBlank()) return@withContext
-            val shell = getRootShell()
-            runCmd(shell, ": > ${shellArg(path)}")
+            withRootShell { runCmd(it, ": > ${shellArg(path)}") }
         } catch (_: Exception) {
         }
     }
@@ -1129,8 +1130,7 @@ private suspend fun deleteLogs(path: String) {
     withContext(Dispatchers.IO) {
         try {
             if (path.isBlank()) return@withContext
-            val shell = getRootShell()
-            runCmd(shell, "rm -f ${shellArg(path)}")
+            withRootShell { runCmd(it, "rm -f ${shellArg(path)}") }
         } catch (_: Exception) {
         }
     }

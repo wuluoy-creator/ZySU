@@ -291,7 +291,8 @@ class Launcher : ComponentActivity() {
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
                     val manager = runCatching { Natives.isManager }.getOrDefault(false)
-                    if (manager && !KsuCli.SHELL.isRoot) {
+                    if (manager) {
+                        // Retire old authentication state without starting a shell just to probe it.
                         KsuCli.refreshShells(checkKsud = false)
                     }
                     KsudIntegrity.refresh(this@Launcher, notifyOnMismatch = false)

@@ -34,14 +34,20 @@ link_libraries(cxx::cxx)
 add_library(kernelsu
         SHARED
         jni.c
-        ksud_integrity.c
+        ksud_integrity.cpp
+        manager_client.cpp
         sumhp_jni.cpp
         ${REPO_ROOT}/userspace/ksud/sumhp/src/mount/sumh_client.cpp
         ksu.c
 )
 target_include_directories(kernelsu PRIVATE ${REPO_ROOT}/userspace/ksud/sumhp/include)
 target_compile_definitions(kernelsu PRIVATE SUMHP_EMBEDDED)
-set_source_files_properties(sumhp_jni.cpp
+file(STRINGS "${REPO_ROOT}/manager/ksud-library-name.txt" KSUD_LIBRARY_NAME LIMIT_COUNT 1)
+if(NOT KSUD_LIBRARY_NAME MATCHES "^lib[A-Za-z0-9_]+\\.so$")
+    message(FATAL_ERROR "Invalid bundled ksud library name")
+endif()
+target_compile_definitions(kernelsu PRIVATE ZYSU_KSUD_LIBRARY_NAME="${KSUD_LIBRARY_NAME}")
+set_source_files_properties(sumhp_jni.cpp ksud_integrity.cpp manager_client.cpp
         ${REPO_ROOT}/userspace/ksud/sumhp/src/mount/sumh_client.cpp
         PROPERTIES COMPILE_OPTIONS "-fexceptions;-funwind-tables")
 
@@ -52,7 +58,7 @@ find_library(log-lib log)
 set_property(TARGET kernelsu PROPERTY LINK_LIBRARIES "")
 target_include_directories(kernelsu SYSTEM PRIVATE
         $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_SYSROOT}/usr/include/c++/v1>)
-target_link_libraries(kernelsu ${log-lib}
+target_link_libraries(kernelsu ${log-lib} dl
         ${CMAKE_SYSROOT}/usr/lib/aarch64-linux-android/libc++_static.a
         ${CMAKE_SYSROOT}/usr/lib/aarch64-linux-android/libc++abi.a)
 

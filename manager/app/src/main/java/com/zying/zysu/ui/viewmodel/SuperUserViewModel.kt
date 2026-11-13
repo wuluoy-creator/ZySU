@@ -504,9 +504,10 @@ class SuperUserViewModel : ViewModel() {
                             ksuServiceScope.launch {
                                 try {
                                     withContext(Dispatchers.IO) {
-                                        val shell = KsuCli.SHELL
-                                        check(shell.isRoot) { "Root access is required to start the package service" }
-                                        shell.execTask(startTask)
+                                        withRootShell { shell ->
+                                            check(shell.isRoot) { "Root access is required to start the package service" }
+                                            shell.execTask(startTask)
+                                        }
                                     }
                                 } catch (error: Exception) {
                                     Log.e(TAG, "Failed to start KsuService", error)
@@ -626,7 +627,7 @@ class SuperUserViewModel : ViewModel() {
 
     private suspend fun backupService(): IKsuInterface {
         check(Natives.isManager && !Natives.checkUapiMismatch()) { "Compatible manager/kernel access is required" }
-        check(KsuCli.SHELL.isRoot) { "Root access is required" }
+        check(rootAvailable()) { "Root access is required" }
         return IKsuInterface.Stub.asInterface(connectKsuService() ?: error("Package service is unavailable"))
     }
 
@@ -650,7 +651,7 @@ class SuperUserViewModel : ViewModel() {
     }
 
     private suspend fun fetchAppListFromService(forceRefresh: Boolean) {
-        if (!withContext(Dispatchers.IO) { KsuCli.SHELL.isRoot }) {
+        if (!withContext(Dispatchers.IO) { rootAvailable() }) {
             throw IllegalStateException("Root access is required to load the app list")
         }
 
