@@ -317,12 +317,42 @@ private fun CustomizationSettings(
         )
 
         ModuleDescriptionLinesSetting(state, handlers)
+        SwitchSettingItem(
+            icon = Icons.Filled.VisibilityOff,
+            title = stringResource(R.string.hide_tag_card),
+            summary = stringResource(R.string.hide_tag_card_summary),
+            checked = state.isHideTagRow,
+            groupPosition = MoreSettingsItemPosition.Last,
+            onChange = handlers::handleHideTagRowChange
+        )
     }
     SettingsCard(title = stringResource(R.string.appearance_display_home), icon = Icons.Filled.Home) {
         HomeDisplaySettings()
+        SwitchSettingItem(
+            icon = Icons.Filled.VisibilityOff,
+            title = stringResource(R.string.hide_kernel_kernelsu_version),
+            summary = stringResource(R.string.hide_kernel_kernelsu_version_summary),
+            checked = state.isHideVersion,
+            onChange = handlers::handleHideVersionChange
+        )
+        SwitchSettingItem(
+            icon = Icons.Filled.VisibilityOff,
+            title = stringResource(R.string.hide_link_card),
+            summary = stringResource(R.string.hide_link_card_summary),
+            checked = state.isHideLinkCard,
+            groupPosition = MoreSettingsItemPosition.Last,
+            onChange = handlers::handleHideLinkCardChange
+        )
     }
     SettingsCard(title = stringResource(R.string.appearance_display_visibility), icon = Icons.Filled.Visibility) {
-        HideOptionsSettings(state = state, handlers = handlers)
+        SwitchSettingItem(
+            icon = Icons.Filled.VisibilityOff,
+            title = stringResource(R.string.hide_other_info),
+            summary = stringResource(R.string.hide_other_info_summary),
+            checked = state.isHideOtherInfo,
+            groupPosition = MoreSettingsItemPosition.Only,
+            onChange = handlers::handleHideOtherInfoChange
+        )
     }
 }
 
@@ -361,49 +391,6 @@ private fun ModuleDescriptionLinesSetting(
             steps = 3
         )
     }
-}
-
-@Composable
-private fun HideOptionsSettings(
-    state: MoreSettingsState,
-    handlers: MoreSettingsHandlers
-) {
-
-    SwitchSettingItem(
-        icon = Icons.Filled.VisibilityOff,
-        title = stringResource(R.string.hide_kernel_kernelsu_version),
-        summary = stringResource(R.string.hide_kernel_kernelsu_version_summary),
-        checked = state.isHideVersion,
-        onChange = handlers::handleHideVersionChange
-    )
-
-
-    SwitchSettingItem(
-        icon = Icons.Filled.VisibilityOff,
-        title = stringResource(R.string.hide_other_info),
-        summary = stringResource(R.string.hide_other_info_summary),
-        checked = state.isHideOtherInfo,
-        onChange = handlers::handleHideOtherInfoChange
-    )
-
-
-    SwitchSettingItem(
-        icon = Icons.Filled.VisibilityOff,
-        title = stringResource(R.string.hide_link_card),
-        summary = stringResource(R.string.hide_link_card_summary),
-        checked = state.isHideLinkCard,
-        onChange = handlers::handleHideLinkCardChange
-    )
-
-
-    SwitchSettingItem(
-        icon = Icons.Filled.VisibilityOff,
-        title = stringResource(R.string.hide_tag_card),
-        summary = stringResource(R.string.hide_tag_card_summary),
-        checked = state.isHideTagRow,
-        groupPosition = MoreSettingsItemPosition.Last,
-        onChange = handlers::handleHideTagRowChange
-    )
 }
 
 @Composable

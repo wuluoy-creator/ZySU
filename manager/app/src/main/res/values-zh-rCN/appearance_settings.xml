@@ -20,7 +20,7 @@
     <string name="appearance_reset_summary" formatted="false">恢复系统默认字体、100% 文字大小、默认圆角和标准深色背景。壁纸、主题色和信息显示选项保持当前设置。</string>
     <string name="appearance_display_modules">模块信息</string>
     <string name="appearance_display_home">主页布局</string>
-    <string name="appearance_display_visibility">主页信息显示</string>
+    <string name="appearance_display_visibility">其他显示设置</string>
     <string name="appearance_home_details">展开设备详情</string>
     <string name="appearance_home_details_summary">默认展开设备信息摘要，点按数值可查看和复制完整内容。</string>
     <string name="appearance_home_layout">主页布局</string>

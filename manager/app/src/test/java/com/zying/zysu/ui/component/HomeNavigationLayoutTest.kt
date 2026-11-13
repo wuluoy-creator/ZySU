@@ -158,6 +158,39 @@ class HomeNavigationLayoutTest {
         saveFrame("main-service-row-rhythm")
     }
 
+    @Test fun gridUsesBottomSpaceWithHiddenVersionAndRequiredActions() {
+        val status = mutableStateOf(HomeStatusPresentation("运行正常", installed = true))
+        var installs = 0
+        var authentications = 0
+        compose.setContent {
+            MaterialTheme {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+                    HomeLayoutContent(HomeLayoutStyle.Grid, HomeLayoutState(status = status.value),
+                        onInstall = { installs++ }, onAuthenticate = { authentications++ },
+                        daemon = { KsudFixture(it) }, kernel = { SumhFixture(it) })
+                }
+            }
+        }
+        val main = compose.onNodeWithTag("home-status-card").getUnclippedBoundsInRoot()
+        val footer = compose.onNodeWithTag("service-main-status", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertEquals(16f, (main.bottom - footer.bottom).value, 1f)
+        compose.onNodeWithTag("service-main-value").assertDoesNotExist()
+        saveFrame("grid-hidden-version")
+        compose.runOnIdle { status.value = HomeStatusPresentation("未安装", installed = false, needsAuthentication = true) }
+        val card = compose.onNodeWithTag("home-status-card").getUnclippedBoundsInRoot()
+        val statusRow = compose.onNodeWithTag("service-main-status", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val install = compose.onNodeWithTag("home-install-action").getUnclippedBoundsInRoot()
+        val authenticate = compose.onNodeWithTag("home-authenticate-action").getUnclippedBoundsInRoot()
+        assertTrue(install.top >= statusRow.bottom && authenticate.top >= statusRow.bottom)
+        assertTrue(install.bottom <= card.bottom && authenticate.bottom <= card.bottom)
+        assertEquals(16f, (card.bottom - maxOf(install.bottom, authenticate.bottom)).value, 1f)
+        compose.onNodeWithTag("home-install-action").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("home-authenticate-action").assertIsDisplayed().performClick()
+        assertEquals(1, installs)
+        assertEquals(1, authentications)
+        saveFrame("grid-install-authenticate")
+    }
+
     @Test fun safeModeMainCardKeepsIndependentVersionDetailsAtLargeText() {
         val selected = mutableStateOf(HomeLayoutStyle.Circle)
         val fullVersion = "v3.6.2-safe-mode-build-with-long-diagnostic-details"
@@ -299,6 +332,14 @@ class HomeNavigationLayoutTest {
             // The artwork is matchParentSize in this host, so it must cover the whole tall tile.
             assertEquals(main.top.value, body.top.value, 1f)
             assertEquals(main.bottom.value, body.bottom.value, 1f)
+            val header = compose.onNodeWithTag("service-main-header", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            val version = compose.onNodeWithTag("service-main-value", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            val status = compose.onNodeWithTag("service-main-status", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            assertEquals(16f, (header.top - main.top).value, 1f)
+            assertEquals(16f, (main.bottom - status.bottom).value, 1f, "Status must use the bottom of the tall main card")
+            assertTrue(version.top > header.bottom && version.bottom < status.top)
+            assertEquals((version.top - header.bottom).value, (status.top - version.bottom).value, 1f,
+                "Version should occupy the middle, with balanced space above and below")
             listOf("header", "value", "status").forEach { row ->
                 val ksudRow = compose.onNodeWithTag("service-ksud-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
                 val sumhRow = compose.onNodeWithTag("service-sumh-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
@@ -352,7 +393,7 @@ class HomeNavigationLayoutTest {
     }
 
     private fun saveFrame(name: String) {
-        val output = File("../../out/grid-overlay-layout-ui/$name.png")
+        val output = File("../../out/grid-card-spacing-ui/$name.png")
         output.parentFile?.mkdirs()
         val frame = if (name.endsWith("-detail")) {
             compose.onNode(isDialog()).assertIsDisplayed()

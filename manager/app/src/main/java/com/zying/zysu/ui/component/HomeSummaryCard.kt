@@ -158,13 +158,26 @@ internal fun HomeServiceCardContent(
     tag: String,
     value: @Composable () -> Unit,
     status: @Composable () -> Unit,
+    distributeVertically: Boolean = false,
     supporting: @Composable ColumnScope.() -> Unit = {},
 ) {
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        Modifier.fillMaxWidth().then(if (distributeVertically) Modifier.fillMaxHeight() else Modifier).padding(16.dp),
+        verticalArrangement = if (distributeVertically) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp),
+    ) {
         HomeStatusCardHeader(title, description, icon, enabled, Modifier.testTag("service-$tag-header"))
-        value()
-        status()
-        supporting()
+        if (distributeVertically) {
+            // The tall Grid tile uses its full height without changing the shared text styles.
+            Column(Modifier.padding(vertical = 8.dp)) { value() }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                status()
+                supporting()
+            }
+        } else {
+            value()
+            status()
+            supporting()
+        }
     }
 }
 

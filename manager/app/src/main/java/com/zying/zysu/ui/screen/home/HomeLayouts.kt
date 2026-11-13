@@ -181,6 +181,7 @@ internal fun HomeMainStatusCard(
                 icon = Icons.Outlined.Security,
                 enabled = status.installed,
                 tag = "main",
+                distributeVertically = fillTileHeight,
                 value = {
                     status.version?.let { fact ->
                         HomeServiceValueRow(

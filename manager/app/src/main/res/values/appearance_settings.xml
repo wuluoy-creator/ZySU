@@ -20,7 +20,7 @@
     <string name="appearance_reset_summary" formatted="false">Restore the system typeface, 100% text size, default corners and standard dark background. Your wallpaper, theme color and display options stay as configured.</string>
     <string name="appearance_display_modules">Module information</string>
     <string name="appearance_display_home">Home layout</string>
-    <string name="appearance_display_visibility">Home information visibility</string>
+    <string name="appearance_display_visibility">Other display settings</string>
     <string name="appearance_home_details">Expand device details</string>
     <string name="appearance_home_details_summary">Expand device summaries on Home. Open a value to read and copy its full details.</string>
     <string name="appearance_home_layout">Home layout</string>
