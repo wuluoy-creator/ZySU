@@ -168,10 +168,6 @@ class HomeViewModel : ViewModel() {
     var latestVersionInfo by mutableStateOf(LatestVersionInfo())
         private set
 
-    var isSimpleMode by mutableStateOf(false)
-        private set
-    var isKernelSimpleMode by mutableStateOf(false)
-        private set
     var isHideVersion by mutableStateOf(false)
         private set
     var isHideOtherInfo by mutableStateOf(false)
@@ -216,8 +212,6 @@ class HomeViewModel : ViewModel() {
         val appContext = context.applicationContext
         val prefs = appContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
         fun read() {
-            isSimpleMode = prefs.getBoolean("is_simple_mode", false)
-            isKernelSimpleMode = prefs.getBoolean("is_kernel_simple_mode", false)
             isHideVersion = prefs.getBoolean("is_hide_version", false)
             isHideOtherInfo = prefs.getBoolean("is_hide_other_info", false)
             isHideLinkCard = prefs.getBoolean("is_hide_link_card", false)
@@ -231,9 +225,8 @@ class HomeViewModel : ViewModel() {
         read()
         if (settingsPreferences === prefs) return
         settingsListener?.let { settingsPreferences?.unregisterOnSharedPreferenceChangeListener(it) }
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
             read()
-            if (key == "is_kernel_simple_mode") refreshData(appContext, forceRefresh = true)
         }
         prefs.registerOnSharedPreferenceChangeListener(listener)
         settingsPreferences = prefs
@@ -254,32 +247,10 @@ class HomeViewModel : ViewModel() {
 
                 val ksuVersion = if (isManager) Natives.version else null
 
-                val fullVersion = try {
+                val ksuFullVersion = try {
                     Natives.getFullVersion()
                 } catch (_: Exception) {
                     "Unknown"
-                }
-
-                val ksuFullVersion = if (isKernelSimpleMode) {
-                    try {
-                        val startIndex = fullVersion.indexOf('v')
-                        if (startIndex >= 0) {
-                            val endIndex = fullVersion.indexOf('-', startIndex)
-                            val versionStr = if (endIndex > startIndex) {
-                                fullVersion.substring(startIndex, endIndex)
-                            } else {
-                                fullVersion.substring(startIndex)
-                            }
-                            val numericVersion = "v" + (Regex("""\d+(\.\d+)*""").find(versionStr)?.value ?: versionStr)
-                            numericVersion
-                        } else {
-                            fullVersion
-                        }
-                    } catch (_: Exception) {
-                        fullVersion
-                    }
-                } else {
-                    fullVersion
                 }
 
                 val isRootAvailable = try {

@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Омогућено</string>
     <string name="selinux_disabled">Онемогућено</string>
-    <string name="simple_mode">Режим једноставности</string>
-    <string name="simple_mode_summary">Сакрива непотребне картице када је укључен</string>
     <string name="hide_kernel_kernelsu_version">Сакриј верзију кернела</string>
     <string name="hide_kernel_kernelsu_version_summary">Сакриј верзију кернела</string>
     <string name="hide_other_info">Сакриј остале информације</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Сортирај по</string>
     <string name="show_more_module_info">Прикажи више информација о модулу</string>
     <string name="show_more_module_info_summary">Прикажи додатне информације о модулу као што је ажурирање ЈСОН УРЛ адреса</string>
-    <string name="kernel_simple_kernel">Сажети приказ верзије језгра</string>
-    <string name="kernel_simple_kernel_summary">Омогућите или онемогућите сажети приказ верзије ZySU језгра</string>
     <string name="home_zygisk_implement">Zygisk имплементирати</string>
     <string name="home_meta_module_implement">Мета Модуле имплемент</string>
     <!-- 确认安装相关字符串 -->

@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Aktiveret</string>
     <string name="selinux_disabled">Deaktiveret</string>
-    <string name="simple_mode">Enkel tilstand</string>
-    <string name="simple_mode_summary">Skjuler unødvendige kort, når den er aktiveret</string>
     <string name="hide_kernel_kernelsu_version">Skjul kerneversion</string>
     <string name="hide_kernel_kernelsu_version_summary">Skjul kerneversion</string>
     <string name="hide_other_info">Skjul anden info</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Sortér efter</string>
     <string name="show_more_module_info">Vis mere modulinfo</string>
     <string name="show_more_module_info_summary">Vis yderligere modulinfo såsom update JSON-URL\'er</string>
-    <string name="kernel_simple_kernel">Kortfattet tilstand for kerneversion</string>
-    <string name="kernel_simple_kernel_summary">Aktivér eller deaktiver den enkle visning af ZySU-kerneversionen</string>
     <string name="home_zygisk_implement">Zygisk-implementering</string>
     <string name="home_meta_module_implement">Meta Modul-implementering</string>
     <!-- 确认安装相关字符串 -->

@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Aktivdir</string>
     <string name="selinux_disabled">Deaktivdir</string>
-    <string name="simple_mode">Sadəlik rejimi</string>
-    <string name="simple_mode_summary">Aktiv olduqda lazımsız kartları gizlədir</string>
     <string name="hide_kernel_kernelsu_version">Nüvə versiyasını gizlət</string>
     <string name="hide_kernel_kernelsu_version_summary">Nüvə versiyasını gizlət</string>
     <string name="hide_other_info">Digər məlumatları gizlət</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Çeşidləmə Seçimləri</string>
     <string name="show_more_module_info">Daha Çox Modul Məlumatı Göstər</string>
     <string name="show_more_module_info_summary">Yeniləmə JSON URL-ləri kimi əlavə modul məlumatlarını göstər</string>
-    <string name="kernel_simple_kernel">Nüvə Versiyası Qısa Rejimi</string>
-    <string name="kernel_simple_kernel_summary">ZySU nüvə versiyasının göstərdiyi sadə rejimi aktivləşdirin və ya deaktiv edin</string>
     <string name="home_zygisk_implement">Zygisk tətbiqi</string>
     <string name="home_meta_module_implement">Meta Modul tətbiqi</string>
     <!-- 确认安装相关字符串 -->

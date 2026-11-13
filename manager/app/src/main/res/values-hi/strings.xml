@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">सक्षम</string>
     <string name="selinux_disabled">अक्षम</string>
-    <string name="simple_mode">सरलता मोड</string>
-    <string name="simple_mode_summary">चालू होने पर अनावश्यक कार्ड छिपाता है</string>
     <string name="hide_kernel_kernelsu_version">कर्नेल संस्करण छिपाएं</string>
     <string name="hide_kernel_kernelsu_version_summary">कर्नेल संस्करण छिपाएं</string>
     <string name="hide_other_info">अन्य जानकारी छिपाएं</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">इसके अनुसार क्रमबद्ध करें</string>
     <string name="show_more_module_info">अधिक मॉड्यूल जानकारी दिखाएं</string>
     <string name="show_more_module_info_summary">अपडेट JSON URL जैसी अतिरिक्त मॉड्यूल जानकारी प्रदर्शित करें</string>
-    <string name="kernel_simple_kernel">कर्नेल संस्करण संक्षिप्त मोड</string>
-    <string name="kernel_simple_kernel_summary">ZySU कर्नेल संस्करण द्वारा प्रदर्शित स्वच्छ मोड को सक्षम या अक्षम करें</string>
     <string name="home_zygisk_implement">Zygisk कार्यान्वयन</string>
     <string name="home_meta_module_implement">Meta Module कार्यान्वयन</string>
     <!-- 确认安装相关字符串 -->

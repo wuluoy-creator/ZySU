@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">সক্রিয়</string>
     <string name="selinux_disabled">নিষ্ক্রিয়</string>
-    <string name="simple_mode">সরলতা মোড</string>
-    <string name="simple_mode_summary">চালু থাকলে অপ্রয়োজনীয় কার্ড লুকায়</string>
     <string name="hide_kernel_kernelsu_version">কার্নেল সংস্করণ লুকান</string>
     <string name="hide_kernel_kernelsu_version_summary">কার্নেল সংস্করণ লুকান</string>
     <string name="hide_other_info">অন্যান্য তথ্য লুকান</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">এই অনুসারে সাজান</string>
     <string name="show_more_module_info">আরও মডিউল তথ্য দেখান</string>
     <string name="show_more_module_info_summary">আপডেট JSON URL এর মতো অতিরিক্ত মডিউল তথ্য প্রদর্শন করুন</string>
-    <string name="kernel_simple_kernel">কার্নেল সংস্করণ সংক্ষিপ্ত মোড</string>
-    <string name="kernel_simple_kernel_summary">ZySU কার্নেল সংস্করণ দ্বারা প্রদর্শিত পরিষ্কার মোড সক্রিয় বা নিষ্ক্রিয় করুন</string>
     <string name="home_zygisk_implement">Zygisk বাস্তবায়ন</string>
     <string name="home_meta_module_implement">Meta Module বাস্তবায়ন</string>
     <!-- 确认安装相关字符串 -->

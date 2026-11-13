@@ -173,8 +173,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Iespējots</string>
     <string name="selinux_disabled">Atspējots</string>
-    <string name="simple_mode">Vienkāršais režīms</string>
-    <string name="simple_mode_summary">Ieslēdzot, slēpj nevajadzīgās kartītes</string>
     <string name="hide_kernel_kernelsu_version">Slēpt kodola versiju</string>
     <string name="hide_kernel_kernelsu_version_summary">Slēpt kodola versiju</string>
     <string name="hide_other_info">Slēpt citu informāciju</string>
@@ -278,8 +276,6 @@
     <string name="sort_options">Kārtot pēc</string>
     <string name="show_more_module_info">Rādīt vairāk moduļa informācijas</string>
     <string name="show_more_module_info_summary">Rādīt papildu moduļa informāciju, piemēram, Update JSON URL</string>
-    <string name="kernel_simple_kernel">Kodola versijas kompaktais režīms</string>
-    <string name="kernel_simple_kernel_summary">Iespējot vai atspējot ZySU kodola versijas attēlojuma kompakto režīmu</string>
     <string name="home_zygisk_implement">Zygisk realizācija</string>
     <string name="home_meta_module_implement">Metamoduļa realizācija</string>
     <!-- 确认安装相关字符串 -->

@@ -28,10 +28,8 @@ class HomeFactVisibilityTest {
         HomeFactField.entries.forEach { assertTrue(RuntimeEnvironment.getApplication().getString(it.label).isNotBlank()) }
     }
 
-    @Test fun legacyHiddenFlagsAndSimpleModePreserveExistingDefaults() {
-        preferences.edit().putBoolean("is_simple_mode", true).putBoolean("is_hide_seccomp_status", true).commit()
-        assertEquals(setOf("device", "kernel", "selinux", "manager"), HomeFactVisibility.read(preferences))
-        preferences.edit().putBoolean("is_simple_mode", false).putBoolean("is_hide_zygisk_Implement", true)
+    @Test fun legacyPerFieldHiddenFlagsPreserveExistingChoices() {
+        preferences.edit().putBoolean("is_hide_seccomp_status", true).putBoolean("is_hide_zygisk_Implement", true)
             .putBoolean("is_hide_meta_module_Implement", true).commit()
         val visible = HomeFactVisibility.read(preferences)
         assertFalse("seccomp" in visible)
@@ -41,8 +39,7 @@ class HomeFactVisibilityTest {
         assertTrue("fingerprint" in visible)
     }
 
-    @Test fun explicitChoiceOverridesSimpleModeWithoutDivergingFromLegacyHideControls() {
-        preferences.edit().putBoolean("is_simple_mode", true).commit()
+    @Test fun fieldChoicesShareTheLegacyHiddenState() {
         HomeFactVisibility.setVisible(preferences, HomeFactField.Android, true)
         HomeFactVisibility.setVisible(preferences, HomeFactField.Zygisk, true)
         assertTrue("android" in HomeFactVisibility.read(preferences))
@@ -56,6 +53,18 @@ class HomeFactVisibilityTest {
         assertTrue(preferences.getBoolean("is_hide_meta_module_Implement", false))
         HomeFactVisibility.setVisible(preferences, HomeFactField.Seccomp, false)
         assertTrue(preferences.getBoolean("is_hide_seccomp_status", false))
+    }
+
+    @Test fun removedModePreferencesDoNotHideAnyFieldsOrOverrideChoices() {
+        preferences.edit().putBoolean("is_simple_mode", true).putBoolean("is_kernel_simple_mode", true).commit()
+        assertEquals(HomeFactField.entries.map { it.id }.toSet(), HomeFactVisibility.read(preferences))
+        assertFalse(HomeFactVisibility.observes("is_simple_mode"))
+        assertFalse(HomeFactVisibility.observes("is_kernel_simple_mode"))
+        HomeFactVisibility.setVisible(preferences, HomeFactField.Android, false)
+        HomeFactVisibility.setVisible(preferences, HomeFactField.Zygisk, false)
+        val selected = HomeFactVisibility.read(preferences)
+        preferences.edit().putBoolean("is_simple_mode", false).putBoolean("is_kernel_simple_mode", false).commit()
+        assertEquals(selected, HomeFactVisibility.read(preferences))
     }
 
     @Test fun everyFieldPersistsIndependentlyAndFiltersWithoutChangingOrderOrData() {

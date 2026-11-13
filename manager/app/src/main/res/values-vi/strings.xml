@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Đang bật</string>
     <string name="selinux_disabled">Đang tắt</string>
-    <string name="simple_mode">Chế độ đơn giản</string>
-    <string name="simple_mode_summary">Ẩn các thẻ không cần thiết ở trang chủ</string>
     <string name="hide_kernel_kernelsu_version">Ẩn phiên bản Kernel</string>
     <string name="hide_kernel_kernelsu_version_summary">Ẩn thông tin phiên bản Kernel ở trang chủ</string>
     <string name="hide_other_info">Ẩn thông tin số lượng</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Sắp xếp theo</string>
     <string name="show_more_module_info">Hiển thị thêm thông tin mô-đun</string>
     <string name="show_more_module_info_summary">Hiển thị thông tin đường dẫn cập nhật \"JSON URLs\" của module</string>
-    <string name="kernel_simple_kernel">Hiển thị tóm tắt \"Phiên bản Kernel\"</string>
-    <string name="kernel_simple_kernel_summary">Tóm tắt hiển thị phiên bản Kernel cho ngắn gọn</string>
     <string name="home_zygisk_implement">Triển khai Zygisk</string>
     <string name="home_meta_module_implement">Triển khai Siêu Module</string>
     <!-- 确认安装相关字符串 -->

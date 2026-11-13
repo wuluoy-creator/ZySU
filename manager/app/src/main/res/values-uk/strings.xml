@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Увімкнено</string>
     <string name="selinux_disabled">Вимкнено</string>
-    <string name="simple_mode">Спрощений режим</string>
-    <string name="simple_mode_summary">Приховує непотрібні картки при ввімкненні</string>
     <string name="hide_kernel_kernelsu_version">Приховати версію ядра</string>
     <string name="hide_kernel_kernelsu_version_summary">Приховує версію ядра</string>
     <string name="hide_other_info">Приховати іншу інформацію</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Сортувати за</string>
     <string name="show_more_module_info">Показувати більше інформації про модуль</string>
     <string name="show_more_module_info_summary">Відображати додаткову інформацію про модуль, як-от URL-адреси для оновлення JSON</string>
-    <string name="kernel_simple_kernel">Спрощений режим версії ядра</string>
-    <string name="kernel_simple_kernel_summary">Увімкнути або вимкнути спрощене відображення версії ядра ZySU</string>
     <string name="home_zygisk_implement">Реалізація Zygisk</string>
     <string name="home_meta_module_implement">Реалізація метамодуля</string>
     <!-- 确认安装相关字符串 -->

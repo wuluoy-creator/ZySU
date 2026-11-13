@@ -320,22 +320,6 @@ private fun CustomizationSettings(
     }
     SettingsCard(title = stringResource(R.string.appearance_display_home), icon = Icons.Filled.Home) {
         HomeDisplaySettings()
-        SwitchSettingItem(
-            icon = Icons.Filled.Brush,
-            title = stringResource(R.string.simple_mode),
-            summary = stringResource(R.string.simple_mode_summary),
-            checked = state.isSimpleMode,
-            onChange = handlers::handleSimpleModeChange
-        )
-
-        SwitchSettingItem(
-            icon = Icons.Filled.Brush,
-            title = stringResource(R.string.kernel_simple_kernel),
-            summary = stringResource(R.string.kernel_simple_kernel_summary),
-            checked = state.isKernelSimpleMode,
-            groupPosition = MoreSettingsItemPosition.Last,
-            onChange = handlers::handleKernelSimpleModeChange
-        )
     }
     SettingsCard(title = stringResource(R.string.appearance_display_visibility), icon = Icons.Filled.Visibility) {
         HideOptionsSettings(state = state, handlers = handlers)

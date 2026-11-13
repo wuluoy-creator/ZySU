@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.testTag
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.zying.zysu.ui.theme.HomeCardArtwork
+import com.zying.zysu.ui.theme.HomeCardArtworkStore
 import com.zying.zysu.ui.theme.rememberHomeCardArtwork
 
 internal val LocalHomeCardArtworkPreview = compositionLocalOf<HomeCardArtwork?> { null }
@@ -41,7 +42,9 @@ internal fun HomeCardArtworkLayer(artwork: HomeCardArtwork, modifier: Modifier =
             modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = artwork.scale; scaleY = artwork.scale }
                 .then(if (loaded) Modifier.testTag("home-card-artwork-loaded") else Modifier),
         )
-        // Keep the same foreground contrast for photographs, transparent cutouts and either theme.
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.82f)))
+        // Exact endpoints allow the original image or a fully opaque theme surface.
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerLow.copy(
+            alpha = HomeCardArtworkStore.validOverlayOpacity(artwork.overlayOpacity),
+        )))
     }
 }

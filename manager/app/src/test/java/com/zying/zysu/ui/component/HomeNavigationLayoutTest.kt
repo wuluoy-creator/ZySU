@@ -59,6 +59,10 @@ class HomeNavigationLayoutTest {
     @Test fun gridLargeTextStacksServices() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.Glass, fontScale = 2f)
 
     @Test
+    @Config(qualifiers = "zh-rCN-w320dp-h900dp-mdpi")
+    fun gridNarrowPhoneStacksServicesWithoutClipping() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.FloatingDrawer, suffix = "-narrow")
+
+    @Test
     @Config(qualifiers = "zh-rCN-w800dp-h450dp-land-mdpi")
     fun focusLandscapeBoard() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingDrawer, suffix = "-landscape")
 
@@ -130,7 +134,7 @@ class HomeNavigationLayoutTest {
         assertEquals(3, authentications)
     }
 
-    @Test fun mainAndKsudShareHeaderVersionAndStatusRhythmInCompactGrid() {
+    @Test fun mainAndKsudShareHeaderVersionAndStatusRowRhythm() {
         compose.setContent {
             MaterialTheme {
                 Row(Modifier.fillMaxWidth().padding(20.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -151,7 +155,7 @@ class HomeNavigationLayoutTest {
         val header = compose.onNodeWithTag("service-main-header", useUnmergedTree = true).getUnclippedBoundsInRoot()
         assertEquals(16f, header.top.value - card.top.value, 1f)
         compose.onNodeWithTag("service-main-value").assertHeightIsAtLeast(48.dp)
-        saveFrame("main-service-grid-rhythm")
+        saveFrame("main-service-row-rhythm")
     }
 
     @Test fun safeModeMainCardKeepsIndependentVersionDetailsAtLargeText() {
@@ -256,6 +260,7 @@ class HomeNavigationLayoutTest {
             assertTrue(card.top >= upper.top && card.bottom <= upper.bottom, "$tag must be inside the rearranged upper region")
             assertTrue(card.bottom <= core.top, "$tag must appear before core facts")
         }
+        if (style == HomeLayoutStyle.Grid) verifyGridGeometry(stack = fontScale >= 1.3f || suffix.contains("narrow"))
         // Each fact stays in the shared core panel exactly once.
         facts.forEach { compose.onAllNodesWithText(it.label, useUnmergedTree = true).assertCountEquals(1) }
         compose.onNodeWithText(kernel).assertDoesNotExist()
@@ -267,6 +272,44 @@ class HomeNavigationLayoutTest {
         kernelFact.performClick()
         compose.onNodeWithText(kernel).assertIsDisplayed()
         saveFrame("$frame-detail")
+    }
+
+    /** The real production Grid must retain the user's left-one/right-two arrangement. */
+    private fun verifyGridGeometry(stack: Boolean) {
+        val main = compose.onNodeWithTag("home-status-card").getUnclippedBoundsInRoot()
+        val body = compose.onNodeWithTag("home-status-grid", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val ksud = compose.onNodeWithTag("fixture-ksud").getUnclippedBoundsInRoot()
+        val sumh = compose.onNodeWithTag("fixture-sumh").getUnclippedBoundsInRoot()
+        if (stack) {
+            assertTrue(ksud.top >= main.bottom && sumh.top >= ksud.bottom, "Narrow/large text Grid must stack its cards")
+            assertEquals(main.left.value, ksud.left.value, 1f)
+            assertEquals(main.right.value, ksud.right.value, 1f)
+            assertEquals(main.left.value, sumh.left.value, 1f)
+            assertEquals(main.right.value, sumh.right.value, 1f)
+        } else {
+            assertTrue(main.right < ksud.left && main.right < sumh.left, "Main card must remain left of BOTH services")
+            assertEquals(main.top.value, ksud.top.value, 1f)
+            assertEquals(main.bottom.value, sumh.bottom.value, 1f)
+            assertEquals(ksud.left.value, sumh.left.value, 1f)
+            assertEquals(ksud.right.value, sumh.right.value, 1f)
+            assertEquals(12f, (sumh.top - ksud.bottom).value, 1f)
+            assertEquals((ksud.bottom - ksud.top).value, (sumh.bottom - sumh.top).value, 1f)
+            assertEquals((ksud.bottom - ksud.top + 12.dp + sumh.bottom - sumh.top).value, (main.bottom - main.top).value, 1f)
+            assertEquals(0.9f / 1.1f, (main.right - main.left).value / (ksud.right - ksud.left).value, 0.02f)
+            // The artwork is matchParentSize in this host, so it must cover the whole tall tile.
+            assertEquals(main.top.value, body.top.value, 1f)
+            assertEquals(main.bottom.value, body.bottom.value, 1f)
+            listOf("header", "value", "status").forEach { row ->
+                val ksudRow = compose.onNodeWithTag("service-ksud-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
+                val sumhRow = compose.onNodeWithTag("service-sumh-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
+                assertEquals((ksudRow.top - ksud.top).value, (sumhRow.top - sumh.top).value, 1f)
+                assertEquals((ksudRow.bottom - ksudRow.top).value, (sumhRow.bottom - sumhRow.top).value, 1f)
+            }
+        }
+        listOf("header", "value", "status").forEach { row ->
+            val bounds = compose.onNodeWithTag("service-main-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            assertTrue(bounds.left >= main.left && bounds.right <= main.right && bounds.bottom <= main.bottom)
+        }
     }
 
     private fun scrollAboveDock(node: SemanticsNodeInteraction): SemanticsNodeInteraction {
@@ -309,7 +352,7 @@ class HomeNavigationLayoutTest {
     }
 
     private fun saveFrame(name: String) {
-        val output = File("../../out/custom-home-layout-ui/$name.png")
+        val output = File("../../out/grid-overlay-layout-ui/$name.png")
         output.parentFile?.mkdirs()
         val frame = if (name.endsWith("-detail")) {
             compose.onNode(isDialog()).assertIsDisplayed()

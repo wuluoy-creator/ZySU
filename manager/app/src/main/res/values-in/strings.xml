@@ -173,8 +173,6 @@
     <string name="selinux">Selinux</string>
     <string name="selinux_enabled">Aktifkan</string>
     <string name="selinux_disabled">Nonaktifkan</string>
-    <string name="simple_mode">Mode simple</string>
-    <string name="simple_mode_summary">Sembunyikan papan kartu di beranda</string>
     <string name="hide_kernel_kernelsu_version">Sembunyikan versi kernel</string>
     <string name="hide_kernel_kernelsu_version_summary">Sembunyikan versi kernel jika namanya tidak yakin</string>
     <string name="hide_other_info">Sembunyikan info lain</string>
@@ -278,8 +276,6 @@
     <string name="sort_options">Urut berdasarkan</string>
     <string name="show_more_module_info">Tampilkan info modul lainnya</string>
     <string name="show_more_module_info_summary">Pajang info modul tambahan seperti URL pembaruan JSON</string>
-    <string name="kernel_simple_kernel">Mode Ringkas Versi Kernel</string>
-    <string name="kernel_simple_kernel_summary">Aktifkan atau nonaktifkan mode bersih yang ditampilkan oleh versi kernel ZySU</string>
     <string name="home_zygisk_implement">Implementasi Zygisk</string>
     <string name="home_meta_module_implement">Implementasi metamodul</string>
     <!-- 确认安装相关字符串 -->

@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">فعال</string>
     <string name="selinux_disabled">غیرفعال</string>
-    <string name="simple_mode">حالت ساده</string>
-    <string name="simple_mode_summary">هنگام روشن بودن، کارت‌های غیرضروری را پنهان می‌کند</string>
     <string name="hide_kernel_kernelsu_version">پنهان کردن نسخه کرنل</string>
     <string name="hide_kernel_kernelsu_version_summary">پنهان کردن نسخه کرنل</string>
     <string name="hide_other_info">پنهان کردن اطلاعات دیگر</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">مرتب‌سازی بر اساس</string>
     <string name="show_more_module_info">نمایش اطلاعات بیشتر ماژول</string>
     <string name="show_more_module_info_summary">نمایش اطلاعات اضافی ماژول مانند نشانی‌های Update JSON</string>
-    <string name="kernel_simple_kernel">حالت مختصر نسخه کرنل</string>
-    <string name="kernel_simple_kernel_summary">حالت تمیز نمایش‌داده‌شده توسط نسخه کرنل ZySU را فعال یا غیرفعال کنید</string>
     <string name="home_zygisk_implement">پیاده‌سازی Zygisk</string>
     <string name="home_meta_module_implement">پیاده‌سازی Meta Module</string>
     <!-- 确认安装相关字符串 -->

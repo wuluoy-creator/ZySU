@@ -173,8 +173,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Ativado</string>
     <string name="selinux_disabled">Desativado</string>
-    <string name="simple_mode">Modo simplificado</string>
-    <string name="simple_mode_summary">Oculta cartões desnecessários quando ativado</string>
     <string name="hide_kernel_kernelsu_version">Ocultar versão do kernel</string>
     <string name="hide_kernel_kernelsu_version_summary">Ocultar versão do kernel</string>
     <string name="hide_other_info">Ocultar outras informações</string>
@@ -278,8 +276,6 @@
     <string name="sort_options">Ordenar por</string>
     <string name="show_more_module_info">Mostrar mais informações do módulo</string>
     <string name="show_more_module_info_summary">Mostrar informações adicionais do módulo, como URLs do Update JSON</string>
-    <string name="kernel_simple_kernel">Modo conciso da versão do kernel</string>
-    <string name="kernel_simple_kernel_summary">Ativar ou desativar o modo conciso de exibição da versão do kernel do ZySU</string>
     <string name="home_zygisk_implement">Implementação do Zygisk</string>
     <string name="home_meta_module_implement">Implementação do metamódulo</string>
     <!-- 确认安装相关字符串 -->

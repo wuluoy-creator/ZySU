@@ -24,6 +24,28 @@ import kotlin.test.assertEquals
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [35], shadows = [HomePreferenceOsShadow::class])
 class HomeDisplayPreferencesTest {
+    @Test fun obsoleteModePreferencesDoNotChangeRetainedHomeOrTriggerRefresh() {
+        val context = RuntimeEnvironment.getApplication()
+        val preferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        preferences.edit().clear().putBoolean("is_simple_mode", true)
+            .putBoolean("is_kernel_simple_mode", true).commit()
+        val model = HomeViewModel()
+        val store = ViewModelStore().apply { put("home", model) }
+        model.loadUserSettings(context)
+        val expected = HomeFactField.entries.map { it.id }.toSet()
+        assertEquals(expected, model.visibleHomeFactIds)
+        assertFalse(model.isHideLinkCard)
+        assertFalse(model.isHideVersion)
+        val refreshKey = model.dataRefreshTrigger.value
+        preferences.edit().putBoolean("is_simple_mode", false).putBoolean("is_kernel_simple_mode", false).commit()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(expected, model.visibleHomeFactIds)
+        assertFalse(model.isCoreDataLoaded)
+        assertFalse(model.isRefreshing)
+        assertEquals(refreshKey, model.dataRefreshTrigger.value)
+        store.clear()
+    }
+
     @Test fun homeReflectsDisplayChangesAndReleasesItsListener() {
         val context = RuntimeEnvironment.getApplication()
         val preferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)

@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Engedélyezve</string>
     <string name="selinux_disabled">Letiltva</string>
-    <string name="simple_mode">Egyszerű mód</string>
-    <string name="simple_mode_summary">Bekapcsolva elrejti a szükségtelen kártyákat</string>
     <string name="hide_kernel_kernelsu_version">Kernel verzió elrejtése</string>
     <string name="hide_kernel_kernelsu_version_summary">Kernel verzió elrejtése</string>
     <string name="hide_other_info">Egyéb információk elrejtése</string>
@@ -277,8 +275,6 @@ A</string>
     <string name="sort_options">Rendezés szerint</string>
     <string name="show_more_module_info">További modulinformációk megjelenítése</string>
     <string name="show_more_module_info_summary">További modulinformációk megjelenítése, például Update JSON URL-ek</string>
-    <string name="kernel_simple_kernel">Kernel verzió tömör mód</string>
-    <string name="kernel_simple_kernel_summary">A ZySU kernel verzió megjelenítésének tömör módja be- vagy kikapcsolása</string>
     <string name="home_zygisk_implement">Zygisk megvalósítás</string>
     <string name="home_meta_module_implement">Metamodul megvalósítás</string>
     <!-- 确认安装相关字符串 -->

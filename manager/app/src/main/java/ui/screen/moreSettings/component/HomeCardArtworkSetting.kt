@@ -56,13 +56,15 @@ internal fun HomeCardArtworkSetting() {
     )
     if (expanded) {
         var scale by remember(artwork.scale) { mutableFloatStateOf(artwork.scale) }
+        var overlayOpacity by remember(artwork.overlayOpacity) { mutableFloatStateOf(artwork.overlayOpacity) }
         val scaleTitle = stringResource(R.string.home_card_artwork_scale)
+        val overlayTitle = stringResource(R.string.home_card_artwork_overlay)
         AlertDialog(
             onDismissRequest = { if (!busy) expanded = false },
             title = { Text(stringResource(R.string.home_card_artwork_title)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CompositionLocalProvider(LocalHomeCardArtworkPreview provides artwork.copy(scale = scale)) {
+                    CompositionLocalProvider(LocalHomeCardArtworkPreview provides artwork.copy(scale = scale, overlayOpacity = overlayOpacity)) {
                         HomeMainStatusCard(
                             style = HomeLayoutStyle.Circle,
                             status = HomeStatusPresentation(
@@ -90,6 +92,15 @@ internal fun HomeCardArtworkSetting() {
                         TextButton(enabled = !busy, onClick = { scale = 1f; HomeCardArtworkStore.setScale(context, 1f) }) {
                             Text(stringResource(R.string.home_card_artwork_reset))
                         }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(overlayTitle, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(R.string.appearance_percentage, (overlayOpacity * 100).roundToInt()), style = MaterialTheme.typography.labelLarge)
+                        }
+                        Slider(value = overlayOpacity, onValueChange = { overlayOpacity = it }, enabled = !busy,
+                            valueRange = 0f..1f,
+                            onValueChangeFinished = { HomeCardArtworkStore.setOverlayOpacity(context, overlayOpacity) },
+                            modifier = Modifier.testTag("home-artwork-overlay").semantics { contentDescription = overlayTitle })
+                        Text(stringResource(R.string.home_card_artwork_overlay_help), style = MaterialTheme.typography.bodySmall)
                     }
                     if (busy) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)

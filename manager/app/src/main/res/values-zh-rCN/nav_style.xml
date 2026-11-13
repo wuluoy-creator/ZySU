@@ -4,6 +4,6 @@
     <string name="nav_style_summary">两种样式均与页面顶栏共用玻璃材质和主题配色。</string>
     <string name="nav_style_glass">玻璃胶囊</string>
     <string name="nav_style_glass_summary">悬浮玻璃质感，选中状态覆盖图标与文字。</string>
-    <string name="nav_style_floating_drawer">悬浮 · 抽屉</string>
+    <string name="nav_style_floating_drawer">玻璃胶囊抽屉</string>
     <string name="nav_style_floating_drawer_summary">与顶栏配套的玻璃抽屉，以中性材质突出选中项。选中项展开文字，其他项仅保留图标。</string>
 </resources>

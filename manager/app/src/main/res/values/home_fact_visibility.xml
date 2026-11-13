@@ -3,7 +3,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="home_fact_visibility_title">Core information fields</string>
     <string name="home_fact_visibility_count">Selected: %1$d / %2$d</string>
-    <string name="home_fact_visibility_summary">Choose each row shown on Home. Changes apply immediately. Your choices take priority over simple mode.</string>
+    <string name="home_fact_visibility_summary">Choose each row shown on Home. Changes apply immediately.</string>
     <string name="home_fact_visibility_availability">Working mode, Zygisk and mount implementation appear when their data is available. Hide every field to remove the core information card.</string>
     <string name="home_fact_visibility_build_detail">Shown in the expandable device build details</string>
 </resources>

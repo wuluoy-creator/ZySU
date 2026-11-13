@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Naka-enable</string>
     <string name="selinux_disabled">Naka-disable</string>
-    <string name="simple_mode">Simplicity mode</string>
-    <string name="simple_mode_summary">Itinatago ang mga hindi kinakailangang card kapag naka-on</string>
     <string name="hide_kernel_kernelsu_version">Itago ang bersyon ng kernel</string>
     <string name="hide_kernel_kernelsu_version_summary">Itago ang bersyon ng kernel</string>
     <string name="hide_other_info">Itago ang iba pang impormasyon</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Ayusin ayon sa</string>
     <string name="show_more_module_info">Ipakita ang Higit Pang Module Info</string>
     <string name="show_more_module_info_summary">Ipakita ang karagdagang impormasyon ng module tulad ng mga update JSON URL</string>
-    <string name="kernel_simple_kernel">Concise Mode ng Bersyon ng Kernel</string>
-    <string name="kernel_simple_kernel_summary">I-enable o i-disable ang malinis na mode na ipinapakita ng bersyon ng kernel ng ZySU</string>
     <string name="home_zygisk_implement">Pagpapatupad ng Zygisk</string>
     <string name="home_meta_module_implement">Pagpapatupad ng Meta Module</string>
     <!-- 确认安装相关字符串 -->

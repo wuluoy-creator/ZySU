@@ -63,12 +63,13 @@ internal fun HomeLayoutContent(
                     }
                     HomeLayoutStyle.Grid -> {
                         if (pair) {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    HomeMainStatusCard(style, state.status, Modifier.weight(1f).fillMaxHeight(), onInstall, onAuthenticate, showDetail)
-                                    ServiceSlot("home-service-ksud", Modifier.weight(1f).fillMaxHeight(), daemon)
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                HomeMainStatusCard(style, state.status, Modifier.weight(0.9f).fillMaxHeight(), onInstall, onAuthenticate, showDetail,
+                                    fillTileHeight = true)
+                                Column(Modifier.weight(1.1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    ServiceSlot("home-service-ksud", Modifier.weight(1f).fillMaxWidth(), daemon)
+                                    ServiceSlot("home-service-sumh", Modifier.weight(1f).fillMaxWidth(), kernel)
                                 }
-                                ServiceSlot("home-service-sumh", Modifier.fillMaxWidth(), kernel)
                             }
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -155,6 +156,7 @@ internal fun HomeMainStatusCard(
     onInstall: () -> Unit = {},
     onAuthenticate: () -> Unit = {},
     onDetails: (HomeFact) -> Unit = {},
+    fillTileHeight: Boolean = false,
 ) {
     val shape = getCardShape()
     val color = if (!status.installed || status.safeMode) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
@@ -170,7 +172,8 @@ internal fun HomeMainStatusCard(
         modifier = modifier.fillMaxWidth().testTag("home-status-card").clip(shape).then(actionModifier).border(getCardBorder(), shape),
         shape = shape, colors = getCardColors(MaterialTheme.colorScheme.surfaceContainerLow), elevation = getCardElevation(),
     ) {
-        Box(Modifier.fillMaxWidth().testTag("home-status-${style.id}"), propagateMinConstraints = true) {
+        Box(Modifier.fillMaxWidth().then(if (fillTileHeight) Modifier.fillMaxHeight() else Modifier)
+            .testTag("home-status-${style.id}"), propagateMinConstraints = true) {
             HomeMainCardArtwork(Modifier.matchParentSize())
             HomeServiceCardContent(
                 title = stringResource(R.string.app_name),

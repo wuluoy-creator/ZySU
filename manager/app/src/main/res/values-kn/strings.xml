@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">ಸಕ್ರಿಯ</string>
     <string name="selinux_disabled">ನಿಷ್ಕ್ರಿಯ</string>
-    <string name="simple_mode">ಸರಳತೆ ಮೋಡ್</string>
-    <string name="simple_mode_summary">ಆನ್ ಮಾಡಿದಾಗ ಅನಗತ್ಯ ಕಾರ್ಡ್‌ಗಳನ್ನು ಮರೆಮಾಡುತ್ತದೆ</string>
     <string name="hide_kernel_kernelsu_version">ಕರ್ನಲ್ ಆವೃತ್ತಿ ಮರೆಮಾಡಿ</string>
     <string name="hide_kernel_kernelsu_version_summary">ಕರ್ನಲ್ ಆವೃತ್ತಿ ಮರೆಮಾಡಿ</string>
     <string name="hide_other_info">ಇತರ ಮಾಹಿತಿ ಮರೆಮಾಡಿ</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">ಇದರ ಪ್ರಕಾರ ವಿಂಗಡಿಸಿ</string>
     <string name="show_more_module_info">ಹೆಚ್ಚಿನ ಮಾಡ್ಯೂಲ್ ಮಾಹಿತಿ ತೋರಿಸಿ</string>
     <string name="show_more_module_info_summary">ಅಪ್‌ಡೇಟ್ JSON URL ನಂತಹ ಹೆಚ್ಚುವರಿ ಮಾಡ್ಯೂಲ್ ಮಾಹಿತಿಯನ್ನು ಪ್ರದರ್ಶಿಸಿ</string>
-    <string name="kernel_simple_kernel">ಕರ್ನಲ್ ಆವೃತ್ತಿ ಸಂಕ್ಷಿಪ್ತ ಮೋಡ್</string>
-    <string name="kernel_simple_kernel_summary">ZySU ಕರ್ನಲ್ ಆವೃತ್ತಿಯಿಂದ ಪ್ರದರ್ಶಿಸಲಾದ ಸ್ವಚ್ಛ ಮೋಡ್ ಅನ್ನು ಸಕ್ರಿಯ ಅಥವಾ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ</string>
     <string name="home_zygisk_implement">Zygisk ಅನುಷ್ಠಾನ</string>
     <string name="home_meta_module_implement">Meta Module ಅನುಷ್ಠಾನ</string>
     <!-- 确认安装相关字符串 -->

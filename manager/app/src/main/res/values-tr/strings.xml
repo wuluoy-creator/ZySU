@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Etkin</string>
     <string name="selinux_disabled">Devre dışı</string>
-    <string name="simple_mode">Basit mod</string>
-    <string name="simple_mode_summary">Açıldığında gereksiz kartları gizler</string>
     <string name="hide_kernel_kernelsu_version">Çekirdek sürümünü gizle</string>
     <string name="hide_kernel_kernelsu_version_summary">Çekirdek sürümünü gizle</string>
     <string name="hide_other_info">Diğer bilgileri gizle</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Sıralama Seçenekleri</string>
     <string name="show_more_module_info">Daha Fazla Modül Bilgisi Göster</string>
     <string name="show_more_module_info_summary">Güncelleme JSON URL\'leri gibi ek modül bilgilerini göster</string>
-    <string name="kernel_simple_kernel">Çekirdek Sürümü Özet Modu</string>
-    <string name="kernel_simple_kernel_summary">ZySU çekirdek sürümünün gösterdiği sade modu etkinleştirin veya devre dışı bırakın</string>
     <string name="home_zygisk_implement">Zygisk uygulaması</string>
     <string name="home_meta_module_implement">Meta Modül uygulaması</string>
     <!-- 确认安装相关字符串 -->

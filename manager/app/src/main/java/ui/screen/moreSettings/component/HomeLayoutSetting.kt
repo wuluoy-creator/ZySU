@@ -121,8 +121,8 @@ private fun HomeLayoutThumbnail(style: HomeLayoutStyle, modifier: Modifier = Mod
                 tile(0f, .74f, 1f, .22f)
             }
             HomeLayoutStyle.Grid -> {
-                tile(0f, 0f, .46f, .26f, true); tile(.55f, 0f, .45f, .26f)
-                tile(0f, .34f, 1f, .26f); tile(0f, .7f, 1f, .26f)
+                tile(0f, 0f, .42f, .6f, true); tile(.51f, 0f, .49f, .26f)
+                tile(.51f, .34f, .49f, .26f); tile(0f, .7f, 1f, .26f)
             }
             HomeLayoutStyle.Focus -> {
                 tile(0f, 0f, 1f, .25f, true); tile(0f, .34f, 1f, .18f)

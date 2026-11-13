@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
@@ -29,6 +30,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowDialog
 import ui.screen.moreSettings.component.HomeCardArtworkSetting
 import java.io.File
 import kotlin.test.*
@@ -101,7 +103,7 @@ class HomeCardArtworkLayoutTest {
         capture("photo-zoom-dark-large")
     }
 
-    @Test fun settingsPreviewCanScaleResetAndRemoveImportedArtwork() {
+    @Test fun settingsPreviewCanScaleSetOverlayResetAndRemoveImportedArtwork() {
         importArtwork(true)
         compose.setContent { MaterialTheme { HomeCardArtworkSetting() } }
         compose.onNodeWithText(context.getString(R.string.home_card_artwork_title)).performClick()
@@ -109,12 +111,68 @@ class HomeCardArtworkLayoutTest {
         compose.onNodeWithTag("home-artwork-scale").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(1.5f) }
         compose.waitForIdle()
         assertEquals(1.5f, HomeCardArtworkStore.read(context).scale)
+        listOf(0f, 1f, 0.37f).forEach { opacity ->
+            compose.onNodeWithTag("home-artwork-overlay").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { it(opacity) }
+            compose.waitForIdle()
+            assertEquals(opacity, HomeCardArtworkStore.read(context).overlayOpacity)
+        }
+        capture("overlay-settings")
         compose.onNodeWithText(context.getString(R.string.home_card_artwork_reset)).performScrollTo().performClick()
         compose.waitForIdle()
         assertEquals(1f, HomeCardArtworkStore.read(context).scale)
+        assertEquals(0.37f, HomeCardArtworkStore.read(context).overlayOpacity)
         compose.onNodeWithText(context.getString(R.string.home_card_artwork_remove)).performScrollTo().performClick()
         compose.waitUntil(5_000) { HomeCardArtworkStore.read(context).file == null }
         compose.onNodeWithTag("home-card-artwork", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test fun overlayActuallyRendersTransparentIntermediateAndOpaqueInBothThemes() {
+        importArtwork(false)
+        val opacity = mutableFloatStateOf(0f)
+        val dark = mutableStateOf(false)
+        val artwork = HomeCardArtworkStore.read(context)
+        compose.setContent {
+            MaterialTheme(colorScheme = if (dark.value) darkColorScheme() else lightColorScheme()) {
+                Box(Modifier.size(240.dp, 160.dp)) {
+                    HomeCardArtworkLayer(artwork.copy(overlayOpacity = opacity.floatValue), Modifier.fillMaxSize())
+                }
+            }
+        }
+        awaitImage()
+        val bounds = compose.onNodeWithTag("home-card-artwork").getUnclippedBoundsInRoot()
+        listOf(false, true).forEach { isDark ->
+            compose.runOnIdle { dark.value = isDark }
+            val scheme = if (isDark) darkColorScheme() else lightColorScheme()
+            val pixels = listOf(0f, 0.5f, 1f).map { value ->
+                compose.runOnIdle { opacity.floatValue = value }
+                compose.waitForIdle()
+                assertEquals(bounds, compose.onNodeWithTag("home-card-artwork").getUnclippedBoundsInRoot())
+                capture("overlay-${if (isDark) "dark" else "light"}-${(value * 100).toInt()}")
+                compose.onNodeWithTag("home-card-artwork").captureToImage().asAndroidBitmap().getPixel(20, 20)
+            }
+            assertEquals(AndroidColor.rgb(40, 180, 160), pixels[0], "0% must leave the image unaltered")
+            assertEquals(scheme.surfaceContainerLow.toArgb(), pixels[2], "100% must fully cover the image")
+            assertNotEquals(pixels[0], pixels[1])
+            assertNotEquals(pixels[2], pixels[1])
+        }
+    }
+
+    @Test fun overlayControlRemainsReachableInDarkSettingsAtDoubleTextSize() {
+        importArtwork(true)
+        compose.setContent {
+            MaterialTheme(colorScheme = darkColorScheme(), typography = Typography.withAppearance(2f, "system")) {
+                HomeCardArtworkSetting()
+            }
+        }
+        compose.onNodeWithText(context.getString(R.string.home_card_artwork_title)).performClick()
+        awaitImage()
+        compose.onNodeWithTag("home-artwork-overlay").performScrollTo().assertIsDisplayed()
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0.65f) }
+        compose.waitForIdle()
+        assertEquals(0.65f, HomeCardArtworkStore.read(context).overlayOpacity)
+        capture("overlay-settings-dark-large")
+        compose.onNodeWithText(context.getString(R.string.home_card_artwork_close)).assertIsDisplayed().performClick()
     }
 
     private fun status() = HomeStatusPresentation("Working", true,
@@ -125,9 +183,15 @@ class HomeCardArtworkLayoutTest {
     }
 
     private fun capture(name: String) {
-        val file = File("../../out/custom-home-artwork-ui/$name.png")
-        file.parentFile.mkdirs()
-        compose.onRoot().captureToImage().asAndroidBitmap().let { bitmap ->
+        val file = File("../../out/grid-overlay-artwork-ui/$name.png")
+        file.parentFile?.mkdirs()
+        val frame = if (compose.onAllNodes(isDialog()).fetchSemanticsNodes().isNotEmpty()) {
+            compose.runOnIdle {
+                val decor = checkNotNull(ShadowDialog.getLatestDialog().window).decorView
+                Bitmap.createBitmap(decor.width, decor.height, Bitmap.Config.ARGB_8888).also { decor.draw(Canvas(it)) }
+            }
+        } else compose.onRoot().captureToImage().asAndroidBitmap()
+        frame.let { bitmap ->
             file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
     }

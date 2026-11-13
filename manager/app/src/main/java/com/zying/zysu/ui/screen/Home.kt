@@ -321,7 +321,7 @@ fun HomeScreen(navigator: DestinationsNavigator) {
 
                 if (viewModel.isExtendedDataLoaded || hasLoadedExtended) {
                     // 链接卡片
-                    if (!viewModel.isSimpleMode && !viewModel.isHideLinkCard) {
+                    if (!viewModel.isHideLinkCard) {
                         ElevatedCard(
                             modifier = Modifier.border(getCardBorder(), getCardShape()),
                             shape = getCardShape(),

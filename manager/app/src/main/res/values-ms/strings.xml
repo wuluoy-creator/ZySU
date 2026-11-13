@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">Didayakan</string>
     <string name="selinux_disabled">Dilumpuhkan</string>
-    <string name="simple_mode">Mod ringkas</string>
-    <string name="simple_mode_summary">Menyembunyikan kad yang tidak perlu apabila dihidupkan</string>
     <string name="hide_kernel_kernelsu_version">Sembunyikan versi kernel</string>
     <string name="hide_kernel_kernelsu_version_summary">Sembunyikan versi kernel</string>
     <string name="hide_other_info">Sembunyikan maklumat lain</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">Isih mengikut</string>
     <string name="show_more_module_info">Tunjukkan Lebih Banyak Maklumat Modul</string>
     <string name="show_more_module_info_summary">Paparkan maklumat modul tambahan seperti URL Update JSON</string>
-    <string name="kernel_simple_kernel">Mod Ringkas Versi Kernel</string>
-    <string name="kernel_simple_kernel_summary">Dayakan atau lumpuhkan mod ringkas yang dipaparkan oleh versi kernel ZySU</string>
     <string name="home_zygisk_implement">Pelaksanaan Zygisk</string>
     <string name="home_meta_module_implement">Pelaksanaan metamodul</string>
     <!-- 确认安装相关字符串 -->

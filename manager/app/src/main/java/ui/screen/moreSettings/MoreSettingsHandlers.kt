@@ -226,19 +226,9 @@ class MoreSettingsHandlers(
         CardConfig.save(context)
     }
 
-    fun handleSimpleModeChange(newValue: Boolean) {
-        prefs.edit { putBoolean("is_simple_mode", newValue) }
-        state.isSimpleMode = newValue
-    }
-
     fun handlePredictiveBackChange(enabled: Boolean) {
         prefs.edit { putBoolean(PREDICTIVE_BACK_PREFERENCE, enabled) }
         state.predictiveBackEnabled = enabled
-    }
-
-    fun handleKernelSimpleModeChange(newValue: Boolean) {
-        prefs.edit { putBoolean("is_kernel_simple_mode", newValue) }
-        state.isKernelSimpleMode = newValue
     }
 
     fun handleHideVersionChange(newValue: Boolean) {

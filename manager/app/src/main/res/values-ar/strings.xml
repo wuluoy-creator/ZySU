@@ -173,8 +173,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">مفعّل</string>
     <string name="selinux_disabled">معطل</string>
-    <string name="simple_mode">وضع البساطة</string>
-    <string name="simple_mode_summary">إخفاء البطاقات غير الضرورية عند تشغيلها</string>
     <string name="hide_kernel_kernelsu_version">إخفاء إصدار النواة</string>
     <string name="hide_kernel_kernelsu_version_summary">إخفاء إصدار النواة</string>
     <string name="hide_other_info">إخفاء معلومات أخرى</string>
@@ -278,8 +276,6 @@
     <string name="sort_options">الترتيب حسب</string>
     <string name="show_more_module_info">إظهار مزيد من معلومات الوحدة</string>
     <string name="show_more_module_info_summary">إظهار معلومات إضافية عن الوحدة مثل روابط Update JSON</string>
-    <string name="kernel_simple_kernel">الوضع المختصر لإصدار النواة</string>
-    <string name="kernel_simple_kernel_summary">تفعيل أو تعطيل الوضع المختصر لعرض إصدار نواة ZySU</string>
     <string name="home_zygisk_implement">تنفيذ Zygisk</string>
     <string name="home_meta_module_implement">تنفيذ الوحدة الفوقية</string>
     <!-- 确认安装相关字符串 -->

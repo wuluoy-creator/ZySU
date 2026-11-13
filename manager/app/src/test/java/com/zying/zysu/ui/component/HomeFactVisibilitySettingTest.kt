@@ -59,7 +59,7 @@ class HomeFactVisibilitySettingTest {
                 assertEquals(HomeFactField.entries.size - index - 1, HomeFactVisibility.read(preferences).size)
                 compose.onNodeWithText(compose.activity.getString(field.label)).assertIsOff()
             }
-            val directory = File("../../out/custom-home-facts-ui").apply { mkdirs() }
+            val directory = File("../../out/grid-overlay-facts-ui").apply { mkdirs() }
             File(directory, "visibility-picker.png").outputStream().use {
                 compose.onNode(isDialog()).captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
             }
@@ -87,7 +87,7 @@ class HomeFactVisibilitySettingTest {
             compose.onNodeWithText(compose.activity.getString(field.label)).performScrollTo()
                 .assertIsDisplayed().assertHeightIsAtLeast(48.dp).performClick().assertIsOff()
         }
-        val directory = File("../../out/custom-home-facts-ui").apply { mkdirs() }
+        val directory = File("../../out/grid-overlay-facts-ui").apply { mkdirs() }
         File(directory, "visibility-picker-dark-large.png").outputStream().use {
             compose.onNode(isDialog()).captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
         }

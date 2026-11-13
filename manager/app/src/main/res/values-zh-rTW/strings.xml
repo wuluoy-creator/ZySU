@@ -176,8 +176,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">嚴格模式</string>
     <string name="selinux_disabled">已停用</string>
-    <string name="simple_mode">簡潔模式</string>
-    <string name="simple_mode_summary">啟用後將隱藏不必要的卡片</string>
     <string name="hide_kernel_kernelsu_version">隱藏內核版本號</string>
     <string name="hide_kernel_kernelsu_version_summary">隱藏內核部分的 KernelSU 版本號</string>
     <string name="hide_other_info">強迫症開關</string>
@@ -286,8 +284,6 @@
     <string name="settings_module_description_max_lines">模組描述最大行數</string>
     <string name="settings_module_description_max_lines_summary">超過此行數的模組介紹將自動折疊。</string>
     <string name="unit_lines">行</string>
-    <string name="kernel_simple_kernel">內核版本簡潔模式</string>
-    <string name="kernel_simple_kernel_summary">啟用或停用 ZySU 內核版本顯示的簡潔模式</string>
     <string name="home_zygisk_implement">Zygisk 實現</string>
     <string name="home_meta_module_implement">元模組實現</string>
     <string name="home_working_mode">工作模式</string>

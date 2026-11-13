@@ -54,22 +54,26 @@ class HomeCardArtworkStoreTest {
         val source = image("old.png")
         HomeCardArtworkStore.import(context, Uri.fromFile(source))
         val old = assertNotNull(HomeCardArtworkStore.read(context).file)
+        HomeCardArtworkStore.setOverlayOpacity(context, 0.35f)
         val replacement = image("new.png", false)
         assertEquals(ArtworkImportResult.Success, HomeCardArtworkStore.import(context, Uri.fromFile(replacement)))
         val current = assertNotNull(HomeCardArtworkStore.read(context).file)
         assertNotEquals(old, current)
         assertFalse(old.exists())
+        assertEquals(0.35f, HomeCardArtworkStore.read(context).overlayOpacity)
         assertTrue(HomeCardArtworkStore.clear(context))
         assertFalse(current.exists())
         assertTrue(source.exists())
         assertTrue(replacement.exists())
         assertNull(HomeCardArtworkStore.read(context).file)
+        assertEquals(HomeCardArtworkStore.DEFAULT_OVERLAY_OPACITY, HomeCardArtworkStore.read(context).overlayOpacity)
     }
 
     @Test fun malformedAndOversizedImportsPreservePreviousImageAndTransform() = runBlocking {
         HomeCardArtworkStore.import(context, Uri.fromFile(image("valid.png")))
         HomeCardArtworkStore.setScale(context, 1.75f)
         HomeCardArtworkStore.setCrop(context, true)
+        HomeCardArtworkStore.setOverlayOpacity(context, 0f)
         val previous = HomeCardArtworkStore.read(context)
         val bad = File(context.cacheDir, "not-an-image.png").apply { writeText("not an image") }
         assertEquals(ArtworkImportResult.InvalidImage, HomeCardArtworkStore.import(context, Uri.fromFile(bad)))
@@ -96,10 +100,26 @@ class HomeCardArtworkStoreTest {
         assertNull(HomeCardArtworkStore.read(context).file)
     }
 
+    @Test fun overlayOpacityRetainsExactEndpointsAndValidatesPersistedValues() {
+        assertEquals(0.82f, HomeCardArtworkStore.read(context).overlayOpacity)
+        listOf(0f, 0.37f, 1f).forEach { opacity ->
+            HomeCardArtworkStore.setOverlayOpacity(context, opacity)
+            assertEquals(opacity, HomeCardArtworkStore.read(context).overlayOpacity)
+        }
+        listOf(-1f to 0f, 2f to 1f, Float.NaN to 0.82f,
+            Float.POSITIVE_INFINITY to 0.82f, Float.NEGATIVE_INFINITY to 0.82f).forEach { (input, expected) ->
+            HomeCardArtworkStore.setOverlayOpacity(context, input)
+            assertEquals(expected, HomeCardArtworkStore.read(context).overlayOpacity)
+            HomeCardArtworkStore.preferences(context).edit().putFloat("overlay_opacity", input).commit()
+            assertEquals(expected, HomeCardArtworkStore.read(context).overlayOpacity)
+        }
+    }
+
     @Test fun failedCommitRestoresSelectionForReplacementAndRemoval() = runBlocking {
         HomeCardArtworkStore.import(context, Uri.fromFile(image("working.png")))
         HomeCardArtworkStore.setScale(context, 1.8f)
         HomeCardArtworkStore.setCrop(context, true)
+        HomeCardArtworkStore.setOverlayOpacity(context, 0.45f)
         val previous = HomeCardArtworkStore.read(context)
         val failingContext = FailedCommitContext(context)
         failingContext.failNext = true

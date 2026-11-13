@@ -173,8 +173,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">เปิดใช้งาน</string>
     <string name="selinux_disabled">ปิดการใช้งาน</string>
-    <string name="simple_mode">โหมดเรียบง่าย</string>
-    <string name="simple_mode_summary">ซ่อนการ์ดที่ไม่จำเป็นเมื่อเปิดใช้งาน</string>
     <string name="hide_kernel_kernelsu_version">ซ่อนเวอร์ชันเคอร์เนล</string>
     <string name="hide_kernel_kernelsu_version_summary">ซ่อนเวอร์ชันเคอร์เนล</string>
     <string name="hide_other_info">ซ่อนข้อมูลอื่น</string>
@@ -278,8 +276,6 @@
     <string name="sort_options">เรียงตาม</string>
     <string name="show_more_module_info">แสดงข้อมูลโมดูลเพิ่มเติม</string>
     <string name="show_more_module_info_summary">แสดงข้อมูลโมดูลเพิ่มเติม เช่น URL ของ Update JSON</string>
-    <string name="kernel_simple_kernel">โหมดย่อของเวอร์ชันเคอร์เนล</string>
-    <string name="kernel_simple_kernel_summary">เปิดหรือปิดโหมดย่อของการแสดงเวอร์ชันเคอร์เนล ZySU</string>
     <string name="home_zygisk_implement">การใช้งาน Zygisk</string>
     <string name="home_meta_module_implement">การใช้งานเมตาโมดูล</string>
     <!-- 确认安装相关字符串 -->

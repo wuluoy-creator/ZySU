@@ -2,7 +2,7 @@
 <resources>
     <string name="home_fact_visibility_title">核心信息显示项目</string>
     <string name="home_fact_visibility_count">已选择 %1$d / %2$d 项</string>
-    <string name="home_fact_visibility_summary">逐项选择主页显示的信息，修改立即生效。手动选择优先于简洁模式。</string>
+    <string name="home_fact_visibility_summary">逐项选择主页显示的信息，修改立即生效。</string>
     <string name="home_fact_visibility_availability">运行模式、Zygisk 和挂载实现仅在数据可用时显示。关闭所有项目可隐藏核心信息卡片。</string>
     <string name="home_fact_visibility_build_detail">显示在可展开的设备构建详情中</string>
 </resources>

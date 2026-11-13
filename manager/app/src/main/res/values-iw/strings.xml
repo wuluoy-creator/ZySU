@@ -171,8 +171,6 @@
     <string name="selinux">SELinux</string>
     <string name="selinux_enabled">מופעל</string>
     <string name="selinux_disabled">מושבת</string>
-    <string name="simple_mode">מצב פשטות</string>
-    <string name="simple_mode_summary">מסתיר כרטיסים מיותרים כאשר מופעל</string>
     <string name="hide_kernel_kernelsu_version">הסתר את גרסת הליבה</string>
     <string name="hide_kernel_kernelsu_version_summary">הסתר את גרסת הליבה</string>
     <string name="hide_other_info">הסתר מידע אחר</string>
@@ -276,8 +274,6 @@
     <string name="sort_options">מיין לפי</string>
     <string name="show_more_module_info">הצג מידע נוסף על המודול</string>
     <string name="show_more_module_info_summary">הצג מידע נוסף על המודול כגון כתובות Update JSON</string>
-    <string name="kernel_simple_kernel">מצב תמציתי של גרסת הליבה</string>
-    <string name="kernel_simple_kernel_summary">הפעל או השבת את המצב הנקי המוצג על ידי גרסת הליבה של ZySU</string>
     <string name="home_zygisk_implement">יישום Zygisk</string>
     <string name="home_meta_module_implement">יישום Meta Module</string>
     <!-- 确认安装相关字符串 -->
