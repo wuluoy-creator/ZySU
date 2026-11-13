@@ -8,9 +8,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -158,26 +160,67 @@ internal fun HomeServiceCardContent(
     tag: String,
     value: @Composable () -> Unit,
     status: @Composable () -> Unit,
-    distributeVertically: Boolean = false,
+    centerStatusGroup: Boolean = false,
     supporting: @Composable ColumnScope.() -> Unit = {},
 ) {
     Column(
-        Modifier.fillMaxWidth().then(if (distributeVertically) Modifier.fillMaxHeight() else Modifier).padding(16.dp),
-        verticalArrangement = if (distributeVertically) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp),
+        Modifier.fillMaxWidth().then(if (centerStatusGroup) Modifier.fillMaxHeight() else Modifier).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp, if (centerStatusGroup) Alignment.CenterVertically else Alignment.Top),
     ) {
         HomeStatusCardHeader(title, description, icon, enabled, Modifier.testTag("service-$tag-header"))
-        if (distributeVertically) {
-            // The tall Grid tile uses its full height without changing the shared text styles.
-            Column(Modifier.padding(vertical = 8.dp)) { value() }
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                status()
-                supporting()
-            }
+        if (centerStatusGroup) {
+            // Keep related Grid information together, including when the version is hidden.
+            status()
+            value()
         } else {
             value()
             status()
-            supporting()
         }
+        supporting()
+    }
+}
+
+/** Only the paired Grid's right column uses compact service cards. */
+internal val LocalCompactHomeServices = staticCompositionLocalOf { false }
+
+@Composable
+internal fun HomeCompactServiceContent(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    tag: String,
+    label: String,
+    value: String,
+    valueDescription: String,
+    onDetails: () -> Unit,
+    status: @Composable () -> Unit,
+    supporting: @Composable ColumnScope.() -> Unit = {},
+) {
+    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.heightIn(min = 24.dp).testTag("service-$tag-header")
+                    .clearAndSetSemantics { heading(); contentDescription = description },
+                    horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    YukiIcon(icon, null, Modifier.size(20.dp),
+                        tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            IconButton(onClick = onDetails, modifier = Modifier.size(48.dp).testTag("service-$tag-value")
+                .semantics { contentDescription = valueDescription }) {
+                YukiIcon(Icons.Outlined.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+        status()
+        supporting()
     }
 }
 

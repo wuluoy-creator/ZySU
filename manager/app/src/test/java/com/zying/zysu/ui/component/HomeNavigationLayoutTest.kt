@@ -53,6 +53,7 @@ class HomeNavigationLayoutTest {
 
     @Test fun circleWithGlass() = verify(HomeLayoutStyle.Circle, NavigationBarStyle.Glass)
     @Test fun gridWithDrawerFloating() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.FloatingDrawer)
+    @Test fun compactGridDarkTheme() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.FloatingDrawer, dark = true, suffix = "-dark")
     @Test fun focusWithDrawerFloating() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingDrawer)
     @Test fun retainedGlassNavigation() = verify(HomeLayoutStyle.Grid, NavigationBarStyle.Glass)
     @Test fun largeTextDarkNavigation() = verify(HomeLayoutStyle.Focus, NavigationBarStyle.FloatingDrawer, dark = true, fontScale = 2f)
@@ -158,7 +159,7 @@ class HomeNavigationLayoutTest {
         saveFrame("main-service-row-rhythm")
     }
 
-    @Test fun gridUsesBottomSpaceWithHiddenVersionAndRequiredActions() {
+    @Test fun gridKeepsHiddenVersionAndRequiredActionsInOneCompactGroup() {
         val status = mutableStateOf(HomeStatusPresentation("运行正常", installed = true))
         var installs = 0
         var authentications = 0
@@ -172,18 +173,23 @@ class HomeNavigationLayoutTest {
             }
         }
         val main = compose.onNodeWithTag("home-status-card").getUnclippedBoundsInRoot()
+        val header = compose.onNodeWithTag("service-main-header", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val footer = compose.onNodeWithTag("service-main-status", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        assertEquals(16f, (main.bottom - footer.bottom).value, 1f)
+        assertEquals(8f, (footer.top - header.bottom).value, 1f, "Hidden version must leave no placeholder or distributed gap")
+        assertEquals((header.top - main.top).value, (main.bottom - footer.bottom).value, 1f)
         compose.onNodeWithTag("service-main-value").assertDoesNotExist()
         saveFrame("grid-hidden-version")
         compose.runOnIdle { status.value = HomeStatusPresentation("未安装", installed = false, needsAuthentication = true) }
         val card = compose.onNodeWithTag("home-status-card").getUnclippedBoundsInRoot()
+        val actionHeader = compose.onNodeWithTag("service-main-header", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val statusRow = compose.onNodeWithTag("service-main-status", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val install = compose.onNodeWithTag("home-install-action").getUnclippedBoundsInRoot()
         val authenticate = compose.onNodeWithTag("home-authenticate-action").getUnclippedBoundsInRoot()
         assertTrue(install.top >= statusRow.bottom && authenticate.top >= statusRow.bottom)
         assertTrue(install.bottom <= card.bottom && authenticate.bottom <= card.bottom)
-        assertEquals(16f, (card.bottom - maxOf(install.bottom, authenticate.bottom)).value, 1f)
+        assertEquals((actionHeader.top - card.top).value, (card.bottom - maxOf(install.bottom, authenticate.bottom)).value, 1f)
+        assertTrue((minOf(install.top, authenticate.top) - statusRow.bottom).value in 8f..16f,
+            "Required actions must remain adjacent to status, allowing their internal touch-target inset")
         compose.onNodeWithTag("home-install-action").assertIsDisplayed().performClick()
         compose.onNodeWithTag("home-authenticate-action").assertIsDisplayed().performClick()
         assertEquals(1, installs)
@@ -328,6 +334,7 @@ class HomeNavigationLayoutTest {
             assertEquals(12f, (sumh.top - ksud.bottom).value, 1f)
             assertEquals((ksud.bottom - ksud.top).value, (sumh.bottom - sumh.top).value, 1f)
             assertEquals((ksud.bottom - ksud.top + 12.dp + sumh.bottom - sumh.top).value, (main.bottom - main.top).value, 1f)
+            assertTrue((main.bottom - main.top).value <= 224f, "Healthy Grid must be genuinely shorter than the former 314 dp layout")
             assertEquals(0.9f / 1.1f, (main.right - main.left).value / (ksud.right - ksud.left).value, 0.02f)
             // The artwork is matchParentSize in this host, so it must cover the whole tall tile.
             assertEquals(main.top.value, body.top.value, 1f)
@@ -335,11 +342,10 @@ class HomeNavigationLayoutTest {
             val header = compose.onNodeWithTag("service-main-header", useUnmergedTree = true).getUnclippedBoundsInRoot()
             val version = compose.onNodeWithTag("service-main-value", useUnmergedTree = true).getUnclippedBoundsInRoot()
             val status = compose.onNodeWithTag("service-main-status", useUnmergedTree = true).getUnclippedBoundsInRoot()
-            assertEquals(16f, (header.top - main.top).value, 1f)
-            assertEquals(16f, (main.bottom - status.bottom).value, 1f, "Status must use the bottom of the tall main card")
-            assertTrue(version.top > header.bottom && version.bottom < status.top)
-            assertEquals((version.top - header.bottom).value, (status.top - version.bottom).value, 1f,
-                "Version should occupy the middle, with balanced space above and below")
+            assertEquals(8f, (status.top - header.bottom).value, 1f, "Status must stay adjacent to its title")
+            assertEquals(8f, (version.top - status.bottom).value, 1f, "Version must stay in the same compact group")
+            assertEquals((header.top - main.top).value, (main.bottom - version.bottom).value, 1f,
+                "Keep the whole information group centered, not its rows spread over the tile")
             listOf("header", "value", "status").forEach { row ->
                 val ksudRow = compose.onNodeWithTag("service-ksud-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
                 val sumhRow = compose.onNodeWithTag("service-sumh-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
@@ -393,7 +399,7 @@ class HomeNavigationLayoutTest {
     }
 
     private fun saveFrame(name: String) {
-        val output = File("../../out/grid-card-spacing-ui/$name.png")
+        val output = File("../../out/grid-main-compact-ui/$name.png")
         output.parentFile?.mkdirs()
         val frame = if (name.endsWith("-detail")) {
             compose.onNode(isDialog()).assertIsDisplayed()

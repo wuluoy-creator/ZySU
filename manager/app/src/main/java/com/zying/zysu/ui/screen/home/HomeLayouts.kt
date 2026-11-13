@@ -31,6 +31,7 @@ import com.zying.zysu.ui.component.HomeMainCardArtwork
 import com.zying.zysu.ui.component.HomeServiceCardContent
 import com.zying.zysu.ui.component.HomeServiceStatusRow
 import com.zying.zysu.ui.component.HomeServiceValueRow
+import com.zying.zysu.ui.component.LocalCompactHomeServices
 import com.zying.zysu.ui.theme.AppearancePreferences
 import com.zying.zysu.ui.theme.getCardBorder
 import com.zying.zysu.ui.theme.getCardColors
@@ -66,9 +67,11 @@ internal fun HomeLayoutContent(
                             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 HomeMainStatusCard(style, state.status, Modifier.weight(0.9f).fillMaxHeight(), onInstall, onAuthenticate, showDetail,
                                     fillTileHeight = true)
-                                Column(Modifier.weight(1.1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    ServiceSlot("home-service-ksud", Modifier.weight(1f).fillMaxWidth(), daemon)
-                                    ServiceSlot("home-service-sumh", Modifier.weight(1f).fillMaxWidth(), kernel)
+                                CompositionLocalProvider(LocalCompactHomeServices provides true) {
+                                    Column(Modifier.weight(1.1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        ServiceSlot("home-service-ksud", Modifier.weight(1f).fillMaxWidth(), daemon)
+                                        ServiceSlot("home-service-sumh", Modifier.weight(1f).fillMaxWidth(), kernel)
+                                    }
                                 }
                             }
                         } else {
@@ -181,7 +184,7 @@ internal fun HomeMainStatusCard(
                 icon = Icons.Outlined.Security,
                 enabled = status.installed,
                 tag = "main",
-                distributeVertically = fillTileHeight,
+                centerStatusGroup = fillTileHeight,
                 value = {
                     status.version?.let { fact ->
                         HomeServiceValueRow(

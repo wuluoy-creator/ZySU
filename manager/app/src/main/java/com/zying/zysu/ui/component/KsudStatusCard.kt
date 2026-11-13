@@ -70,12 +70,13 @@ internal fun KsudStatusCard(
         ?: stringResource(R.string.home_ksud_daemon_sync)
     val canSync = !loading && !syncing && syncUnavailableReason == null
     val cardColors = getCardColors(colors.surfaceContainerLow)
+    val compact = LocalCompactHomeServices.current
     var showVersionDetails by remember { mutableStateOf(false) }
 
     ElevatedCard(
         onClick = onSync,
         enabled = canSync,
-        modifier = modifier.heightIn(min = 136.dp)
+        modifier = modifier.heightIn(min = if (compact) 100.dp else 136.dp)
             .border(getCardBorder(), getCardShape())
             .semantics {
                 onClick(label = syncLabel, action = null)
@@ -89,36 +90,45 @@ internal fun KsudStatusCard(
         ),
         elevation = getCardElevation(),
     ) {
-        HomeServiceCardContent(
-            title = "KSUD", description = titleDescription, icon = Icons.Outlined.Terminal,
-            enabled = canSync, tag = "ksud",
-            value = {
-                HomeServiceValueRow(
-                    label = stringResource(R.string.service_card_version),
-                    value = version?.let(::homeReleaseLabel) ?: stringResource(R.string.home_ksud_daemon_unknown),
-                    description = versionDescription, tag = "ksud", onDetails = { showVersionDetails = true },
-                )
-            },
-            status = {
-                HomeServiceStatusRow(status, statusColor, "ksud") {
-                    if (loading || syncing) {
-                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    } else {
-                        YukiIcon(
-                            when {
-                                syncFailed || mismatch -> Icons.Outlined.Warning
-                                verified -> Icons.Outlined.CheckCircle
-                                else -> Icons.AutoMirrored.Outlined.HelpOutline
-                            },
-                            null, Modifier.size(16.dp), tint = statusColor,
-                        )
-                    }
+        val label = stringResource(R.string.service_card_version)
+        val displayVersion = version?.let(::homeReleaseLabel) ?: stringResource(R.string.home_ksud_daemon_unknown)
+        val statusContent: @Composable () -> Unit = {
+            HomeServiceStatusRow(status, statusColor, "ksud") {
+                if (loading || syncing) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    YukiIcon(
+                        when {
+                            syncFailed || mismatch -> Icons.Outlined.Warning
+                            verified -> Icons.Outlined.CheckCircle
+                            else -> Icons.AutoMirrored.Outlined.HelpOutline
+                        },
+                        null, Modifier.size(16.dp), tint = statusColor,
+                    )
                 }
-            },
-        ) {
+            }
+        }
+        val supportingContent: @Composable ColumnScope.() -> Unit = {
             if (!loading && !syncing && syncUnavailableReason != null) {
                 Text(syncUnavailableReason, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
+        }
+        if (compact) {
+            HomeCompactServiceContent(
+                title = "KSUD", description = titleDescription, icon = Icons.Outlined.Terminal,
+                enabled = canSync, tag = "ksud", label = label, value = displayVersion,
+                valueDescription = versionDescription, onDetails = { showVersionDetails = true },
+                status = statusContent, supporting = supportingContent,
+            )
+        } else {
+            HomeServiceCardContent(
+                title = "KSUD", description = titleDescription, icon = Icons.Outlined.Terminal,
+                enabled = canSync, tag = "ksud",
+                value = {
+                    HomeServiceValueRow(label, displayVersion, versionDescription, "ksud") { showVersionDetails = true }
+                },
+                status = statusContent, supporting = supportingContent,
+            )
         }
     }
     if (showVersionDetails) {

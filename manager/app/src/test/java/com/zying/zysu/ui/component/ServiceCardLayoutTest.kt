@@ -63,6 +63,69 @@ class ServiceCardLayoutTest {
         capture("paired-320")
     }
 
+    @Test fun compactGridServicesKeepReadableRowsAndIndependentDetailsAt177dp() {
+        var syncs = 0
+        var refreshes = 0
+        show {
+            CompositionLocalProvider(LocalCompactHomeServices provides true) {
+                Column(Modifier.width(177.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KsudFixture(Modifier.fillMaxWidth().testTag("ksud-card"), sync = { syncs++ })
+                    SumhFixture(Modifier.fillMaxWidth().testTag("sumh-card"), refresh = { refreshes++ })
+                }
+            }
+        }
+        listOf("ksud", "sumh").forEach { service ->
+            val card = compose.onNodeWithTag("$service-card").getUnclippedBoundsInRoot()
+            assertTrue((card.bottom - card.top).value < 136f, "Healthy compact service must be smaller than the normal card")
+            compose.onNodeWithTag("service-$service-value").assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
+            listOf("header", "value", "status").forEach { row ->
+                val bounds = compose.onNodeWithTag("service-$service-$row", useUnmergedTree = true).getUnclippedBoundsInRoot()
+                assertTrue(bounds.left >= card.left && bounds.right <= card.right && bounds.bottom <= card.bottom)
+            }
+            compose.onNodeWithTag("service-$service-header", useUnmergedTree = true).performTouchInput { click() }
+        }
+        compose.onNodeWithText(compose.activity.getString(R.string.service_card_version)).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.service_card_protocol)).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.home_ksud_verified)).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.home_sumh_views_on)).assertIsDisplayed()
+        assertEquals(1, syncs)
+        assertEquals(1, refreshes)
+        capture("compact-177", "grid-main-compact-service-ui")
+        compose.onNodeWithTag("service-ksud-value").performClick()
+        compose.onNodeWithText(longVersion, substring = true).assertIsDisplayed()
+        assertEquals(1, syncs)
+        compose.onNodeWithText(compose.activity.getString(android.R.string.ok)).performClick()
+        compose.onNodeWithTag("service-sumh-value").performClick()
+        compose.onNodeWithText(longProtocol, substring = true).assertIsDisplayed()
+        assertEquals(1, refreshes)
+    }
+
+    @Test fun compactWarningsGrowAndLoadingStillLeavesDetailsEnabled() {
+        val diagnostic = "Kernel protocol mismatch with additional runtime diagnostics that must remain readable."
+        show {
+            CompositionLocalProvider(LocalCompactHomeServices provides true) {
+                Column(Modifier.width(177.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KsudFixture(Modifier.fillMaxWidth().testTag("ksud-card"), loading = true)
+                    SUMHStatusSummaryCard(SUMHUiAdapter.SUMHStatus.AVAILABLE, longProtocol,
+                        system.copy(sumhMismatch = true, mismatchMessage = diagnostic), {},
+                        modifier = Modifier.fillMaxWidth().testTag("sumh-card"))
+                }
+            }
+        }
+        compose.onNodeWithTag("ksud-card").assertIsNotEnabled()
+        compose.onNodeWithTag("service-ksud-value").assertIsEnabled().performClick()
+        compose.onNodeWithText(longVersion, substring = true).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(android.R.string.ok)).performClick()
+        val before = compose.onNodeWithTag("sumh-card").getUnclippedBoundsInRoot()
+        compose.onNodeWithText(compose.activity.getString(R.string.home_sumh_show_error)).performClick()
+        compose.onNodeWithText(diagnostic).assertIsDisplayed()
+        val after = compose.onNodeWithTag("sumh-card").getUnclippedBoundsInRoot()
+        assertTrue(after.bottom - after.top > before.bottom - before.top)
+        val detail = compose.onNodeWithText(diagnostic).getUnclippedBoundsInRoot()
+        assertTrue(detail.bottom <= after.bottom && detail.right <= after.right)
+        capture("compact-warning", "grid-main-compact-service-ui")
+    }
+
     @Test fun largeFontFullWidthCardsGrowWithoutTruncatingLabelsOrStatus() {
         show(fontScale = 2f, dark = true) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -133,11 +196,15 @@ class ServiceCardLayoutTest {
 
     @Test fun dedicatedStatusScreenRetainsRuntimeFields() {
         show {
-            SUMHStatusSummaryCard(SUMHUiAdapter.SUMHStatus.AVAILABLE, "13", system, {},
-                modifier = Modifier.fillMaxWidth(), includeRuntimeDetails = true, includeKernel = true)
+            CompositionLocalProvider(LocalCompactHomeServices provides true) {
+                SUMHStatusSummaryCard(SUMHUiAdapter.SUMHStatus.AVAILABLE, "13", system, {},
+                    modifier = Modifier.fillMaxWidth(), includeRuntimeDetails = true, includeKernel = true)
+            }
         }
         compose.onNodeWithText(system.kernel).assertIsDisplayed()
         compose.onNodeWithText(system.mountBase).assertIsDisplayed()
+        compose.onNodeWithTag("service-sumh-header", useUnmergedTree = true).assertHeightIsAtLeast(32.dp)
+        compose.onNodeWithTag("service-sumh-value").assertWidthIsAtLeast(200.dp)
         capture("runtime-details")
     }
 
@@ -162,8 +229,8 @@ class ServiceCardLayoutTest {
         }
     }
 
-    private fun capture(name: String) {
-        val file = File("../../out/service-card-revision-ui/$name.png")
+    private fun capture(name: String, directory: String = "service-card-revision-ui") {
+        val file = File("../../out/$directory/$name.png")
         file.parentFile?.mkdirs()
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
